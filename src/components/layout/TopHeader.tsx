@@ -10,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { NotificationBell } from "@/components/ui/notification-bell";
 
 interface TopHeaderProps {
   isDarkMode: boolean;
@@ -18,7 +20,8 @@ interface TopHeaderProps {
 
 export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
   const { state } = useSidebar();
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
+  const { profile, getInitials } = useUserProfile();
 
   const handleSignOut = () => {
     signOut();
@@ -40,6 +43,8 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
+          <NotificationBell />
+          
           <Button
             variant="ghost"
             size="sm"
@@ -58,9 +63,8 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src="/api/placeholder/40/40" alt="User" />
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    JA
+                    {profile ? getInitials(profile.nickname) : 'U'}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -68,9 +72,14 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuItem>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user?.user_metadata?.nickname || "User"}</p>
+                  <p className="text-sm font-medium leading-none">
+                    {profile?.nickname || "User"}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email}
+                    {profile?.email}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground capitalize">
+                    Role: {profile?.role || 'viewer'}
                   </p>
                 </div>
               </DropdownMenuItem>

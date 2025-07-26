@@ -1,5 +1,4 @@
 
-import { useState } from "react";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -30,6 +29,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useAuth } from "@/hooks/useAuth";
 
 const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -50,6 +51,8 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+  const { profile, getInitials } = useUserProfile();
+  const { signOut } = useAuth();
 
   const isActive = (path: string) => currentPath === path;
   
@@ -127,15 +130,18 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         <div className="flex items-center gap-3">
           <Avatar className="w-8 h-8">
-            <AvatarImage src="/api/placeholder/32/32" alt="User" />
             <AvatarFallback className="bg-primary text-primary-foreground">
-              <User className="w-4 h-4" />
+              {profile ? getInitials(profile.nickname) : 'U'}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1">
-              <p className="text-sm font-medium text-sidebar-foreground">John Admin</p>
-              <p className="text-xs text-sidebar-foreground/70">Administrator</p>
+              <p className="text-sm font-medium text-sidebar-foreground">
+                {profile?.nickname || 'User'}
+              </p>
+              <p className="text-xs text-sidebar-foreground/70 capitalize">
+                {profile?.role || 'viewer'}
+              </p>
             </div>
           )}
         </div>
@@ -144,6 +150,7 @@ export function AppSidebar() {
             variant="ghost" 
             size="sm" 
             className="w-full justify-start mt-2 text-sidebar-foreground hover:bg-sidebar-accent"
+            onClick={signOut}
           >
             <LogOut className="w-4 h-4 mr-2" />
             Logout
