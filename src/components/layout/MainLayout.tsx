@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { TopHeader } from "./TopHeader";
+import { ProtectedRoute } from "../ProtectedRoute";
 
 export function MainLayout() {
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -23,20 +24,22 @@ export function MainLayout() {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen w-full flex bg-background">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col">
-          <TopHeader isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
+    <ProtectedRoute>
+      <SidebarProvider>
+        <div className="min-h-screen w-full flex bg-background">
+          <AppSidebar />
           
-          <main className="flex-1 p-6 overflow-auto">
-            <div className="animate-fade-in">
-              <Outlet />
-            </div>
-          </main>
+          <div className="flex-1 flex flex-col">
+            <TopHeader isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
+            
+            <main className="flex-1 p-6 overflow-auto">
+              <div className="animate-fade-in">
+                <Outlet />
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }

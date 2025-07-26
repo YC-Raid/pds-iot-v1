@@ -1,5 +1,5 @@
 
-import { Moon, Sun, Menu } from "lucide-react";
+import { Moon, Sun, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TopHeaderProps {
   isDarkMode: boolean;
@@ -17,6 +18,11 @@ interface TopHeaderProps {
 
 export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
   const { state } = useSidebar();
+  const { signOut, user } = useAuth();
+
+  const handleSignOut = () => {
+    signOut();
+  };
 
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm">
@@ -62,15 +68,18 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuItem>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">John Admin</p>
+                  <p className="text-sm font-medium leading-none">{user?.user_metadata?.nickname || "User"}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    admin@hangarguardian.com
+                    {user?.email}
                   </p>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Logout</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

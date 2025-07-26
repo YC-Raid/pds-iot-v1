@@ -4,37 +4,40 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./hooks/useAuth";
 import { MainLayout } from "./components/layout/MainLayout";
 import DashboardHome from "./pages/DashboardHome";
 import Dashboard from "./pages/Dashboard";
 import MaintenancePage from "./pages/MaintenancePage";
-import Login from "./pages/Login";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<DashboardHome />} />
-            <Route path="/sensors" element={<Dashboard />} />
-            <Route path="/vibration" element={<Dashboard />} />
-            <Route path="/longevity" element={<Dashboard />} />
-            <Route path="/maintenance" element={<MaintenancePage />} />
-            <Route path="/alerts" element={<Dashboard />} />
-            <Route path="/analytics" element={<Dashboard />} />
-            <Route path="/settings" element={<Dashboard />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<MainLayout />}>
+              <Route index element={<DashboardHome />} />
+              <Route path="/sensors" element={<Dashboard />} />
+              <Route path="/vibration" element={<Dashboard />} />
+              <Route path="/longevity" element={<Dashboard />} />
+              <Route path="/maintenance" element={<MaintenancePage />} />
+              <Route path="/alerts" element={<Dashboard />} />
+              <Route path="/analytics" element={<Dashboard />} />
+              <Route path="/settings" element={<Dashboard />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
