@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Building, Lock, Mail, User } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 interface SignUpForm {
   email: string;
@@ -79,7 +80,8 @@ export default function Auth() {
           <p className="text-muted-foreground mt-2">IoT Monitoring System</p>
         </div>
 
-        <Card className="card-shadow backdrop-blur-sm bg-card/95 border-border/50">
+        <Card className="relative card-shadow backdrop-blur-sm bg-card/95 border-border/50">
+          <GlowingEffect disabled={false} proximity={100} />
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
               {isSignUp ? "Create Account" : "Welcome Back"}
