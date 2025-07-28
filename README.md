@@ -2,7 +2,7 @@
 
 ## Project info
 
-**URL**: [YC's BT Frontend Dashboard Webapp](https://lovable.dev/projects/68a6d307-d6cf-4851-ab81-cd1a03e9313f)  
+**URL**: [YC's BT Frontend Dashboard Webapp](https://preview--pds-iot-v1.lovable.app/auth)  
 
 ## What technologies are used for this project?
 
