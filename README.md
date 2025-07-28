@@ -2,7 +2,7 @@
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/03e88c24-f37c-444a-ab40-6beb474a3c50
+**URL**: [https://lovable.dev/projects/03e88c24-f37c-444a-ab40-6beb474a3c50](https://preview--pds-iot-v1.lovable.app/auth)
 
 ## How can I edit this code?
 
