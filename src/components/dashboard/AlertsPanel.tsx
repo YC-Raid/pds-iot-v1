@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { format } from 'date-fns';
 import { 
   AlertTriangle, 
   Bell, 
@@ -35,10 +41,12 @@ import {
   Pause,
   Users,
   Timer,
-  MapPin
+  MapPin,
+  FileSpreadsheet
 } from "lucide-react";
 
 const AlertsPanel = () => {
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [alerts, setAlerts] = useState([
     {
       id: 1,
@@ -228,8 +236,32 @@ const AlertsPanel = () => {
   const [selectedAlert, setSelectedAlert] = useState<any>(null);
   const [newNote, setNewNote] = useState("");
   const [assignTo, setAssignTo] = useState("");
+  const [alertNotes, setAlertNotes] = useState<Record<number, string>>({});
 
-  const technicians = [
+  // Fetch user profiles from Supabase
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, nickname');
+        
+        if (error) {
+          console.error('Error fetching profiles:', error);
+          return;
+        }
+        
+        setProfiles(data || []);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+    fetchProfiles();
+  }, []);
+
+  // Use real technicians from Supabase profiles
+  const technicians = profiles.length > 0 ? profiles.map(p => p.nickname || `User ${p.user_id.slice(0, 8)}`) : [
     "John Smith",
     "Sarah Johnson", 
     "Mike Davis",
@@ -351,7 +383,8 @@ const AlertsPanel = () => {
   };
 
   const addNote = (alertId: number) => {
-    if (!newNote.trim()) return;
+    const noteText = alertNotes[alertId] || "";
+    if (!noteText.trim()) return;
     
     setAlerts(prev => prev.map(alert => 
       alert.id === alertId 
@@ -359,14 +392,16 @@ const AlertsPanel = () => {
             ...alert, 
             notes: [...alert.notes, {
               id: alert.notes.length + 1,
-              text: newNote,
+              text: noteText,
               author: "Current User",
               timestamp: new Date().toISOString()
             }]
           }
         : alert
     ));
-    setNewNote("");
+    
+    // Clear the note for this specific alert
+    setAlertNotes(prev => ({ ...prev, [alertId]: "" }));
   };
 
   const assignAlert = (alertId: number, technician: string) => {
@@ -379,6 +414,36 @@ const AlertsPanel = () => {
 
   const dismissAlert = (alertId: number) => {
     setAlerts(prev => prev.filter(alert => alert.id !== alertId));
+  };
+
+  // Export functions
+  const exportAlertData = () => {
+    const exportData = alerts.map(alert => ({
+      'Alert ID': alert.id,
+      'Title': alert.title,
+      'Severity': alert.severity.toUpperCase(),
+      'Status': alert.status.replace('-', ' ').toUpperCase(),
+      'Category': alert.category,
+      'Equipment': alert.equipment,
+      'Location': alert.location,
+      'Assigned To': alert.assignedTo || 'Unassigned',
+      'Created': new Date(alert.timestamp).toLocaleString(),
+      'Acknowledged By': alert.acknowledgedBy || 'Not acknowledged',
+      'Acknowledged At': alert.acknowledgedAt ? new Date(alert.acknowledgedAt).toLocaleString() : 'N/A',
+      'Resolved By': alert.resolvedBy || 'Not resolved',
+      'Resolved At': alert.resolvedAt ? new Date(alert.resolvedAt).toLocaleString() : 'N/A',
+      'Value': alert.value,
+      'Threshold': alert.threshold,
+      'Duration (minutes)': alert.duration,
+      'Impact': alert.impact,
+      'Priority': alert.priority,
+      'Notes Count': alert.notes.length,
+      'Latest Note': alert.notes.length > 0 ? alert.notes[alert.notes.length - 1].text : 'No notes',
+      'Root Cause': alert.rootCause || 'Not identified',
+      'Corrective Actions': alert.correctiveActions.join('; ')
+    }));
+
+    return exportData;
   };
 
   // Statistics
@@ -595,39 +660,63 @@ const AlertsPanel = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Priority Actions</Label>
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => dismissAlert(alert.id)}
-                          className="flex items-center gap-1"
-                        >
-                          <X className="h-3 w-3" />
-                          Dismiss
-                        </Button>
-                      </div>
-                    </div>
+                     <div className="space-y-2">
+                       <Label>Priority Actions</Label>
+                       <div className="flex gap-2">
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button 
+                               size="sm" 
+                               variant="outline"
+                               className="flex items-center gap-1"
+                             >
+                               <X className="h-3 w-3" />
+                               Dismiss
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently removed from the system.
+                                 <br /><br />
+                                 <strong>Alert:</strong> {alert.title}
+                                 <br />
+                                 <strong>Severity:</strong> {alert.severity.toUpperCase()}
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancel</AlertDialogCancel>
+                               <AlertDialogAction 
+                                 onClick={() => dismissAlert(alert.id)}
+                                 className="bg-destructive hover:bg-destructive/90"
+                               >
+                                 Yes, Dismiss Alert
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </div>
+                     </div>
                   </div>
                   
-                  <div>
-                    <Label>Add Note</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Textarea 
-                        placeholder="Add investigation notes, observations, or updates..."
-                        value={newNote}
-                        onChange={(e) => setNewNote(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button 
-                        onClick={() => addNote(alert.id)}
-                        disabled={!newNote.trim()}
-                      >
-                        Add Note
-                      </Button>
-                    </div>
-                  </div>
+                   <div>
+                     <Label>Add Note</Label>
+                     <div className="flex gap-2 mt-1">
+                       <Textarea 
+                         placeholder="Add investigation notes, observations, or updates..."
+                         value={alertNotes[alert.id] || ""}
+                         onChange={(e) => setAlertNotes(prev => ({ ...prev, [alert.id]: e.target.value }))}
+                         className="flex-1"
+                       />
+                       <Button 
+                         onClick={() => addNote(alert.id)}
+                         disabled={!alertNotes[alert.id]?.trim()}
+                       >
+                         Add Note
+                       </Button>
+                     </div>
+                   </div>
                   
                   {alert.notes.length > 0 && (
                     <div>
@@ -802,6 +891,74 @@ const AlertsPanel = () => {
                 {filteredAlerts.length} alerts found
               </Badge>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Export Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Export Alert Data
+          </CardTitle>
+          <CardDescription>
+            Export alert audit trails for compliance and analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => {
+                const data = exportAlertData();
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Alert Audit Trail');
+                XLSX.writeFile(wb, `alert_audit_trail_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+              }}
+              className="flex items-center gap-2"
+              variant="outline"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export to Excel
+            </Button>
+            
+            <Button 
+              onClick={() => {
+                const data = exportAlertData();
+                const doc = new jsPDF({ orientation: 'landscape' });
+                
+                doc.setFontSize(16);
+                doc.text('Alert Audit Trail Report', 20, 20);
+                doc.setFontSize(10);
+                doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`, 20, 30);
+                
+                const tableData = data.map(row => [
+                  row['Alert ID'],
+                  row['Title'].substring(0, 30) + '...',
+                  row['Severity'],
+                  row['Status'],
+                  row['Assigned To'],
+                  row['Created'].substring(0, 16),
+                  row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A'
+                ]);
+                
+                autoTable(doc, {
+                  head: [['ID', 'Title', 'Severity', 'Status', 'Assigned', 'Created', 'Resolved']],
+                  body: tableData,
+                  startY: 40,
+                  styles: { fontSize: 8 },
+                  headStyles: { fillColor: [51, 51, 51] },
+                });
+                
+                doc.save(`alert_audit_trail_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+              }}
+              className="flex items-center gap-2"
+              variant="outline"
+            >
+              <FileText className="h-4 w-4" />
+              Export to PDF
+            </Button>
           </div>
         </CardContent>
       </Card>
