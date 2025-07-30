@@ -1,4 +1,5 @@
 
+// Navigation sidebar component
 import { 
   LayoutDashboard, 
   Calendar, 
