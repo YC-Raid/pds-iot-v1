@@ -4,47 +4,75 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
-import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { DataExport } from "@/components/ui/data-export";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   AlertTriangle, 
-  Bell, 
   CheckCircle, 
+  Clock, 
+  AlertOctagon, 
+  Play, 
+  TrendingUp, 
+  Bell, 
+  MoreHorizontal, 
   X, 
-  Eye, 
-  Clock,
+  FileText, 
+  FileSpreadsheet, 
+  Filter,
+  Download,
+  Eye,
+  UserCheck,
+  AlertCircle,
   Thermometer,
   Droplets,
   Wind,
   Zap,
   User,
   MessageSquare,
-  TrendingUp,
   Calendar,
-  Filter,
   Search,
-  MoreHorizontal,
-  FileText,
-  AlertOctagon,
   Shield,
   Settings,
-  Play,
   Pause,
   Users,
   Timer,
-  MapPin,
-  FileSpreadsheet
+  MapPin
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AlertsPanel = () => {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -57,7 +85,7 @@ const AlertsPanel = () => {
   const [alertNotes, setAlertNotes] = useState<Record<string, string>>({});
   const [openDialogs, setOpenDialogs] = useState<Record<string, boolean>>({});
   const [pendingAssignment, setPendingAssignment] = useState("");
-  const [exportTimeframe, setExportTimeframe] = useState("1week");
+  const [showExport, setShowExport] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   // Fetch user profiles from Supabase
@@ -492,78 +520,7 @@ const AlertsPanel = () => {
     }
   };
 
-  // Enhanced export functions with timeframe filtering
-  const exportAlertData = async () => {
-    setIsExporting(true);
-    try {
-      let startDate: Date;
-      const endDate = new Date();
-
-      switch (exportTimeframe) {
-        case '1day':
-          startDate = subDays(endDate, 1);
-          break;
-        case '1week':
-          startDate = subDays(endDate, 7);
-          break;
-        case '1month':
-          startDate = subDays(endDate, 30);
-          break;
-        case '3months':
-          startDate = subDays(endDate, 90);
-          break;
-        default:
-          startDate = subDays(endDate, 7);
-      }
-
-      // Fetch all alerts including dismissed ones within timeframe
-      const { data: alertsData, error } = await supabase
-        .from('alerts')
-        .select('*')
-        .gte('created_at', startOfDay(startDate).toISOString())
-        .lte('created_at', endOfDay(endDate).toISOString())
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const exportData = (alertsData || []).map(alert => ({
-        'Alert ID': alert.id,
-        'Title': alert.title,
-        'Severity': alert.severity.toUpperCase(),
-        'Status': alert.status.replace('-', ' ').toUpperCase(),
-        'Category': alert.category,
-        'Equipment': alert.equipment,
-        'Location': alert.location,
-        'Assigned To': alert.assigned_to || 'Unassigned',
-        'Created': new Date(alert.created_at).toLocaleString(),
-        'Acknowledged By': alert.acknowledged_by || 'Not acknowledged',
-        'Acknowledged At': alert.acknowledged_at ? new Date(alert.acknowledged_at).toLocaleString() : 'N/A',
-        'Resolved By': alert.resolved_by || 'Not resolved',
-        'Resolved At': alert.resolved_at ? new Date(alert.resolved_at).toLocaleString() : 'N/A',
-        'Dismissed By': alert.dismissed_by || 'Not dismissed',
-        'Dismissed At': alert.dismissed_at ? new Date(alert.dismissed_at).toLocaleString() : 'N/A',
-        'Value': alert.value || 'N/A',
-        'Threshold': alert.threshold || 'N/A',
-        'Duration (minutes)': alert.duration || 0,
-        'Impact': alert.impact || 'N/A',
-        'Priority': alert.priority || 'P4',
-        'Root Cause': alert.root_cause || 'Not identified',
-        'Corrective Actions': (alert.corrective_actions || []).join('; ')
-      }));
-
-      return exportData;
-    } catch (error) {
-      console.error('Error exporting data:', error);
-      toast({
-        title: "Export Error",
-        description: "Failed to export alert data.",
-        variant: "destructive"
-      });
-      return [];
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  // Remove old export function as we'll use DataExport component
 
   // Statistics
   const activeAlerts = filteredAlerts.filter(alert => alert.status === "active");
@@ -781,108 +738,90 @@ const AlertsPanel = () => {
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
               </DialogTrigger>
-              <DialogContent 
-                className="max-w-2xl"
-                onPointerDownOutside={(e) => e.preventDefault()}
-                onEscapeKeyDown={(e) => e.preventDefault()}
-                onInteractOutside={(e) => e.preventDefault()}
-              >
+              <DialogContent className="sm:max-w-[525px]">
                 <DialogHeader>
                   <DialogTitle>Alert Details - {alert.title}</DialogTitle>
                   <DialogDescription>
                     Manage alert details, notes, and assignments
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Assign to Technician</Label>
-                      <Select 
-                        value={pendingAssignment} 
-                        onValueChange={(value) => {
-                          setPendingAssignment(value);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select technician" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {technicians.map(tech => (
-                            <SelectItem key={tech} value={tech}>{tech}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Priority Actions</Label>
-                      <div className="flex gap-2">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="flex items-center gap-1"
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label>Assign to Technician</Label>
+                    <Select 
+                      value={pendingAssignment} 
+                      onValueChange={setPendingAssignment}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select technician" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {technicians.map(tech => (
+                          <SelectItem key={tech} value={tech}>{tech}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Priority Actions</Label>
+                    <div className="flex gap-2">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="flex items-center gap-1"
+                          >
+                            <X className="h-3 w-3" />
+                            Dismiss
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently archived in the system.
+                              <br /><br />
+                              <strong>Alert:</strong> {alert.title}
+                              <br />
+                              <strong>Severity:</strong> {alert.severity.toUpperCase()}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => dismissAlert(alert.id)}
+                              className="bg-destructive hover:bg-destructive/90"
                             >
-                              <X className="h-3 w-3" />
-                              Dismiss
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently archived in the system.
-                                <br /><br />
-                                <strong>Alert:</strong> {alert.title}
-                                <br />
-                                <strong>Severity:</strong> {alert.severity.toUpperCase()}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => dismissAlert(alert.id)}
-                                className="bg-destructive hover:bg-destructive/90"
-                              >
-                                Yes, Dismiss Alert
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                              Yes, Dismiss Alert
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                   
-                  <div>
-                    <Label>Add Note</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Textarea 
-                        placeholder="Add investigation notes, observations, or updates..."
-                        value={alertNotes[alert.id] || ""}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setAlertNotes(prev => ({ ...prev, [alert.id]: e.target.value }));
-                        }}
-                        onFocus={(e) => e.stopPropagation()}
-                        onBlur={(e) => e.stopPropagation()}
-                        className="flex-1"
-                      />
-                      <Button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addNote(alert.id);
-                        }}
-                        disabled={!alertNotes[alert.id]?.trim()}
-                      >
-                        Add Note
-                      </Button>
-                    </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="note">Add Note</Label>
+                    <Textarea
+                      id="note"
+                      placeholder="Add investigation notes, observations, or updates..."
+                      value={alertNotes[alert.id] || ""}
+                      onChange={(e) => setAlertNotes(prev => ({ ...prev, [alert.id]: e.target.value }))}
+                    />
+                    <Button 
+                      onClick={() => addNote(alert.id)}
+                      disabled={!alertNotes[alert.id]?.trim()}
+                      className="w-fit"
+                    >
+                      Add Note
+                    </Button>
                   </div>
                   
                   {alert.notes.length > 0 && (
-                    <div>
+                    <div className="grid gap-2">
                       <Label>Investigation History</Label>
-                      <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
                         {alert.notes.map((note: any) => (
                           <div key={note.id} className="p-2 bg-muted/50 rounded text-sm">
                             <p>{note.text}</p>
@@ -894,23 +833,17 @@ const AlertsPanel = () => {
                       </div>
                     </div>
                   )}
-
-                  <div className="flex gap-2 pt-4 border-t">
-                    <Button 
-                      onClick={handleSaveAssignment}
-                      disabled={!pendingAssignment}
-                      className="flex-1"
-                    >
-                      Save Assignment
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => closeDialog(alert.id)}
-                      className="flex-1"
-                    >
-                      Close
-                    </Button>
-                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => closeDialog(alert.id)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSaveAssignment}
+                    disabled={!pendingAssignment}
+                  >
+                    Save Assignment
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -1073,99 +1006,52 @@ const AlertsPanel = () => {
         </CardContent>
       </Card>
 
-      {/* Export Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Export Alert Data
-          </CardTitle>
-          <CardDescription>
-            Export alert audit trails including dismissed alerts for compliance and analysis
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-4">
-              <div className="space-y-2">
-                <Label>Export Timeframe</Label>
-                <Select value={exportTimeframe} onValueChange={setExportTimeframe}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1day">Last 24 Hours</SelectItem>
-                    <SelectItem value="1week">Last 7 Days</SelectItem>
-                    <SelectItem value="1month">Last 30 Days</SelectItem>
-                    <SelectItem value="3months">Last 3 Months</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                onClick={async () => {
-                  const data = await exportAlertData();
-                  if (data.length > 0) {
-                    const ws = XLSX.utils.json_to_sheet(data);
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, 'Alert Audit Trail');
-                    XLSX.writeFile(wb, `alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-                  }
-                }}
-                className="flex items-center gap-2"
-                variant="outline"
-                disabled={isExporting}
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                {isExporting ? "Exporting..." : "Export to Excel"}
-              </Button>
-              
-              <Button 
-                onClick={async () => {
-                  const data = await exportAlertData();
-                  if (data.length > 0) {
-                    const doc = new jsPDF({ orientation: 'landscape' });
-                    
-                    doc.setFontSize(16);
-                    doc.text('Alert Audit Trail Report', 20, 20);
-                    doc.setFontSize(10);
-                    doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`, 20, 30);
-                    doc.text(`Timeframe: ${exportTimeframe}`, 20, 35);
-                    
-                    const tableData = data.map(row => [
-                      row['Alert ID'].toString().substring(0, 8),
-                      row['Title'].substring(0, 25) + '...',
-                      row['Severity'],
-                      row['Status'],
-                      row['Assigned To'].substring(0, 15),
-                      row['Created'].substring(0, 16),
-                      row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A'
-                    ]);
-                    
-                    autoTable(doc, {
-                      head: [['ID', 'Title', 'Severity', 'Status', 'Assigned', 'Created', 'Resolved']],
-                      body: tableData,
-                      startY: 45,
-                      styles: { fontSize: 8 },
-                      headStyles: { fillColor: [51, 51, 51] },
-                    });
-                    
-                    doc.save(`alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-                  }
-                }}
-                className="flex items-center gap-2"
-                variant="outline"
-                disabled={isExporting}
-              >
-                <FileText className="h-4 w-4" />
-                {isExporting ? "Exporting..." : "Export to PDF"}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Alert Management</h2>
+          <p className="text-muted-foreground">
+            Monitor and manage system alerts and incidents
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            Filter
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowExport(!showExport)}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export Data
+          </Button>
+        </div>
+      </div>
+
+      {/* Export Data Section */}
+      {showExport && (
+        <Card className="relative">
+          <GlowingEffect
+            spread={30}
+            glow={true}
+            disabled={false}
+            proximity={48}
+            inactiveZone={0.01}
+          />
+          <CardHeader>
+            <CardTitle>Export Alert Data</CardTitle>
+            <CardDescription>
+              Export alert audit trail for analysis and reporting
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DataExport 
+              title="Alert Audit Trail Export"
+              description="Export alert data including dismissed alerts for audit and compliance purposes"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Alert List */}
       <Card>
