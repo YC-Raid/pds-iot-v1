@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +46,23 @@ export const AnimatedTabs = ({
     }
     return newTabs;
   });
+
+  // Update active tab when defaultValue changes (URL changes)
+  useEffect(() => {
+    if (defaultValue) {
+      const foundTab = propTabs.find(tab => tab.value === defaultValue);
+      if (foundTab && foundTab.value !== active.value) {
+        const newTabs = [...propTabs];
+        const foundIdx = newTabs.findIndex(tab => tab.value === defaultValue);
+        if (foundIdx > -1) {
+          const selectedTab = newTabs.splice(foundIdx, 1);
+          newTabs.unshift(selectedTab[0]);
+          setTabs(newTabs);
+          setActive(foundTab);
+        }
+      }
+    }
+  }, [defaultValue, propTabs, active.value]);
 
   const moveSelectedTabToTop = (idx: number) => {
     const newTabs = [...propTabs];
