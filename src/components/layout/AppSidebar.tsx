@@ -12,7 +12,7 @@ import {
   Timer,
   User
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   Sidebar,
@@ -49,6 +49,7 @@ const systemItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
   const { profile, getInitials } = useUserProfile();
@@ -61,6 +62,10 @@ export function AppSidebar() {
     return currentPath === path;
   };
   
+  const handleNavigation = (url: string) => {
+    navigate(url);
+  };
+
   const getNavClass = (isActiveRoute: boolean) =>
     isActiveRoute 
       ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
@@ -90,18 +95,16 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={`${getNavClass(isActive(item.url))} rounded-lg`}
-                      title={collapsed ? item.title : undefined}
-                    >
-                      <item.icon className="w-5 h-5" />
-                      {!collapsed && <span className="ml-3">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                 <SidebarMenuItem key={item.title}>
+                   <SidebarMenuButton
+                     onClick={() => handleNavigation(item.url)}
+                     className={`${getNavClass(isActive(item.url))} rounded-lg cursor-pointer`}
+                     title={collapsed ? item.title : undefined}
+                   >
+                     <item.icon className="w-5 h-5" />
+                     {!collapsed && <span className="ml-3">{item.title}</span>}
+                   </SidebarMenuButton>
+                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -113,20 +116,18 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {systemItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={`${getNavClass(isActive(item.url))} rounded-lg`}
-                      title={collapsed ? item.title : undefined}
-                    >
-                      <item.icon className="w-5 h-5" />
-                      {!collapsed && <span className="ml-3">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+               {systemItems.map((item) => (
+                 <SidebarMenuItem key={item.title}>
+                   <SidebarMenuButton
+                     onClick={() => handleNavigation(item.url)}
+                     className={`${getNavClass(isActive(item.url))} rounded-lg cursor-pointer`}
+                     title={collapsed ? item.title : undefined}
+                   >
+                     <item.icon className="w-5 h-5" />
+                     {!collapsed && <span className="ml-3">{item.title}</span>}
+                   </SidebarMenuButton>
+                 </SidebarMenuItem>
+               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
