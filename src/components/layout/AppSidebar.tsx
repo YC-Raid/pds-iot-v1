@@ -41,7 +41,6 @@ const mainItems = [
   { title: "Longevity", url: "/?tab=longevity", icon: Timer },
   { title: "Maintenance", url: "/?tab=maintenance", icon: Calendar },
   { title: "Alerts", url: "/?tab=alerts", icon: Bell },
-  { title: "Critical Alerts", url: "/?tab=critical-alerts", icon: AlertTriangle },
   { title: "Analytics", url: "/?tab=analytics", icon: TrendingUp },
 ];
 

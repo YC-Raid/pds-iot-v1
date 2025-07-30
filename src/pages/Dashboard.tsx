@@ -81,16 +81,6 @@ const Dashboard = () => {
       ),
     },
     {
-      title: "Critical Alerts",
-      value: "critical-alerts",
-      icon: <AlertTriangle className="h-4 w-4" />,
-      content: (
-        <div className="space-y-6">
-          <CriticalAlertsPanel />
-        </div>
-      ),
-    },
-    {
       title: "Analytics",
       value: "analytics",
       icon: <TrendingUp className="h-4 w-4" />,
@@ -217,7 +207,7 @@ const Dashboard = () => {
           <AnimatedTabs 
             tabs={tabs}
             defaultValue={activeTab}
-            containerClassName="grid w-full grid-cols-9 bg-muted p-1 rounded-lg"
+            containerClassName="grid w-full grid-cols-8 bg-muted p-1 rounded-lg"
             tabClassName="text-sm font-medium transition-all duration-200"
             activeTabClassName="bg-background shadow-sm"
             contentClassName="min-h-[600px]"
