@@ -781,7 +781,12 @@ const AlertsPanel = () => {
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent 
+                className="max-w-2xl"
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle>Alert Details - {alert.title}</DialogTitle>
                   <DialogDescription>
@@ -794,7 +799,9 @@ const AlertsPanel = () => {
                       <Label>Assign to Technician</Label>
                       <Select 
                         value={pendingAssignment} 
-                        onValueChange={setPendingAssignment}
+                        onValueChange={(value) => {
+                          setPendingAssignment(value);
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select technician" />
@@ -852,11 +859,19 @@ const AlertsPanel = () => {
                       <Textarea 
                         placeholder="Add investigation notes, observations, or updates..."
                         value={alertNotes[alert.id] || ""}
-                        onChange={(e) => setAlertNotes(prev => ({ ...prev, [alert.id]: e.target.value }))}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setAlertNotes(prev => ({ ...prev, [alert.id]: e.target.value }));
+                        }}
+                        onFocus={(e) => e.stopPropagation()}
+                        onBlur={(e) => e.stopPropagation()}
                         className="flex-1"
                       />
                       <Button 
-                        onClick={() => addNote(alert.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addNote(alert.id);
+                        }}
                         disabled={!alertNotes[alert.id]?.trim()}
                       >
                         Add Note
