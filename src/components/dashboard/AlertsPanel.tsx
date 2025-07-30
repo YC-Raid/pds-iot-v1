@@ -69,7 +69,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays } from "date-fns";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -549,8 +549,8 @@ const AlertsPanel = () => {
       const { data: alertsData, error } = await supabase
         .from('alerts')
         .select('*')
-        .gte('created_at', startOfDay(startDate).toISOString())
-        .lte('created_at', endOfDay(endDate).toISOString())
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -1142,12 +1142,31 @@ const AlertsPanel = () => {
               <div className="flex gap-2">
                 <Button 
                   onClick={async () => {
-                    const data = await exportAlertData();
-                    if (data.length > 0) {
-                      const ws = XLSX.utils.json_to_sheet(data);
-                      const wb = XLSX.utils.book_new();
-                      XLSX.utils.book_append_sheet(wb, ws, 'Alert Audit Trail');
-                      XLSX.writeFile(wb, `alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                    try {
+                      const data = await exportAlertData();
+                      if (data.length > 0) {
+                        const ws = XLSX.utils.json_to_sheet(data);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, 'Alert Audit Trail');
+                        XLSX.writeFile(wb, `alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                        toast({
+                          title: "Export Complete",
+                          description: "Alert data exported to Excel successfully."
+                        });
+                      } else {
+                        toast({
+                          title: "No Data",
+                          description: "No alerts found for the selected timeframe.",
+                          variant: "destructive"
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Excel export error:', error);
+                      toast({
+                        title: "Export Failed",
+                        description: "Failed to export to Excel.",
+                        variant: "destructive"
+                      });
                     }
                   }}
                   className="flex items-center gap-2"
@@ -1160,35 +1179,54 @@ const AlertsPanel = () => {
                 
                 <Button 
                   onClick={async () => {
-                    const data = await exportAlertData();
-                    if (data.length > 0) {
-                      const doc = new jsPDF({ orientation: 'landscape' });
-                      
-                      doc.setFontSize(16);
-                      doc.text('Alert Audit Trail Report', 20, 20);
-                      doc.setFontSize(10);
-                      doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`, 20, 30);
-                      doc.text(`Timeframe: ${exportTimeframe}`, 20, 35);
-                      
-                      const tableData = data.map(row => [
-                        row['Alert ID'].toString().substring(0, 8),
-                        row['Title'].substring(0, 25) + '...',
-                        row['Severity'],
-                        row['Status'],
-                        row['Assigned To'].substring(0, 15),
-                        row['Created'].substring(0, 16),
-                        row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A'
-                      ]);
-                      
-                      autoTable(doc, {
-                        head: [['ID', 'Title', 'Severity', 'Status', 'Assigned', 'Created', 'Resolved']],
-                        body: tableData,
-                        startY: 45,
-                        styles: { fontSize: 8 },
-                        headStyles: { fillColor: [51, 51, 51] },
+                    try {
+                      const data = await exportAlertData();
+                      if (data.length > 0) {
+                        const doc = new jsPDF({ orientation: 'landscape' });
+                        
+                        doc.setFontSize(16);
+                        doc.text('Alert Audit Trail Report', 20, 20);
+                        doc.setFontSize(10);
+                        doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`, 20, 30);
+                        doc.text(`Timeframe: ${exportTimeframe}`, 20, 35);
+                        
+                        const tableData = data.map(row => [
+                          row['Alert ID'].toString().substring(0, 8),
+                          row['Title'].substring(0, 25) + '...',
+                          row['Severity'],
+                          row['Status'],
+                          row['Assigned To'].substring(0, 15),
+                          row['Created'].substring(0, 16),
+                          row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A'
+                        ]);
+                        
+                        autoTable(doc, {
+                          head: [['ID', 'Title', 'Severity', 'Status', 'Assigned', 'Created', 'Resolved']],
+                          body: tableData,
+                          startY: 45,
+                          styles: { fontSize: 8 },
+                          headStyles: { fillColor: [51, 51, 51] },
+                        });
+                        
+                        doc.save(`alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+                        toast({
+                          title: "Export Complete",
+                          description: "Alert data exported to PDF successfully."
+                        });
+                      } else {
+                        toast({
+                          title: "No Data",
+                          description: "No alerts found for the selected timeframe.",
+                          variant: "destructive"
+                        });
+                      }
+                    } catch (error) {
+                      console.error('PDF export error:', error);
+                      toast({
+                        title: "Export Failed",
+                        description: "Failed to export to PDF.",
+                        variant: "destructive"
                       });
-                      
-                      doc.save(`alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
                     }
                   }}
                   className="flex items-center gap-2"
