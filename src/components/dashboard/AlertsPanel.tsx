@@ -83,7 +83,7 @@ const AlertsPanel = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedAlert, setSelectedAlert] = useState<any>(null);
   const [alertNotes, setAlertNotes] = useState<Record<string, string>>({});
-  const [openDialogs, setOpenDialogs] = useState<Record<string, boolean>>({});
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [pendingAssignment, setPendingAssignment] = useState("");
   const [showExport, setShowExport] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -505,7 +505,7 @@ const AlertsPanel = () => {
       if (error) throw error;
 
       setAlerts(prev => prev.filter(alert => alert.id !== alertId));
-      setOpenDialogs(prev => ({ ...prev, [alertId]: false }));
+      setIsDialogOpen(false);
 
       toast({
         title: "Alert Dismissed",
@@ -607,16 +607,8 @@ const AlertsPanel = () => {
     if (selectedAlert && pendingAssignment) {
       await assignAlert(selectedAlert.id, pendingAssignment);
       setPendingAssignment("");
-      setOpenDialogs(prev => ({ ...prev, [selectedAlert.id]: false }));
+      setIsDialogOpen(false);
     }
-  };
-
-  const openDialog = (alertId: string) => {
-    setOpenDialogs(prev => ({ ...prev, [alertId]: true }));
-  };
-
-  const closeDialog = (alertId: string) => {
-    setOpenDialogs(prev => ({ ...prev, [alertId]: false }));
   };
 
   const AlertCard = ({ alert }: { alert: any }) => {
@@ -790,29 +782,22 @@ const AlertsPanel = () => {
           </div>
           
           <div className="flex items-center gap-1">
-            <Dialog 
-              open={openDialogs[alert.id] || false} 
-              onOpenChange={(open) => {
-                if (open) {
-                  openDialog(alert.id);
-                  setSelectedAlert(alert);
-                  setPendingAssignment(alert.assigned_to || "");
-                } else {
-                  closeDialog(alert.id);
-                }
-              }}
-            >
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button 
                   size="sm" 
                   variant="ghost"
+                  onClick={() => {
+                    setSelectedAlert(alert);
+                    setPendingAssignment(alert.assigned_to || "");
+                  }}
                 >
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[525px]">
                 <DialogHeader>
-                  <DialogTitle>Alert Details - {alert.title}</DialogTitle>
+                  <DialogTitle>Alert Details - {selectedAlert?.title}</DialogTitle>
                   <DialogDescription>
                     Manage alert details, notes, and assignments
                   </DialogDescription>
@@ -851,22 +836,22 @@ const AlertsPanel = () => {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently archived in the system.
-                              <br /><br />
-                              <strong>Alert:</strong> {alert.title}
-                              <br />
-                              <strong>Severity:</strong> {alert.severity.toUpperCase()}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => dismissAlert(alert.id)}
-                              className="bg-destructive hover:bg-destructive/90"
-                            >
-                              Yes, Dismiss Alert
-                            </AlertDialogAction>
+                          <AlertDialogDescription>
+                            Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently archived in the system.
+                            <br /><br />
+                            <strong>Alert:</strong> {selectedAlert?.title}
+                            <br />
+                            <strong>Severity:</strong> {selectedAlert?.severity.toUpperCase()}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => selectedAlert && dismissAlert(selectedAlert.id)}
+                            className="bg-destructive hover:bg-destructive/90"
+                          >
+                            Yes, Dismiss Alert
+                          </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -883,8 +868,8 @@ const AlertsPanel = () => {
                     <Button 
                       onClick={() => {
                         const textarea = document.getElementById('note') as HTMLTextAreaElement;
-                        if (textarea && textarea.value.trim()) {
-                          addNote(alert.id, textarea.value);
+                        if (textarea && textarea.value.trim() && selectedAlert) {
+                          addNote(selectedAlert.id, textarea.value);
                           textarea.value = "";
                         }
                       }}
@@ -894,11 +879,11 @@ const AlertsPanel = () => {
                     </Button>
                   </div>
                   
-                  {alert.notes.length > 0 && (
+                  {selectedAlert?.notes.length > 0 && (
                     <div className="grid gap-2">
                       <Label>Investigation History</Label>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {alert.notes.map((note: any) => (
+                        {selectedAlert.notes.map((note: any) => (
                           <div key={note.id} className="p-2 bg-muted/50 rounded text-sm">
                             <p>{note.text}</p>
                             <div className="text-muted-foreground text-xs mt-1">
@@ -911,7 +896,7 @@ const AlertsPanel = () => {
                   )}
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => closeDialog(alert.id)}>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button 
