@@ -48,7 +48,7 @@ import {
   FileText, 
   FileSpreadsheet, 
   Filter,
-  Download,
+  FileDown,
   Eye,
   UserCheck,
   AlertCircle,
@@ -1022,7 +1022,7 @@ const AlertsPanel = () => {
             variant="outline" 
             onClick={() => setShowExport(!showExport)}
           >
-            <Download className="w-4 h-4 mr-2" />
+            <FileDown className="w-4 h-4 mr-2" />
             Export Data
           </Button>
         </div>
