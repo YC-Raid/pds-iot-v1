@@ -55,7 +55,7 @@ const AlertsPanel = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedAlert, setSelectedAlert] = useState<any>(null);
   const [alertNotes, setAlertNotes] = useState<Record<string, string>>({});
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [openDialogs, setOpenDialogs] = useState<Record<string, boolean>>({});
   const [pendingAssignment, setPendingAssignment] = useState("");
   const [exportTimeframe, setExportTimeframe] = useState("1week");
   const [isExporting, setIsExporting] = useState(false);
@@ -476,7 +476,7 @@ const AlertsPanel = () => {
       if (error) throw error;
 
       setAlerts(prev => prev.filter(alert => alert.id !== alertId));
-      setIsDialogOpen(false);
+      setOpenDialogs(prev => ({ ...prev, [alertId]: false }));
 
       toast({
         title: "Alert Dismissed",
@@ -578,8 +578,16 @@ const AlertsPanel = () => {
     if (selectedAlert && pendingAssignment) {
       await assignAlert(selectedAlert.id, pendingAssignment);
       setPendingAssignment("");
-      setIsDialogOpen(false);
+      setOpenDialogs(prev => ({ ...prev, [selectedAlert.id]: false }));
     }
+  };
+
+  const openDialog = (alertId: string) => {
+    setOpenDialogs(prev => ({ ...prev, [alertId]: true }));
+  };
+
+  const closeDialog = (alertId: string) => {
+    setOpenDialogs(prev => ({ ...prev, [alertId]: false }));
   };
 
   const AlertCard = ({ alert }: { alert: any }) => {
@@ -753,24 +761,27 @@ const AlertsPanel = () => {
           </div>
           
           <div className="flex items-center gap-1">
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog 
+              open={openDialogs[alert.id] || false} 
+              onOpenChange={(open) => {
+                if (open) {
+                  openDialog(alert.id);
+                  setSelectedAlert(alert);
+                  setPendingAssignment(alert.assigned_to || "");
+                } else {
+                  closeDialog(alert.id);
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button 
                   size="sm" 
-                  variant="ghost" 
-                  onClick={() => {
-                    setSelectedAlert(alert);
-                    setPendingAssignment(alert.assigned_to || "");
-                  }}
+                  variant="ghost"
                 >
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
               </DialogTrigger>
-              <DialogContent 
-                className="max-w-2xl"
-                onPointerDownOutside={(e) => e.preventDefault()}
-                onEscapeKeyDown={(e) => e.preventDefault()}
-              >
+              <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Alert Details - {alert.title}</DialogTitle>
                   <DialogDescription>
@@ -879,7 +890,7 @@ const AlertsPanel = () => {
                     </Button>
                     <Button 
                       variant="outline" 
-                      onClick={() => setIsDialogOpen(false)}
+                      onClick={() => closeDialog(alert.id)}
                       className="flex-1"
                     >
                       Close
