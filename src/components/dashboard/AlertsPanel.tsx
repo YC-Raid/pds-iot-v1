@@ -782,148 +782,17 @@ const AlertsPanel = () => {
           </div>
           
           <div className="flex items-center gap-1">
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  size="sm" 
-                  variant="ghost"
-                  onClick={() => {
-                    setSelectedAlert(alert);
-                    setPendingAssignment(alert.assigned_to || "");
-                  }}
-                >
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[525px]">
-                <DialogHeader>
-                  <DialogTitle>Alert Details - {selectedAlert?.title}</DialogTitle>
-                  <DialogDescription>
-                    Manage alert details, notes, and assignments
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label>Assign to Technician</Label>
-                    <Select 
-                      value={pendingAssignment} 
-                      onValueChange={(value) => {
-                        setPendingAssignment(value);
-                      }}
-                    >
-                      <SelectTrigger onPointerDown={(e) => e.stopPropagation()}>
-                        <SelectValue placeholder="Select technician" />
-                      </SelectTrigger>
-                      <SelectContent 
-                        className="z-[9999]"
-                        position="popper"
-                        side="bottom"
-                        align="start"
-                        sideOffset={4}
-                      >
-                        {technicians.map(tech => (
-                          <SelectItem 
-                            key={tech} 
-                            value={tech}
-                            onSelect={() => {
-                              setPendingAssignment(tech);
-                            }}
-                          >
-                            {tech}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Priority Actions</Label>
-                    <div className="flex gap-2">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            className="flex items-center gap-1"
-                          >
-                            <X className="h-3 w-3" />
-                            Dismiss
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently archived in the system.
-                            <br /><br />
-                            <strong>Alert:</strong> {selectedAlert?.title}
-                            <br />
-                            <strong>Severity:</strong> {selectedAlert?.severity.toUpperCase()}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => selectedAlert && dismissAlert(selectedAlert.id)}
-                            className="bg-destructive hover:bg-destructive/90"
-                          >
-                            Yes, Dismiss Alert
-                          </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <Label htmlFor="note">Add Note</Label>
-                    <Textarea
-                      id="note"
-                      placeholder="Add investigation notes, observations, or updates..."
-                      defaultValue=""
-                    />
-                    <Button 
-                      onClick={() => {
-                        const textarea = document.getElementById('note') as HTMLTextAreaElement;
-                        if (textarea && textarea.value.trim() && selectedAlert) {
-                          addNote(selectedAlert.id, textarea.value);
-                          textarea.value = "";
-                        }
-                      }}
-                      className="w-fit"
-                    >
-                      Add Note
-                    </Button>
-                  </div>
-                  
-                  {selectedAlert?.notes.length > 0 && (
-                    <div className="grid gap-2">
-                      <Label>Investigation History</Label>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {selectedAlert.notes.map((note: any) => (
-                          <div key={note.id} className="p-2 bg-muted/50 rounded text-sm">
-                            <p>{note.text}</p>
-                            <div className="text-muted-foreground text-xs mt-1">
-                              {note.author_name || note.author} • {formatTime(note.created_at || note.timestamp)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleSaveAssignment}
-                    disabled={!pendingAssignment}
-                  >
-                    Save Assignment
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => {
+                setSelectedAlert(alert);
+                setPendingAssignment(alert.assigned_to || "");
+                setIsDialogOpen(true);
+              }}
+            >
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
           </div>
         </div>
       </Card>
@@ -1351,6 +1220,138 @@ const AlertsPanel = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Global Alert Details Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Alert Details - {selectedAlert?.title}</DialogTitle>
+            <DialogDescription>
+              Manage alert details, notes, and assignments
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Assign to Technician</Label>
+              <Select 
+                value={pendingAssignment} 
+                onValueChange={(value) => {
+                  setPendingAssignment(value);
+                }}
+              >
+                <SelectTrigger onPointerDown={(e) => e.stopPropagation()}>
+                  <SelectValue placeholder="Select technician" />
+                </SelectTrigger>
+                <SelectContent 
+                  className="z-[9999]"
+                  position="popper"
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                >
+                  {technicians.map(tech => (
+                    <SelectItem 
+                      key={tech} 
+                      value={tech}
+                      onSelect={() => {
+                        setPendingAssignment(tech);
+                      }}
+                    >
+                      {tech}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Priority Actions</Label>
+              <div className="flex gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex items-center gap-1"
+                    >
+                      <X className="h-3 w-3" />
+                      Dismiss
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently archived in the system.
+                        <br /><br />
+                        <strong>Alert:</strong> {selectedAlert?.title}
+                        <br />
+                        <strong>Severity:</strong> {selectedAlert?.severity.toUpperCase()}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={() => selectedAlert && dismissAlert(selectedAlert.id)}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
+                        Yes, Dismiss Alert
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="note">Add Note</Label>
+              <Textarea
+                id="note"
+                placeholder="Add investigation notes, observations, or updates..."
+                defaultValue=""
+              />
+              <Button 
+                onClick={() => {
+                  const textarea = document.getElementById('note') as HTMLTextAreaElement;
+                  if (textarea && textarea.value.trim() && selectedAlert) {
+                    addNote(selectedAlert.id, textarea.value);
+                    textarea.value = "";
+                  }
+                }}
+                className="w-fit"
+              >
+                Add Note
+              </Button>
+            </div>
+            
+            {selectedAlert?.notes.length > 0 && (
+              <div className="grid gap-2">
+                <Label>Investigation History</Label>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {selectedAlert.notes.map((note: any) => (
+                    <div key={note.id} className="p-2 bg-muted/50 rounded text-sm">
+                      <p>{note.text}</p>
+                      <div className="text-muted-foreground text-xs mt-1">
+                        {note.author_name || note.author} • {formatTime(note.created_at || note.timestamp)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveAssignment}
+              disabled={!pendingAssignment}
+            >
+              Save Assignment
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
