@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 type Tab = {
@@ -27,6 +28,8 @@ export const AnimatedTabs = ({
   contentClassName?: string;
   defaultValue?: string;
 }) => {
+  const navigate = useNavigate();
+  
   const getInitialTab = () => {
     if (defaultValue) {
       const foundTab = propTabs.find(tab => tab.value === defaultValue);
@@ -70,6 +73,8 @@ export const AnimatedTabs = ({
     newTabs.unshift(selectedTab[0]);
     setTabs(newTabs);
     setActive(newTabs[0]);
+    // Navigate to the selected tab's URL
+    navigate(`/?tab=${newTabs[0].value}`);
   };
 
   const [hovering, setHovering] = useState(false);
