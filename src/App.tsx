@@ -24,14 +24,8 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<MainLayout />}>
-              <Route index element={<DashboardHome />} />
-              <Route path="/sensors" element={<Dashboard />} />
-              <Route path="/vibration" element={<Dashboard />} />
-              <Route path="/longevity" element={<Dashboard />} />
+              <Route index element={<Dashboard />} />
               <Route path="/maintenance" element={<MaintenancePage />} />
-              <Route path="/alerts" element={<Dashboard />} />
-              <Route path="/analytics" element={<Dashboard />} />
-              <Route path="/settings" element={<Dashboard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

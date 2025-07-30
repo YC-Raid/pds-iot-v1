@@ -33,17 +33,17 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useAuth } from "@/hooks/useAuth";
 
 const mainItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Sensors", url: "/sensors", icon: Activity },
-  { title: "Vibration", url: "/vibration", icon: Waves },
-  { title: "Longevity", url: "/longevity", icon: Timer },
+  { title: "Dashboard", url: "/?tab=overview", icon: LayoutDashboard },
+  { title: "Sensors", url: "/?tab=sensors", icon: Activity },
+  { title: "Vibration", url: "/?tab=vibration", icon: Waves },
+  { title: "Longevity", url: "/?tab=longevity", icon: Timer },
   { title: "Maintenance", url: "/maintenance", icon: Calendar },
-  { title: "Alerts", url: "/alerts", icon: Bell },
-  { title: "Analytics", url: "/analytics", icon: TrendingUp },
+  { title: "Alerts", url: "/?tab=alerts", icon: Bell },
+  { title: "Analytics", url: "/?tab=analytics", icon: TrendingUp },
 ];
 
 const systemItems = [
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Settings", url: "/?tab=settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -54,7 +54,12 @@ export function AppSidebar() {
   const { profile, getInitials } = useUserProfile();
   const { signOut } = useAuth();
 
-  const isActive = (path: string) => currentPath === path;
+  const isActive = (path: string) => {
+    if (path.startsWith("/?")) {
+      return currentPath === "/" && location.search.includes(path.split("?")[1]);
+    }
+    return currentPath === path;
+  };
   
   const getNavClass = (isActiveRoute: boolean) =>
     isActiveRoute 

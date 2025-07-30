@@ -18,15 +18,34 @@ export const AnimatedTabs = ({
   activeTabClassName,
   tabClassName,
   contentClassName,
+  defaultValue,
 }: {
   tabs: Tab[];
   containerClassName?: string;
   activeTabClassName?: string;
   tabClassName?: string;
   contentClassName?: string;
+  defaultValue?: string;
 }) => {
-  const [active, setActive] = useState<Tab>(propTabs[0]);
-  const [tabs, setTabs] = useState<Tab[]>(propTabs);
+  const getInitialTab = () => {
+    if (defaultValue) {
+      const foundTab = propTabs.find(tab => tab.value === defaultValue);
+      return foundTab || propTabs[0];
+    }
+    return propTabs[0];
+  };
+  
+  const [active, setActive] = useState<Tab>(getInitialTab());
+  const [tabs, setTabs] = useState<Tab[]>(() => {
+    const initialTab = getInitialTab();
+    const newTabs = [...propTabs];
+    const initialIdx = newTabs.findIndex(tab => tab.value === initialTab.value);
+    if (initialIdx > 0) {
+      const selectedTab = newTabs.splice(initialIdx, 1);
+      newTabs.unshift(selectedTab[0]);
+    }
+    return newTabs;
+  });
 
   const moveSelectedTabToTop = (idx: number) => {
     const newTabs = [...propTabs];

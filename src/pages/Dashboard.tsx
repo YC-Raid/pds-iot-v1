@@ -11,8 +11,12 @@ import { SystemLongevity } from "@/components/dashboard/SystemLongevity";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, Settings } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 const Dashboard = () => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get('tab') || 'overview';
   const tabs = [
     {
       title: "Overview",
@@ -200,6 +204,7 @@ const Dashboard = () => {
         <div className="space-y-6">
           <AnimatedTabs 
             tabs={tabs}
+            defaultValue={activeTab}
             containerClassName="grid w-full grid-cols-8 bg-muted p-1 rounded-lg"
             tabClassName="text-sm font-medium transition-all duration-200"
             activeTabClassName="bg-background shadow-sm"
