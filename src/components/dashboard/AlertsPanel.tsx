@@ -807,14 +807,30 @@ const AlertsPanel = () => {
                     <Label>Assign to Technician</Label>
                     <Select 
                       value={pendingAssignment} 
-                      onValueChange={setPendingAssignment}
+                      onValueChange={(value) => {
+                        setPendingAssignment(value);
+                      }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger onPointerDown={(e) => e.stopPropagation()}>
                         <SelectValue placeholder="Select technician" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent 
+                        className="z-[9999]"
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                        sideOffset={4}
+                      >
                         {technicians.map(tech => (
-                          <SelectItem key={tech} value={tech}>{tech}</SelectItem>
+                          <SelectItem 
+                            key={tech} 
+                            value={tech}
+                            onSelect={() => {
+                              setPendingAssignment(tech);
+                            }}
+                          >
+                            {tech}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
