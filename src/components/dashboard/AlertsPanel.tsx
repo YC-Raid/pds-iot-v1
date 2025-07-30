@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +76,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const AlertsPanel = () => {
+  const { profile } = useUserProfile();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -279,12 +281,14 @@ const AlertsPanel = () => {
 
   // Alert actions with database updates
   const acknowledgeAlert = async (alertId: string, assignedTo?: string) => {
+    const userName = profile?.nickname || "Current User";
+    
     try {
       const { error } = await supabase
         .from('alerts')
         .update({ 
           status: "acknowledged",
-          acknowledged_by: "Current User",
+          acknowledged_by: userName,
           acknowledged_at: new Date().toISOString(),
           assigned_to: assignedTo || null
         })
@@ -297,7 +301,7 @@ const AlertsPanel = () => {
           ? { 
               ...alert, 
               status: "acknowledged",
-              acknowledged_by: "Current User",
+              acknowledged_by: userName,
               acknowledged_at: new Date().toISOString(),
               assigned_to: assignedTo || alert.assigned_to
             }
@@ -348,12 +352,14 @@ const AlertsPanel = () => {
   };
 
   const resolveAlert = async (alertId: string, rootCause?: string) => {
+    const userName = profile?.nickname || "Current User";
+    
     try {
       const { error } = await supabase
         .from('alerts')
         .update({ 
           status: "resolved",
-          resolved_by: "Current User",
+          resolved_by: userName,
           resolved_at: new Date().toISOString(),
           root_cause: rootCause || null
         })
@@ -366,7 +372,7 @@ const AlertsPanel = () => {
           ? { 
               ...alert, 
               status: "resolved",
-              resolved_by: "Current User",
+              resolved_by: userName,
               resolved_at: new Date().toISOString(),
               root_cause: rootCause || alert.root_cause
             }
@@ -420,13 +426,15 @@ const AlertsPanel = () => {
     const text = noteText || (document.getElementById('note') as HTMLTextAreaElement)?.value;
     if (!text?.trim()) return;
     
+    const authorName = profile?.nickname || "Current User";
+    
     try {
       const { error } = await supabase
         .from('alert_notes')
         .insert({
           alert_id: alertId,
           text: text,
-          author_name: "Current User"
+          author_name: authorName
         });
 
       if (error) throw error;
@@ -438,7 +446,7 @@ const AlertsPanel = () => {
               notes: [...alert.notes, {
                 id: Date.now(),
                 text: text,
-                author_name: "Current User",
+                author_name: authorName,
                 created_at: new Date().toISOString()
               }]
             }
@@ -492,12 +500,14 @@ const AlertsPanel = () => {
   };
 
   const dismissAlert = async (alertId: string) => {
+    const userName = profile?.nickname || "Current User";
+    
     try {
       const { error } = await supabase
         .from('alerts')
         .update({ 
           status: "dismissed",
-          dismissed_by: "Current User",
+          dismissed_by: userName,
           dismissed_at: new Date().toISOString()
         })
         .eq('id', alertId);
