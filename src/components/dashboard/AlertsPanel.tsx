@@ -87,6 +87,7 @@ const AlertsPanel = () => {
   const [pendingAssignment, setPendingAssignment] = useState("");
   const [showExport, setShowExport] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportTimeframe, setExportTimeframe] = useState("1week");
 
   // Fetch user profiles from Supabase
   useEffect(() => {
@@ -415,16 +416,16 @@ const AlertsPanel = () => {
     }
   };
 
-  const addNote = async (alertId: string) => {
-    const noteText = alertNotes[alertId] || "";
-    if (!noteText.trim()) return;
+  const addNote = async (alertId: string, noteText?: string) => {
+    const text = noteText || (document.getElementById('note') as HTMLTextAreaElement)?.value;
+    if (!text?.trim()) return;
     
     try {
       const { error } = await supabase
         .from('alert_notes')
         .insert({
           alert_id: alertId,
-          text: noteText,
+          text: text,
           author_name: "Current User"
         });
 
@@ -436,7 +437,7 @@ const AlertsPanel = () => {
               ...alert, 
               notes: [...alert.notes, {
                 id: Date.now(),
-                text: noteText,
+                text: text,
                 author_name: "Current User",
                 created_at: new Date().toISOString()
               }]
@@ -520,7 +521,78 @@ const AlertsPanel = () => {
     }
   };
 
-  // Remove old export function as we'll use DataExport component
+  // Enhanced export functions with timeframe filtering
+  const exportAlertData = async () => {
+    setIsExporting(true);
+    try {
+      let startDate: Date;
+      const endDate = new Date();
+
+      switch (exportTimeframe) {
+        case '1day':
+          startDate = subDays(endDate, 1);
+          break;
+        case '1week':
+          startDate = subDays(endDate, 7);
+          break;
+        case '1month':
+          startDate = subDays(endDate, 30);
+          break;
+        case '3months':
+          startDate = subDays(endDate, 90);
+          break;
+        default:
+          startDate = subDays(endDate, 7);
+      }
+
+      // Fetch all alerts including dismissed ones within timeframe
+      const { data: alertsData, error } = await supabase
+        .from('alerts')
+        .select('*')
+        .gte('created_at', startOfDay(startDate).toISOString())
+        .lte('created_at', endOfDay(endDate).toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const exportData = (alertsData || []).map(alert => ({
+        'Alert ID': alert.id,
+        'Title': alert.title,
+        'Severity': alert.severity.toUpperCase(),
+        'Status': alert.status.replace('-', ' ').toUpperCase(),
+        'Category': alert.category,
+        'Equipment': alert.equipment,
+        'Location': alert.location,
+        'Assigned To': alert.assigned_to || 'Unassigned',
+        'Created': new Date(alert.created_at).toLocaleString(),
+        'Acknowledged By': alert.acknowledged_by || 'Not acknowledged',
+        'Acknowledged At': alert.acknowledged_at ? new Date(alert.acknowledged_at).toLocaleString() : 'N/A',
+        'Resolved By': alert.resolved_by || 'Not resolved',
+        'Resolved At': alert.resolved_at ? new Date(alert.resolved_at).toLocaleString() : 'N/A',
+        'Dismissed By': alert.dismissed_by || 'Not dismissed',
+        'Dismissed At': alert.dismissed_at ? new Date(alert.dismissed_at).toLocaleString() : 'N/A',
+        'Value': alert.value || 'N/A',
+        'Threshold': alert.threshold || 'N/A',
+        'Duration (minutes)': alert.duration || 0,
+        'Impact': alert.impact || 'N/A',
+        'Priority': alert.priority || 'P4',
+        'Root Cause': alert.root_cause || 'Not identified',
+        'Corrective Actions': (alert.corrective_actions || []).join('; ')
+      }));
+
+      return exportData;
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      toast({
+        title: "Export Error",
+        description: "Failed to export alert data.",
+        variant: "destructive"
+      });
+      return [];
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Statistics
   const activeAlerts = filteredAlerts.filter(alert => alert.status === "active");
@@ -806,12 +878,16 @@ const AlertsPanel = () => {
                     <Textarea
                       id="note"
                       placeholder="Add investigation notes, observations, or updates..."
-                      value={alertNotes[alert.id] || ""}
-                      onChange={(e) => setAlertNotes(prev => ({ ...prev, [alert.id]: e.target.value }))}
+                      defaultValue=""
                     />
                     <Button 
-                      onClick={() => addNote(alert.id)}
-                      disabled={!alertNotes[alert.id]?.trim()}
+                      onClick={() => {
+                        const textarea = document.getElementById('note') as HTMLTextAreaElement;
+                        if (textarea && textarea.value.trim()) {
+                          addNote(alert.id, textarea.value);
+                          textarea.value = "";
+                        }
+                      }}
                       className="w-fit"
                     >
                       Add Note
@@ -1045,10 +1121,85 @@ const AlertsPanel = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <DataExport 
-              title="Alert Audit Trail Export"
-              description="Export alert data including dismissed alerts for audit and compliance purposes"
-            />
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-4">
+                <div className="space-y-2">
+                  <Label>Export Timeframe</Label>
+                  <Select value={exportTimeframe} onValueChange={setExportTimeframe}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1day">Last 24 Hours</SelectItem>
+                      <SelectItem value="1week">Last 7 Days</SelectItem>
+                      <SelectItem value="1month">Last 30 Days</SelectItem>
+                      <SelectItem value="3months">Last 3 Months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button 
+                  onClick={async () => {
+                    const data = await exportAlertData();
+                    if (data.length > 0) {
+                      const ws = XLSX.utils.json_to_sheet(data);
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, 'Alert Audit Trail');
+                      XLSX.writeFile(wb, `alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                    }
+                  }}
+                  className="flex items-center gap-2"
+                  variant="outline"
+                  disabled={isExporting}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  {isExporting ? "Exporting..." : "Export to Excel"}
+                </Button>
+                
+                <Button 
+                  onClick={async () => {
+                    const data = await exportAlertData();
+                    if (data.length > 0) {
+                      const doc = new jsPDF({ orientation: 'landscape' });
+                      
+                      doc.setFontSize(16);
+                      doc.text('Alert Audit Trail Report', 20, 20);
+                      doc.setFontSize(10);
+                      doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`, 20, 30);
+                      doc.text(`Timeframe: ${exportTimeframe}`, 20, 35);
+                      
+                      const tableData = data.map(row => [
+                        row['Alert ID'].toString().substring(0, 8),
+                        row['Title'].substring(0, 25) + '...',
+                        row['Severity'],
+                        row['Status'],
+                        row['Assigned To'].substring(0, 15),
+                        row['Created'].substring(0, 16),
+                        row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A'
+                      ]);
+                      
+                      autoTable(doc, {
+                        head: [['ID', 'Title', 'Severity', 'Status', 'Assigned', 'Created', 'Resolved']],
+                        body: tableData,
+                        startY: 45,
+                        styles: { fontSize: 8 },
+                        headStyles: { fillColor: [51, 51, 51] },
+                      });
+                      
+                      doc.save(`alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+                    }
+                  }}
+                  className="flex items-center gap-2"
+                  variant="outline"
+                  disabled={isExporting}
+                >
+                  <FileText className="h-4 w-4" />
+                  {isExporting ? "Exporting..." : "Export to PDF"}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
