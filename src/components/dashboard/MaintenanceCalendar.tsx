@@ -1,168 +1,226 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { 
+  Plus, 
   Calendar as CalendarIcon, 
   Clock, 
-  Wrench, 
-  AlertTriangle, 
+  AlertCircle,
   CheckCircle,
-  Plus,
+  Edit,
+  Trash2,
+  Download,
+  Share,
+  Wrench,
+  AlertTriangle,
   Filter
 } from "lucide-react";
+import { QRCodeGenerator } from "@/components/ui/qr-code-generator";
 
-const MaintenanceCalendar = () => {
+interface MaintenanceTask {
+  id: number;
+  title: string;
+  description: string;
+  dueDate: string;
+  priority: "low" | "medium" | "high";
+  status: "pending" | "in-progress" | "completed";
+  assignee: string;
+  equipment: string;
+  type: "routine" | "emergency" | "predictive";
+}
+
+const sampleTasks: MaintenanceTask[] = [
+  {
+    id: 1,
+    title: "Temperature Sensor Calibration",
+    description: "Calibrate all temperature sensors in Zone A",
+    dueDate: "2024-01-15",
+    priority: "high",
+    status: "pending",
+    assignee: "John Smith",
+    equipment: "TempSensor-001 to TempSensor-005",
+    type: "routine"
+  },
+  {
+    id: 2,
+    title: "Air Quality Monitor Cleaning", 
+    description: "Clean PM2.5 and PM10 sensors",
+    dueDate: "2024-01-18",
+    priority: "medium",
+    status: "in-progress",
+    assignee: "Sarah Johnson",
+    equipment: "AQM-001, AQM-002",
+    type: "routine"
+  },
+  {
+    id: 3,
+    title: "Humidity Sensor Replacement",
+    description: "Replace faulty humidity sensor in Zone C",
+    dueDate: "2024-01-12", 
+    priority: "high",
+    status: "completed",
+    assignee: "Mike Davis",
+    equipment: "HumSensor-012",
+    type: "emergency"
+  }
+];
+
+export function MaintenanceCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-
-  // Mock maintenance data
-  const maintenanceSchedule = [
-    {
-      id: 1,
-      title: "Monthly Air Quality Sensor Calibration",
-      type: "routine",
-      priority: "medium",
-      date: "2024-01-15",
-      time: "09:00",
-      duration: "2 hours",
-      technician: "John Smith",
-      status: "scheduled",
-      description: "Calibrate all air quality sensors and check accuracy"
-    },
-    {
-      id: 2,
-      title: "Structural Integrity Check",
-      type: "inspection",
-      priority: "high",
-      date: "2024-01-18",
-      time: "14:00",
-      duration: "4 hours",
-      technician: "Sarah Johnson",
-      status: "overdue",
-      description: "Comprehensive structural assessment of hangar framework"
-    },
-    {
-      id: 3,
-      title: "Temperature Sensor Replacement",
-      type: "repair",
-      priority: "high",
-      date: "2024-01-20",
-      time: "10:30",
-      duration: "1 hour",
-      technician: "Mike Davis",
-      status: "scheduled",
-      description: "Replace faulty temperature sensor in north wall"
-    },
-    {
-      id: 4,
-      title: "Quarterly HVAC System Maintenance",
-      type: "routine",
-      priority: "medium",
-      date: "2024-01-25",
-      time: "08:00",
-      duration: "6 hours",
-      technician: "Alex Brown",
-      status: "scheduled",
-      description: "Full HVAC system inspection and filter replacement"
-    },
-    {
-      id: 5,
-      title: "Humidity Control System Check",
-      type: "inspection",
-      priority: "low",
-      date: "2024-01-28",
-      time: "11:00",
-      duration: "1.5 hours",
-      technician: "Lisa Wilson",
-      status: "completed",
-      description: "Verify humidity control systems are operating within parameters"
-    }
-  ];
+  const [tasks, setTasks] = useState<MaintenanceTask[]>(sampleTasks);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<MaintenanceTask | null>(null);
+  const [showQR, setShowQR] = useState(false);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high":
-        return "text-red-600 bg-red-100 border-red-200";
-      case "medium":
-        return "text-yellow-600 bg-yellow-100 border-yellow-200";
-      case "low":
-        return "text-green-600 bg-green-100 border-green-200";
-      default:
-        return "text-gray-600 bg-gray-100 border-gray-200";
+      case "high": return "destructive";
+      case "medium": return "default";
+      case "low": return "secondary";
+      default: return "default";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "completed":
-        return "text-green-600 bg-green-100";
-      case "scheduled":
-        return "text-blue-600 bg-blue-100";
-      case "overdue":
-        return "text-red-600 bg-red-100";
-      case "in-progress":
-        return "text-yellow-600 bg-yellow-100";
-      default:
-        return "text-gray-600 bg-gray-100";
+      case "completed": return "bg-success/10 text-success";
+      case "in-progress": return "bg-warning/10 text-warning";  
+      case "pending": return "bg-muted text-muted-foreground";
+      default: return "bg-muted text-muted-foreground";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed": return <CheckCircle className="w-4 h-4" />;
+      case "in-progress": return <Clock className="w-4 h-4" />;
+      case "pending": return <AlertCircle className="w-4 h-4" />;
+      default: return <AlertCircle className="w-4 h-4" />;
     }
   };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case "routine":
-        return <Clock className="h-4 w-4" />;
-      case "inspection":
-        return <AlertTriangle className="h-4 w-4" />;
-      case "repair":
-        return <Wrench className="h-4 w-4" />;
-      default:
-        return <CalendarIcon className="h-4 w-4" />;
+      case "routine": return <Clock className="h-4 w-4" />;
+      case "emergency": return <AlertTriangle className="h-4 w-4" />;
+      case "predictive": return <Wrench className="h-4 w-4" />;
+      default: return <CalendarIcon className="h-4 w-4" />;
     }
   };
 
+  const handleAddTask = () => {
+    setEditingTask(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditTask = (task: MaintenanceTask) => {
+    setEditingTask(task);
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteTask = (taskId: number) => {
+    setTasks(tasks.filter(task => task.id !== taskId));
+  };
+
+  const currentUrl = `${window.location.origin}/?tab=maintenance`;
+  
   // Get upcoming tasks (next 7 days)
-  const upcomingTasks = maintenanceSchedule
+  const upcomingTasks = tasks
     .filter(task => {
-      const taskDate = new Date(task.date);
+      const taskDate = new Date(task.dueDate);
       const today = new Date();
       const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
       return taskDate >= today && taskDate <= nextWeek && task.status !== 'completed';
     })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   return (
     <div className="space-y-6">
-      {/* Quick Actions */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Maintenance Schedule</h2>
-          <p className="text-muted-foreground">Manage and track all maintenance activities</p>
+          <p className="text-muted-foreground">
+            Manage sensor maintenance tasks and schedules
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex gap-2">
           <Button variant="outline" className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
             Filter
           </Button>
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Schedule Maintenance
+          <Button 
+            variant="outline" 
+            onClick={() => setShowQR(!showQR)}
+          >
+            <Share className="w-4 h-4 mr-2" />
+            Share
+          </Button>
+          <Button onClick={handleAddTask} className="bg-primary hover:bg-primary/90">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Task
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Calendar View */}
-        <Card className="lg:col-span-1">
+      {/* QR Code Section */}
+      {showQR && (
+        <Card className="relative">
+          <GlowingEffect
+            spread={30}
+            glow={true}
+            disabled={false}
+            proximity={48}
+            inactiveZone={0.01}
+          />
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5" />
-              Calendar
-            </CardTitle>
-            <CardDescription>Select a date to view scheduled activities</CardDescription>
+            <CardTitle>Share Maintenance Schedule</CardTitle>
+            <CardDescription>
+              Scan QR code to access maintenance schedule on mobile devices
+            </CardDescription>
           </CardHeader>
           <CardContent>
+            <QRCodeGenerator 
+              url={currentUrl}
+              title="Maintenance Schedule"
+              description="Hangar Guardian IoT Monitoring System"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Calendar View */}
+        <Card className="relative">
+          <GlowingEffect
+            spread={30}
+            glow={true}
+            disabled={false}
+            proximity={48}
+            inactiveZone={0.01}
+          />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5" />
+              Schedule Calendar
+            </CardTitle>
+            <CardDescription>
+              Click on dates to view scheduled tasks
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
             <Calendar
               mode="single"
               selected={selectedDate}
@@ -172,57 +230,85 @@ const MaintenanceCalendar = () => {
           </CardContent>
         </Card>
 
-        {/* Maintenance Schedule List */}
-        <Card className="lg:col-span-2">
+        {/* Task List */}
+        <Card className="lg:col-span-2 relative">
+          <GlowingEffect
+            spread={40}
+            glow={true}
+            disabled={false}
+            proximity={64}
+            inactiveZone={0.01}
+          />
           <CardHeader>
-            <CardTitle>Scheduled Activities</CardTitle>
+            <CardTitle>Maintenance Tasks</CardTitle>
             <CardDescription>
-              Upcoming and recent maintenance tasks
+              Upcoming and ongoing maintenance activities
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {maintenanceSchedule.map((task) => (
-                <div key={task.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-1">
-                        {getTypeIcon(task.type)}
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="font-medium">{task.title}</h4>
-                        <p className="text-sm text-muted-foreground">{task.description}</p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>📅 {task.date}</span>
-                          <span>⏰ {task.time}</span>
-                          <span>⏱️ {task.duration}</span>
-                          <span>👤 {task.technician}</span>
-                        </div>
-                      </div>
+          <CardContent className="space-y-4">
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className={`p-2 rounded-lg ${getStatusColor(task.status)}`}>
+                    {getStatusIcon(task.status)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      {getTypeIcon(task.type)}
+                      <h4 className="font-medium">{task.title}</h4>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <Badge className={getPriorityColor(task.priority)}>
-                        {task.priority} priority
+                    <p className="text-sm text-muted-foreground">{task.description}</p>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <Badge variant={getPriorityColor(task.priority) as any}>
+                        {task.priority}
                       </Badge>
-                      <Badge className={getStatusColor(task.status)}>
-                        {task.status === "completed" && <CheckCircle className="h-3 w-3 mr-1" />}
-                        {task.status === "overdue" && <AlertTriangle className="h-3 w-3 mr-1" />}
-                        {task.status}
-                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Assignee: {task.assignee}
+                      </span>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditTask(task)}
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteTask(task.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
 
       {/* Upcoming Tasks Summary */}
-      <Card>
+      <Card className="relative">
+        <GlowingEffect
+          spread={30}
+          glow={true}
+          disabled={false}
+          proximity={48}
+          inactiveZone={0.01}
+        />
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-600" />
+            <Clock className="h-5 w-5" />
             Upcoming This Week
           </CardTitle>
           <CardDescription>
@@ -239,15 +325,12 @@ const MaintenanceCalendar = () => {
                     <h5 className="font-medium text-sm">{task.title}</h5>
                   </div>
                   <div className="space-y-1 text-xs text-muted-foreground">
-                    <p>📅 {task.date} at {task.time}</p>
-                    <p>👤 {task.technician}</p>
+                    <p>📅 {new Date(task.dueDate).toLocaleDateString()}</p>
+                    <p>👤 {task.assignee}</p>
                   </div>
                   <div className="flex justify-between items-center mt-2">
-                    <Badge size="sm" className={getPriorityColor(task.priority)}>
+                    <Badge variant={getPriorityColor(task.priority) as any}>
                       {task.priority}
-                    </Badge>
-                    <Badge size="sm" className={getStatusColor(task.status)}>
-                      {task.status}
                     </Badge>
                   </div>
                 </div>
@@ -260,8 +343,84 @@ const MaintenanceCalendar = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Add/Edit Task Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTask ? "Edit Task" : "Add New Task"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingTask ? "Update the maintenance task details." : "Create a new maintenance task for your equipment."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Task Title</Label>
+              <Input
+                id="title"
+                placeholder="Enter task title"
+                defaultValue={editingTask?.title || ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Enter task description"
+                defaultValue={editingTask?.description || ""}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  defaultValue={editingTask?.dueDate || ""}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="priority">Priority</Label>
+                <select
+                  id="priority"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  defaultValue={editingTask?.priority || "medium"}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="assignee">Assignee</Label>
+              <Input
+                id="assignee"
+                placeholder="Enter assignee name"
+                defaultValue={editingTask?.assignee || ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="equipment">Equipment</Label>
+              <Input
+                id="equipment"
+                placeholder="Enter equipment identifiers"
+                defaultValue={editingTask?.equipment || ""}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setIsDialogOpen(false)}>
+              {editingTask ? "Update Task" : "Add Task"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
-
-export { MaintenanceCalendar };
+}
