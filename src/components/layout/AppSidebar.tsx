@@ -38,7 +38,7 @@ const mainItems = [
   { title: "Sensors", url: "/?tab=sensors", icon: Activity },
   { title: "Vibration", url: "/?tab=vibration", icon: Waves },
   { title: "Longevity", url: "/?tab=longevity", icon: Timer },
-  { title: "Maintenance", url: "/maintenance", icon: Calendar },
+  { title: "Maintenance", url: "/?tab=maintenance", icon: Calendar },
   { title: "Alerts", url: "/?tab=alerts", icon: Bell },
   { title: "Analytics", url: "/?tab=analytics", icon: TrendingUp },
 ];
