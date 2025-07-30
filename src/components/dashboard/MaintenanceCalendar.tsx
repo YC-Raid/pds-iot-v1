@@ -23,12 +23,11 @@ import {
   Edit,
   Trash2,
   Download,
-  Share,
   Wrench,
   AlertTriangle,
   Filter
 } from "lucide-react";
-import { QRCodeGenerator } from "@/components/ui/qr-code-generator";
+import { DataExport } from "@/components/ui/data-export";
 
 interface MaintenanceTask {
   id: number;
@@ -165,8 +164,8 @@ export function MaintenanceCalendar() {
             variant="outline" 
             onClick={() => setShowQR(!showQR)}
           >
-            <Share className="w-4 h-4 mr-2" />
-            Share
+            <Download className="w-4 h-4 mr-2" />
+            Export Data
           </Button>
           <Button onClick={handleAddTask} className="bg-primary hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-2" />
@@ -175,7 +174,7 @@ export function MaintenanceCalendar() {
         </div>
       </div>
 
-      {/* QR Code Section */}
+      {/* Export Data Section */}
       {showQR && (
         <Card className="relative">
           <GlowingEffect
@@ -186,16 +185,15 @@ export function MaintenanceCalendar() {
             inactiveZone={0.01}
           />
           <CardHeader>
-            <CardTitle>Share Maintenance Schedule</CardTitle>
+            <CardTitle>Export Sensor Data</CardTitle>
             <CardDescription>
-              Scan QR code to access maintenance schedule on mobile devices
+              Export sensor data for analysis and sharing with your team
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <QRCodeGenerator 
-              url={currentUrl}
-              title="Maintenance Schedule"
-              description="Hangar Guardian IoT Monitoring System"
+            <DataExport 
+              title="Sensor Data Export"
+              description="Select a sensor and time period to export historical data as PDF or Excel files"
             />
           </CardContent>
         </Card>

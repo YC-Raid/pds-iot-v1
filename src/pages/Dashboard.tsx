@@ -4,13 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { SensorOverview } from "@/components/dashboard/SensorOverview";
 import { MaintenanceCalendar } from "@/components/dashboard/MaintenanceCalendar";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
+import { CriticalAlertsPanel } from "@/components/dashboard/CriticalAlertsPanel";
 import { AnalyticsPanel } from "@/components/dashboard/AnalyticsPanel";
 import { HangarStatus } from "@/components/dashboard/HangarStatus";
 import { VibrationMonitoring } from "@/components/dashboard/VibrationMonitoring";
 import { SystemLongevity } from "@/components/dashboard/SystemLongevity";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
-import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, Settings } from "lucide-react";
+import { DataExport } from "@/components/ui/data-export";
+import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, Settings, AlertTriangle } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
 const Dashboard = () => {
@@ -75,6 +77,16 @@ const Dashboard = () => {
       content: (
         <div className="space-y-6">
           <AlertsPanel />
+        </div>
+      ),
+    },
+    {
+      title: "Critical Alerts",
+      value: "critical-alerts",
+      icon: <AlertTriangle className="h-4 w-4" />,
+      content: (
+        <div className="space-y-6">
+          <CriticalAlertsPanel />
         </div>
       ),
     },
@@ -205,7 +217,7 @@ const Dashboard = () => {
           <AnimatedTabs 
             tabs={tabs}
             defaultValue={activeTab}
-            containerClassName="grid w-full grid-cols-8 bg-muted p-1 rounded-lg"
+            containerClassName="grid w-full grid-cols-9 bg-muted p-1 rounded-lg"
             tabClassName="text-sm font-medium transition-all duration-200"
             activeTabClassName="bg-background shadow-sm"
             contentClassName="min-h-[600px]"
