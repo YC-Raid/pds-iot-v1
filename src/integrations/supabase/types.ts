@@ -14,6 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_notes: {
+        Row: {
+          alert_id: string
+          author_id: string | null
+          author_name: string
+          created_at: string
+          id: string
+          text: string
+        }
+        Insert: {
+          alert_id: string
+          author_id?: string | null
+          author_name: string
+          created_at?: string
+          id?: string
+          text: string
+        }
+        Update: {
+          alert_id?: string
+          author_id?: string | null
+          author_name?: string
+          created_at?: string
+          id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_notes_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          assigned_to: string | null
+          category: string
+          corrective_actions: string[] | null
+          created_at: string
+          created_by: string | null
+          description: string
+          dismissed_at: string | null
+          dismissed_by: string | null
+          duration: number | null
+          equipment: string
+          escalated: boolean | null
+          id: string
+          impact: string | null
+          location: string
+          priority: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          root_cause: string | null
+          sensor: string
+          severity: string
+          status: string
+          threshold: string | null
+          title: string
+          unit: string | null
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          assigned_to?: string | null
+          category: string
+          corrective_actions?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          duration?: number | null
+          equipment: string
+          escalated?: boolean | null
+          id?: string
+          impact?: string | null
+          location: string
+          priority?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          root_cause?: string | null
+          sensor: string
+          severity: string
+          status: string
+          threshold?: string | null
+          title: string
+          unit?: string | null
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          assigned_to?: string | null
+          category?: string
+          corrective_actions?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          duration?: number | null
+          equipment?: string
+          escalated?: boolean | null
+          id?: string
+          impact?: string | null
+          location?: string
+          priority?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          root_cause?: string | null
+          sensor?: string
+          severity?: string
+          status?: string
+          threshold?: string | null
+          title?: string
+          unit?: string | null
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           alert_threshold_humidity: number | null

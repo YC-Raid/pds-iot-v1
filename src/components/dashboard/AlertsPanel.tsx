@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { format } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { toast } from "@/hooks/use-toast";
 import { 
   AlertTriangle, 
   Bell, 
@@ -47,196 +48,17 @@ import {
 
 const AlertsPanel = () => {
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [alerts, setAlerts] = useState([
-    {
-      id: 1,
-      title: "Critical Temperature Threshold Breach",
-      description: "Temperature sensor reading exceeds maximum safe operating range. Equipment protection systems may activate.",
-      severity: "critical",
-      category: "environmental",
-      equipment: "HVAC System A",
-      location: "North Storage Zone",
-      sensor: "Temperature Sensor #2",
-      timestamp: "2024-01-15T14:30:00Z",
-      status: "active",
-      value: "42.5°C",
-      threshold: "40°C",
-      unit: "°C",
-      duration: 25,
-      impact: "Equipment damage risk",
-      assignedTo: null,
-      acknowledgedBy: null,
-      acknowledgedAt: null,
-      resolvedBy: null,
-      resolvedAt: null,
-      notes: [],
-      escalated: false,
-      rootCause: null,
-      correctiveActions: [],
-      icon: Thermometer,
-      priority: "P1"
-    },
-    {
-      id: 2,
-      title: "Vibration Anomaly Detected",
-      description: "Unusual vibration patterns detected on motor assembly. Potential bearing failure indication.",
-      severity: "high",
-      category: "equipment",
-      equipment: "Ventilation Motor #3",
-      location: "East Storage Zone",
-      sensor: "Vibration Sensor #3",
-      timestamp: "2024-01-15T13:45:00Z",
-      status: "acknowledged",
-      value: "8.2 mm/s",
-      threshold: "6.0 mm/s",
-      unit: "mm/s",
-      duration: 45,
-      impact: "Potential equipment failure",
-      assignedTo: "John Smith",
-      acknowledgedBy: "John Smith",
-      acknowledgedAt: "2024-01-15T14:00:00Z",
-      resolvedBy: null,
-      resolvedAt: null,
-      notes: [
-        { id: 1, text: "Investigating bearing condition", author: "John Smith", timestamp: "2024-01-15T14:00:00Z" }
-      ],
-      escalated: false,
-      rootCause: null,
-      correctiveActions: ["Schedule bearing inspection", "Monitor trend for 24h"],
-      icon: Settings,
-      priority: "P2"
-    },
-    {
-      id: 3,
-      title: "Humidity Level Stabilized",
-      description: "Humidity levels have returned to normal operating range after HVAC adjustment.",
-      severity: "info",
-      category: "environmental",
-      equipment: "Climate Control System",
-      location: "Central Storage Zone",
-      sensor: "Humidity Sensor #1",
-      timestamp: "2024-01-15T12:15:00Z",
-      status: "resolved",
-      value: "55%",
-      threshold: "60%",
-      unit: "%RH",
-      duration: 120,
-      impact: "None - Normal operation",
-      assignedTo: "Sarah Johnson",
-      acknowledgedBy: "Sarah Johnson",
-      acknowledgedAt: "2024-01-15T12:20:00Z",
-      resolvedBy: "Sarah Johnson",
-      resolvedAt: "2024-01-15T13:30:00Z",
-      notes: [
-        { id: 1, text: "HVAC system adjusted", author: "Sarah Johnson", timestamp: "2024-01-15T12:20:00Z" },
-        { id: 2, text: "Levels normalized", author: "Sarah Johnson", timestamp: "2024-01-15T13:30:00Z" }
-      ],
-      escalated: false,
-      rootCause: "HVAC setpoint drift",
-      correctiveActions: ["Recalibrated HVAC controls", "Updated maintenance schedule"],
-      icon: Droplets,
-      priority: "P4"
-    },
-    {
-      id: 4,
-      title: "Power Quality Event",
-      description: "Voltage fluctuation detected in electrical distribution panel. Monitoring for equipment impact.",
-      severity: "medium",
-      category: "electrical",
-      equipment: "Main Distribution Panel",
-      location: "Electrical Room",
-      sensor: "Power Quality Monitor",
-      timestamp: "2024-01-15T11:20:00Z",
-      status: "in-progress",
-      value: "218V",
-      threshold: "220V ±5%",
-      unit: "VAC",
-      duration: 15,
-      impact: "Monitoring required",
-      assignedTo: "Mike Davis",
-      acknowledgedBy: "Mike Davis",
-      acknowledgedAt: "2024-01-15T11:25:00Z",
-      resolvedBy: null,
-      resolvedAt: null,
-      notes: [
-        { id: 1, text: "Checking grid stability", author: "Mike Davis", timestamp: "2024-01-15T11:25:00Z" },
-        { id: 2, text: "Contacted utility company", author: "Mike Davis", timestamp: "2024-01-15T11:45:00Z" }
-      ],
-      escalated: false,
-      rootCause: null,
-      correctiveActions: ["Monitor for 4 hours", "Document voltage trends"],
-      icon: Zap,
-      priority: "P3"
-    },
-    {
-      id: 5,
-      title: "Preventive Maintenance Due",
-      description: "Quarterly sensor calibration and system inspection scheduled for tomorrow.",
-      severity: "low",
-      category: "maintenance",
-      equipment: "All Sensor Systems",
-      location: "Facility Wide",
-      sensor: "Maintenance Schedule",
-      timestamp: "2024-01-15T09:00:00Z",
-      status: "active",
-      value: "Due: Jan 16, 2024",
-      threshold: "90 days",
-      unit: "days",
-      duration: 0,
-      impact: "Scheduled activity",
-      assignedTo: "Maintenance Team",
-      acknowledgedBy: null,
-      acknowledgedAt: null,
-      resolvedBy: null,
-      resolvedAt: null,
-      notes: [],
-      escalated: false,
-      rootCause: null,
-      correctiveActions: ["Schedule maintenance window", "Prepare calibration equipment"],
-      icon: Calendar,
-      priority: "P4"
-    },
-    {
-      id: 6,
-      title: "Air Quality Sensor Offline",
-      description: "Communication lost with air quality monitoring station. Backup monitoring activated.",
-      severity: "medium",
-      category: "system",
-      equipment: "Air Quality Monitor #2",
-      location: "West Storage Zone",
-      sensor: "Air Quality Sensor #2",
-      timestamp: "2024-01-15T08:30:00Z",
-      status: "escalated",
-      value: "No Data",
-      threshold: "N/A",
-      unit: "AQI",
-      duration: 180,
-      impact: "Reduced monitoring coverage",
-      assignedTo: "Technical Support",
-      acknowledgedBy: "Technical Support",
-      acknowledgedAt: "2024-01-15T08:35:00Z",
-      resolvedBy: null,
-      resolvedAt: null,
-      notes: [
-        { id: 1, text: "Network connectivity issues suspected", author: "Tech Support", timestamp: "2024-01-15T08:35:00Z" },
-        { id: 2, text: "Escalated to IT team", author: "Tech Support", timestamp: "2024-01-15T09:00:00Z" }
-      ],
-      escalated: true,
-      rootCause: null,
-      correctiveActions: ["Check network cables", "Reset communication module", "Replace if necessary"],
-      icon: Shield,
-      priority: "P2"
-    }
-  ]);
-
+  const [alerts, setAlerts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedAlert, setSelectedAlert] = useState<any>(null);
-  const [newNote, setNewNote] = useState("");
-  const [assignTo, setAssignTo] = useState("");
-  const [alertNotes, setAlertNotes] = useState<Record<number, string>>({});
+  const [alertNotes, setAlertNotes] = useState<Record<string, string>>({});
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [pendingAssignment, setPendingAssignment] = useState("");
+  const [exportTimeframe, setExportTimeframe] = useState("1week");
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch user profiles from Supabase
   useEffect(() => {
@@ -259,6 +81,95 @@ const AlertsPanel = () => {
 
     fetchProfiles();
   }, []);
+
+  // Fetch alerts from Supabase
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const { data: alertsData, error: alertsError } = await supabase
+          .from('alerts')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (alertsError) {
+          console.error('Error fetching alerts:', alertsError);
+          // Fall back to demo data if database is empty
+          setAlerts(getDemoAlerts());
+          return;
+        }
+
+        if (alertsData && alertsData.length > 0) {
+          // Fetch notes for each alert
+          const alertsWithNotes = await Promise.all(
+            alertsData.map(async (alert) => {
+              const { data: notesData } = await supabase
+                .from('alert_notes')
+                .select('*')
+                .eq('alert_id', alert.id)
+                .order('created_at', { ascending: true });
+              
+              return {
+                ...alert,
+                notes: notesData || [],
+                icon: getIconForCategory(alert.category)
+              };
+            })
+          );
+          setAlerts(alertsWithNotes);
+        } else {
+          // If no alerts in database, use demo data
+          setAlerts(getDemoAlerts());
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        setAlerts(getDemoAlerts());
+      }
+    };
+
+    fetchAlerts();
+  }, []);
+
+  const getIconForCategory = (category: string) => {
+    switch (category) {
+      case 'environmental': return Thermometer;
+      case 'equipment': return Settings;
+      case 'electrical': return Zap;
+      case 'system': return Shield;
+      case 'maintenance': return Calendar;
+      default: return AlertTriangle;
+    }
+  };
+
+  const getDemoAlerts = () => [
+    {
+      id: "demo-1",
+      title: "Critical Temperature Threshold Breach",
+      description: "Temperature sensor reading exceeds maximum safe operating range. Equipment protection systems may activate.",
+      severity: "critical",
+      category: "environmental",
+      equipment: "HVAC System A",
+      location: "North Storage Zone",
+      sensor: "Temperature Sensor #2",
+      created_at: "2024-01-15T14:30:00Z",
+      status: "active",
+      value: "42.5°C",
+      threshold: "40°C",
+      unit: "°C",
+      duration: 25,
+      impact: "Equipment damage risk",
+      assigned_to: null,
+      acknowledged_by: null,
+      acknowledged_at: null,
+      resolved_by: null,
+      resolved_at: null,
+      notes: [],
+      escalated: false,
+      root_cause: null,
+      corrective_actions: [],
+      icon: Thermometer,
+      priority: "P1"
+    }
+  ];
 
   // Use real technicians from Supabase profiles
   const technicians = profiles.length > 0 ? profiles.map(p => p.nickname || `User ${p.user_id.slice(0, 8)}`) : [
@@ -313,7 +224,7 @@ const AlertsPanel = () => {
         return "text-orange-600 bg-orange-100";
       case "resolved":
         return "text-green-600 bg-green-100";
-      case "closed":
+      case "dismissed":
         return "text-muted-foreground bg-muted/50";
       default:
         return "text-muted-foreground bg-muted/50";
@@ -337,113 +248,321 @@ const AlertsPanel = () => {
     return `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`;
   };
 
-  // Alert actions
-  const acknowledgeAlert = (alertId: number, assignedTo?: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { 
-            ...alert, 
-            status: "acknowledged",
-            acknowledgedBy: "Current User",
-            acknowledgedAt: new Date().toISOString(),
-            assignedTo: assignedTo || alert.assignedTo
-          }
-        : alert
-    ));
+  // Alert actions with database updates
+  const acknowledgeAlert = async (alertId: string, assignedTo?: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ 
+          status: "acknowledged",
+          acknowledged_by: "Current User",
+          acknowledged_at: new Date().toISOString(),
+          assigned_to: assignedTo || null
+        })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId 
+          ? { 
+              ...alert, 
+              status: "acknowledged",
+              acknowledged_by: "Current User",
+              acknowledged_at: new Date().toISOString(),
+              assigned_to: assignedTo || alert.assigned_to
+            }
+          : alert
+      ));
+
+      toast({
+        title: "Alert Acknowledged",
+        description: "Alert has been successfully acknowledged."
+      });
+    } catch (error) {
+      console.error('Error acknowledging alert:', error);
+      toast({
+        title: "Error",
+        description: "Failed to acknowledge alert.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const startProgress = (alertId: number) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { ...alert, status: "in-progress" }
-        : alert
-    ));
+  const startProgress = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ status: "in-progress" })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId 
+          ? { ...alert, status: "in-progress" }
+          : alert
+      ));
+
+      toast({
+        title: "Work Started",
+        description: "Alert marked as in progress."
+      });
+    } catch (error) {
+      console.error('Error starting progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update alert status.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const resolveAlert = (alertId: number, rootCause?: string, resolution?: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { 
-            ...alert, 
-            status: "resolved",
-            resolvedBy: "Current User",
-            resolvedAt: new Date().toISOString(),
-            rootCause: rootCause || alert.rootCause
-          }
-        : alert
-    ));
+  const resolveAlert = async (alertId: string, rootCause?: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ 
+          status: "resolved",
+          resolved_by: "Current User",
+          resolved_at: new Date().toISOString(),
+          root_cause: rootCause || null
+        })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId 
+          ? { 
+              ...alert, 
+              status: "resolved",
+              resolved_by: "Current User",
+              resolved_at: new Date().toISOString(),
+              root_cause: rootCause || alert.root_cause
+            }
+          : alert
+      ));
+
+      toast({
+        title: "Alert Resolved",
+        description: "Alert has been successfully resolved."
+      });
+    } catch (error) {
+      console.error('Error resolving alert:', error);
+      toast({
+        title: "Error",
+        description: "Failed to resolve alert.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const escalateAlert = (alertId: number) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { ...alert, status: "escalated", escalated: true }
-        : alert
-    ));
+  const escalateAlert = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ status: "escalated", escalated: true })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId 
+          ? { ...alert, status: "escalated", escalated: true }
+          : alert
+      ));
+
+      toast({
+        title: "Alert Escalated",
+        description: "Alert has been escalated to higher priority."
+      });
+    } catch (error) {
+      console.error('Error escalating alert:', error);
+      toast({
+        title: "Error",
+        description: "Failed to escalate alert.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const addNote = (alertId: number) => {
+  const addNote = async (alertId: string) => {
     const noteText = alertNotes[alertId] || "";
     if (!noteText.trim()) return;
     
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { 
-            ...alert, 
-            notes: [...alert.notes, {
-              id: alert.notes.length + 1,
-              text: noteText,
-              author: "Current User",
-              timestamp: new Date().toISOString()
-            }]
-          }
-        : alert
-    ));
-    
-    // Clear the note for this specific alert
-    setAlertNotes(prev => ({ ...prev, [alertId]: "" }));
+    try {
+      const { error } = await supabase
+        .from('alert_notes')
+        .insert({
+          alert_id: alertId,
+          text: noteText,
+          author_name: "Current User"
+        });
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId 
+          ? { 
+              ...alert, 
+              notes: [...alert.notes, {
+                id: Date.now(),
+                text: noteText,
+                author_name: "Current User",
+                created_at: new Date().toISOString()
+              }]
+            }
+          : alert
+      ));
+      
+      // Clear the note for this specific alert
+      setAlertNotes(prev => ({ ...prev, [alertId]: "" }));
+      
+      toast({
+        title: "Note Added",
+        description: "Investigation note has been added."
+      });
+    } catch (error) {
+      console.error('Error adding note:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add note.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const assignAlert = (alertId: number, technician: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { ...alert, assignedTo: technician }
-        : alert
-    ));
+  const assignAlert = async (alertId: string, technician: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ assigned_to: technician })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId 
+          ? { ...alert, assigned_to: technician }
+          : alert
+      ));
+
+      toast({
+        title: "Alert Assigned",
+        description: `Alert assigned to ${technician}.`
+      });
+    } catch (error) {
+      console.error('Error assigning alert:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign alert.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const dismissAlert = (alertId: number) => {
-    setAlerts(prev => prev.filter(alert => alert.id !== alertId));
+  const dismissAlert = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ 
+          status: "dismissed",
+          dismissed_by: "Current User",
+          dismissed_at: new Date().toISOString()
+        })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.filter(alert => alert.id !== alertId));
+      setIsDialogOpen(false);
+
+      toast({
+        title: "Alert Dismissed",
+        description: "Alert has been dismissed and archived."
+      });
+    } catch (error) {
+      console.error('Error dismissing alert:', error);
+      toast({
+        title: "Error",
+        description: "Failed to dismiss alert.",
+        variant: "destructive"
+      });
+    }
   };
 
-  // Export functions
-  const exportAlertData = () => {
-    const exportData = alerts.map(alert => ({
-      'Alert ID': alert.id,
-      'Title': alert.title,
-      'Severity': alert.severity.toUpperCase(),
-      'Status': alert.status.replace('-', ' ').toUpperCase(),
-      'Category': alert.category,
-      'Equipment': alert.equipment,
-      'Location': alert.location,
-      'Assigned To': alert.assignedTo || 'Unassigned',
-      'Created': new Date(alert.timestamp).toLocaleString(),
-      'Acknowledged By': alert.acknowledgedBy || 'Not acknowledged',
-      'Acknowledged At': alert.acknowledgedAt ? new Date(alert.acknowledgedAt).toLocaleString() : 'N/A',
-      'Resolved By': alert.resolvedBy || 'Not resolved',
-      'Resolved At': alert.resolvedAt ? new Date(alert.resolvedAt).toLocaleString() : 'N/A',
-      'Value': alert.value,
-      'Threshold': alert.threshold,
-      'Duration (minutes)': alert.duration,
-      'Impact': alert.impact,
-      'Priority': alert.priority,
-      'Notes Count': alert.notes.length,
-      'Latest Note': alert.notes.length > 0 ? alert.notes[alert.notes.length - 1].text : 'No notes',
-      'Root Cause': alert.rootCause || 'Not identified',
-      'Corrective Actions': alert.correctiveActions.join('; ')
-    }));
+  // Enhanced export functions with timeframe filtering
+  const exportAlertData = async () => {
+    setIsExporting(true);
+    try {
+      let startDate: Date;
+      const endDate = new Date();
 
-    return exportData;
+      switch (exportTimeframe) {
+        case '1day':
+          startDate = subDays(endDate, 1);
+          break;
+        case '1week':
+          startDate = subDays(endDate, 7);
+          break;
+        case '1month':
+          startDate = subDays(endDate, 30);
+          break;
+        case '3months':
+          startDate = subDays(endDate, 90);
+          break;
+        default:
+          startDate = subDays(endDate, 7);
+      }
+
+      // Fetch all alerts including dismissed ones within timeframe
+      const { data: alertsData, error } = await supabase
+        .from('alerts')
+        .select('*')
+        .gte('created_at', startOfDay(startDate).toISOString())
+        .lte('created_at', endOfDay(endDate).toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const exportData = (alertsData || []).map(alert => ({
+        'Alert ID': alert.id,
+        'Title': alert.title,
+        'Severity': alert.severity.toUpperCase(),
+        'Status': alert.status.replace('-', ' ').toUpperCase(),
+        'Category': alert.category,
+        'Equipment': alert.equipment,
+        'Location': alert.location,
+        'Assigned To': alert.assigned_to || 'Unassigned',
+        'Created': new Date(alert.created_at).toLocaleString(),
+        'Acknowledged By': alert.acknowledged_by || 'Not acknowledged',
+        'Acknowledged At': alert.acknowledged_at ? new Date(alert.acknowledged_at).toLocaleString() : 'N/A',
+        'Resolved By': alert.resolved_by || 'Not resolved',
+        'Resolved At': alert.resolved_at ? new Date(alert.resolved_at).toLocaleString() : 'N/A',
+        'Dismissed By': alert.dismissed_by || 'Not dismissed',
+        'Dismissed At': alert.dismissed_at ? new Date(alert.dismissed_at).toLocaleString() : 'N/A',
+        'Value': alert.value || 'N/A',
+        'Threshold': alert.threshold || 'N/A',
+        'Duration (minutes)': alert.duration || 0,
+        'Impact': alert.impact || 'N/A',
+        'Priority': alert.priority || 'P4',
+        'Root Cause': alert.root_cause || 'Not identified',
+        'Corrective Actions': (alert.corrective_actions || []).join('; ')
+      }));
+
+      return exportData;
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      toast({
+        title: "Export Error",
+        description: "Failed to export alert data.",
+        variant: "destructive"
+      });
+      return [];
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Statistics
@@ -455,8 +574,16 @@ const AlertsPanel = () => {
   const criticalAlerts = filteredAlerts.filter(alert => alert.severity === "critical");
   const highPriorityAlerts = filteredAlerts.filter(alert => alert.priority === "P1" || alert.priority === "P2");
 
-  const AlertCard = ({ alert }: { alert: typeof alerts[0] }) => {
-    const IconComponent = alert.icon;
+  const handleSaveAssignment = async () => {
+    if (selectedAlert && pendingAssignment) {
+      await assignAlert(selectedAlert.id, pendingAssignment);
+      setPendingAssignment("");
+      setIsDialogOpen(false);
+    }
+  };
+
+  const AlertCard = ({ alert }: { alert: any }) => {
+    const IconComponent = alert.icon || AlertTriangle;
     
     return (
       <Card className="p-4 space-y-4">
@@ -477,7 +604,7 @@ const AlertsPanel = () => {
                       {alert.status.replace('-', ' ').toUpperCase()}
                     </Badge>
                     <Badge variant="outline" className="text-xs">
-                      {alert.priority}
+                      {alert.priority || 'P4'}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">{alert.description}</p>
@@ -507,11 +634,11 @@ const AlertsPanel = () => {
                 </div>
               </div>
 
-              {alert.assignedTo && (
+              {alert.assigned_to && (
                 <div className="flex items-center gap-1 text-xs">
                   <User className="h-3 w-3" />
                   <span className="font-medium">Assigned to:</span>
-                  <span>{alert.assignedTo}</span>
+                  <span>{alert.assigned_to}</span>
                 </div>
               )}
 
@@ -532,7 +659,7 @@ const AlertsPanel = () => {
                   <div className="text-xs bg-muted/50 p-2 rounded">
                     {alert.notes[alert.notes.length - 1].text}
                     <div className="text-muted-foreground mt-1">
-                      - {alert.notes[alert.notes.length - 1].author} • {formatTime(alert.notes[alert.notes.length - 1].timestamp)}
+                      - {alert.notes[alert.notes.length - 1].author_name || alert.notes[alert.notes.length - 1].author} • {formatTime(alert.notes[alert.notes.length - 1].created_at || alert.notes[alert.notes.length - 1].timestamp)}
                     </div>
                   </div>
                 </div>
@@ -626,13 +753,24 @@ const AlertsPanel = () => {
           </div>
           
           <div className="flex items-center gap-1">
-            <Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedAlert(alert)}>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => {
+                    setSelectedAlert(alert);
+                    setPendingAssignment(alert.assigned_to || "");
+                  }}
+                >
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent 
+                className="max-w-2xl"
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle>Alert Details - {alert.title}</DialogTitle>
                   <DialogDescription>
@@ -644,11 +782,8 @@ const AlertsPanel = () => {
                     <div>
                       <Label>Assign to Technician</Label>
                       <Select 
-                        value={assignTo || alert.assignedTo || ""} 
-                        onValueChange={(value) => {
-                          setAssignTo(value);
-                          assignAlert(alert.id, value);
-                        }}
+                        value={pendingAssignment} 
+                        onValueChange={setPendingAssignment}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select technician" />
@@ -660,79 +795,96 @@ const AlertsPanel = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                     <div className="space-y-2">
-                       <Label>Priority Actions</Label>
-                       <div className="flex gap-2">
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button 
-                               size="sm" 
-                               variant="outline"
-                               className="flex items-center gap-1"
-                             >
-                               <X className="h-3 w-3" />
-                               Dismiss
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                 Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently removed from the system.
-                                 <br /><br />
-                                 <strong>Alert:</strong> {alert.title}
-                                 <br />
-                                 <strong>Severity:</strong> {alert.severity.toUpperCase()}
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                               <AlertDialogAction 
-                                 onClick={() => dismissAlert(alert.id)}
-                                 className="bg-destructive hover:bg-destructive/90"
-                               >
-                                 Yes, Dismiss Alert
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </div>
-                     </div>
+                    <div className="space-y-2">
+                      <Label>Priority Actions</Label>
+                      <div className="flex gap-2">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="flex items-center gap-1"
+                            >
+                              <X className="h-3 w-3" />
+                              Dismiss
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently archived in the system.
+                                <br /><br />
+                                <strong>Alert:</strong> {alert.title}
+                                <br />
+                                <strong>Severity:</strong> {alert.severity.toUpperCase()}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => dismissAlert(alert.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Yes, Dismiss Alert
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
                   </div>
                   
-                   <div>
-                     <Label>Add Note</Label>
-                     <div className="flex gap-2 mt-1">
-                       <Textarea 
-                         placeholder="Add investigation notes, observations, or updates..."
-                         value={alertNotes[alert.id] || ""}
-                         onChange={(e) => setAlertNotes(prev => ({ ...prev, [alert.id]: e.target.value }))}
-                         className="flex-1"
-                       />
-                       <Button 
-                         onClick={() => addNote(alert.id)}
-                         disabled={!alertNotes[alert.id]?.trim()}
-                       >
-                         Add Note
-                       </Button>
-                     </div>
-                   </div>
+                  <div>
+                    <Label>Add Note</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Textarea 
+                        placeholder="Add investigation notes, observations, or updates..."
+                        value={alertNotes[alert.id] || ""}
+                        onChange={(e) => setAlertNotes(prev => ({ ...prev, [alert.id]: e.target.value }))}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={() => addNote(alert.id)}
+                        disabled={!alertNotes[alert.id]?.trim()}
+                      >
+                        Add Note
+                      </Button>
+                    </div>
+                  </div>
                   
                   {alert.notes.length > 0 && (
                     <div>
                       <Label>Investigation History</Label>
                       <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-                        {alert.notes.map(note => (
+                        {alert.notes.map((note: any) => (
                           <div key={note.id} className="p-2 bg-muted/50 rounded text-sm">
                             <p>{note.text}</p>
                             <div className="text-muted-foreground text-xs mt-1">
-                              {note.author} • {formatTime(note.timestamp)}
+                              {note.author_name || note.author} • {formatTime(note.created_at || note.timestamp)}
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
+
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button 
+                      onClick={handleSaveAssignment}
+                      disabled={!pendingAssignment}
+                      className="flex-1"
+                    >
+                      Save Assignment
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsDialogOpen(false)}
+                      className="flex-1"
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
@@ -903,62 +1055,88 @@ const AlertsPanel = () => {
             Export Alert Data
           </CardTitle>
           <CardDescription>
-            Export alert audit trails for compliance and analysis
+            Export alert audit trails including dismissed alerts for compliance and analysis
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => {
-                const data = exportAlertData();
-                const ws = XLSX.utils.json_to_sheet(data);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Alert Audit Trail');
-                XLSX.writeFile(wb, `alert_audit_trail_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-              }}
-              className="flex items-center gap-2"
-              variant="outline"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Export to Excel
-            </Button>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <div className="space-y-2">
+                <Label>Export Timeframe</Label>
+                <Select value={exportTimeframe} onValueChange={setExportTimeframe}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1day">Last 24 Hours</SelectItem>
+                    <SelectItem value="1week">Last 7 Days</SelectItem>
+                    <SelectItem value="1month">Last 30 Days</SelectItem>
+                    <SelectItem value="3months">Last 3 Months</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             
-            <Button 
-              onClick={() => {
-                const data = exportAlertData();
-                const doc = new jsPDF({ orientation: 'landscape' });
-                
-                doc.setFontSize(16);
-                doc.text('Alert Audit Trail Report', 20, 20);
-                doc.setFontSize(10);
-                doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`, 20, 30);
-                
-                const tableData = data.map(row => [
-                  row['Alert ID'],
-                  row['Title'].substring(0, 30) + '...',
-                  row['Severity'],
-                  row['Status'],
-                  row['Assigned To'],
-                  row['Created'].substring(0, 16),
-                  row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A'
-                ]);
-                
-                autoTable(doc, {
-                  head: [['ID', 'Title', 'Severity', 'Status', 'Assigned', 'Created', 'Resolved']],
-                  body: tableData,
-                  startY: 40,
-                  styles: { fontSize: 8 },
-                  headStyles: { fillColor: [51, 51, 51] },
-                });
-                
-                doc.save(`alert_audit_trail_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-              }}
-              className="flex items-center gap-2"
-              variant="outline"
-            >
-              <FileText className="h-4 w-4" />
-              Export to PDF
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={async () => {
+                  const data = await exportAlertData();
+                  if (data.length > 0) {
+                    const ws = XLSX.utils.json_to_sheet(data);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Alert Audit Trail');
+                    XLSX.writeFile(wb, `alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                  }
+                }}
+                className="flex items-center gap-2"
+                variant="outline"
+                disabled={isExporting}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                {isExporting ? "Exporting..." : "Export to Excel"}
+              </Button>
+              
+              <Button 
+                onClick={async () => {
+                  const data = await exportAlertData();
+                  if (data.length > 0) {
+                    const doc = new jsPDF({ orientation: 'landscape' });
+                    
+                    doc.setFontSize(16);
+                    doc.text('Alert Audit Trail Report', 20, 20);
+                    doc.setFontSize(10);
+                    doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`, 20, 30);
+                    doc.text(`Timeframe: ${exportTimeframe}`, 20, 35);
+                    
+                    const tableData = data.map(row => [
+                      row['Alert ID'].toString().substring(0, 8),
+                      row['Title'].substring(0, 25) + '...',
+                      row['Severity'],
+                      row['Status'],
+                      row['Assigned To'].substring(0, 15),
+                      row['Created'].substring(0, 16),
+                      row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A'
+                    ]);
+                    
+                    autoTable(doc, {
+                      head: [['ID', 'Title', 'Severity', 'Status', 'Assigned', 'Created', 'Resolved']],
+                      body: tableData,
+                      startY: 45,
+                      styles: { fontSize: 8 },
+                      headStyles: { fillColor: [51, 51, 51] },
+                    });
+                    
+                    doc.save(`alert_audit_trail_${exportTimeframe}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+                  }
+                }}
+                className="flex items-center gap-2"
+                variant="outline"
+                disabled={isExporting}
+              >
+                <FileText className="h-4 w-4" />
+                {isExporting ? "Exporting..." : "Export to PDF"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
