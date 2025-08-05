@@ -1064,40 +1064,6 @@ const AlertsPanel = () => {
             <FileDown className="w-4 h-4 mr-2" />
             Export Data
           </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button 
-                variant="destructive" 
-                className="flex items-center gap-2 border-2 border-red-500"
-              >
-                <X className="h-4 w-4" />
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete All Alerts</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete all alerts from the system.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={() => {
-                    setAlerts([]);
-                    toast({
-                      title: "Alerts Deleted",
-                      description: "All alerts have been permanently deleted.",
-                    });
-                  }}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  Delete All
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
 
@@ -1440,6 +1406,47 @@ const AlertsPanel = () => {
               >
                 Add Note
               </Button>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label>Delete Alert</Label>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    className="w-fit border-2 border-red-500 flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Alert</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete this alert from the system.
+                      <br /><br />
+                      <strong>Alert:</strong> {selectedAlert?.title}
+                      <br />
+                      <strong>Severity:</strong> {selectedAlert?.severity.toUpperCase()}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => {
+                        if (selectedAlert) {
+                          dismissAlert(selectedAlert.id);
+                          setIsDialogOpen(false);
+                        }
+                      }}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Delete Alert
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
             
             {selectedAlert?.notes.length > 0 && (
