@@ -90,6 +90,8 @@ const AlertsPanel = () => {
   const [showExport, setShowExport] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportTimeframe, setExportTimeframe] = useState("1week");
+  const [pendingImpact, setPendingImpact] = useState("");
+  const [pendingPriority, setPendingPriority] = useState("");
 
   // Fetch user profiles from Supabase
   useEffect(() => {
@@ -528,6 +530,35 @@ const AlertsPanel = () => {
     }
   };
 
+  const updateAlertPriority = async (alertId: string, priority: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ priority: priority })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId 
+          ? { ...alert, priority: priority }
+          : alert
+      ));
+
+      toast({
+        title: "Priority Updated",
+        description: `Alert priority updated to ${priority}.`
+      });
+    } catch (error) {
+      console.error('Error updating priority:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update alert priority.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const dismissAlert = async (alertId: string) => {
     const userName = profile?.nickname || "Current User";
     
@@ -650,6 +681,25 @@ const AlertsPanel = () => {
     }
   };
 
+  const handleSaveChanges = async () => {
+    if (selectedAlert) {
+      if (pendingImpact && pendingImpact !== selectedAlert.impact) {
+        await updateAlertImpact(selectedAlert.id, pendingImpact);
+      }
+      if (pendingPriority && pendingPriority !== selectedAlert.priority) {
+        await updateAlertPriority(selectedAlert.id, pendingPriority);
+      }
+      if (pendingAssignment && pendingAssignment !== selectedAlert.assigned_to) {
+        await assignAlert(selectedAlert.id, pendingAssignment);
+      }
+      
+      setPendingAssignment("");
+      setPendingImpact("");
+      setPendingPriority("");
+      setIsDialogOpen(false);
+    }
+  };
+
   const AlertCard = ({ alert }: { alert: any }) => {
     const IconComponent = alert.icon || AlertTriangle;
     
@@ -713,24 +763,8 @@ const AlertsPanel = () => {
               <div className="flex items-start gap-1 text-xs">
                 <AlertOctagon className="h-3 w-3 mt-0.5" />
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium">Impact Assessment:</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-4 text-xs px-1"
-                      onClick={() => {
-                        const currentImpact = alert.impact || "";
-                        const newImpact = prompt("Edit impact assessment:", currentImpact);
-                        if (newImpact !== null && newImpact !== currentImpact) {
-                          updateAlertImpact(alert.id, newImpact);
-                        }
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  </div>
-                  <span className="text-muted-foreground">
+                  <span className="font-medium">Impact Assessment:</span>
+                  <span className="text-muted-foreground ml-2">
                     {alert.impact || "Impact assessment pending..."}
                   </span>
                 </div>
@@ -845,6 +879,8 @@ const AlertsPanel = () => {
               onClick={() => {
                 setSelectedAlert(alert);
                 setPendingAssignment(alert.assigned_to || "");
+                setPendingImpact(alert.impact || "");
+                setPendingPriority(alert.priority || "P4");
                 setIsDialogOpen(true);
               }}
             >
@@ -1320,6 +1356,36 @@ const AlertsPanel = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="grid gap-2">
+              <Label>Edit Impact Assessment</Label>
+              <Textarea
+                placeholder="Describe the potential impact and consequences..."
+                value={pendingImpact}
+                onChange={(e) => setPendingImpact(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Change Priority Level</Label>
+              <Select 
+                value={pendingPriority} 
+                onValueChange={(value) => {
+                  setPendingPriority(value);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="P1">P1 - Critical</SelectItem>
+                  <SelectItem value="P2">P2 - High</SelectItem>
+                  <SelectItem value="P3">P3 - Medium</SelectItem>
+                  <SelectItem value="P4">P4 - Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid gap-2">
               <Label>Priority Actions</Label>
               <div className="flex gap-2">
@@ -1401,10 +1467,9 @@ const AlertsPanel = () => {
               Cancel
             </Button>
             <Button 
-              onClick={handleSaveAssignment}
-              disabled={!pendingAssignment}
+              onClick={handleSaveChanges}
             >
-              Save Assignment
+              Save Changes
             </Button>
           </div>
         </DialogContent>
