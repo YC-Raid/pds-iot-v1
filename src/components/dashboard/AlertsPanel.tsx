@@ -1155,19 +1155,34 @@ const AlertsPanel = () => {
                         
                         const tableData = data.map(row => [
                           row['Alert ID'].toString().substring(0, 8),
-                          row['Title'].substring(0, 25) + '...',
+                          row['Title'].substring(0, 20),
                           row['Severity'],
                           row['Status'],
-                          row['Assigned To'].substring(0, 15),
+                          row['Category'],
+                          row['Equipment'].substring(0, 15),
+                          row['Location'].substring(0, 15),
+                          row['Assigned To'].substring(0, 12),
                           row['Created'].substring(0, 16),
-                          row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A'
+                          row['Acknowledged By'].substring(0, 12),
+                          row['Acknowledged At'] !== 'N/A' ? row['Acknowledged At'].substring(0, 16) : 'N/A',
+                          row['Resolved By'].substring(0, 12),
+                          row['Resolved At'] !== 'N/A' ? row['Resolved At'].substring(0, 16) : 'N/A',
+                          row['Dismissed By'].substring(0, 12),
+                          row['Dismissed At'] !== 'N/A' ? row['Dismissed At'].substring(0, 16) : 'N/A',
+                          row['Value'],
+                          row['Threshold'],
+                          row['Duration (minutes)'],
+                          row['Impact'].substring(0, 15),
+                          row['Priority'],
+                          row['Root Cause'].substring(0, 15),
+                          row['Corrective Actions'].substring(0, 20)
                         ]);
                         
                         autoTable(doc, {
-                          head: [['ID', 'Title', 'Severity', 'Status', 'Assigned', 'Created', 'Resolved']],
+                          head: [['Alert ID', 'Title', 'Severity', 'Status', 'Category', 'Equipment', 'Location', 'Assigned To', 'Created', 'Acknowledged By', 'Acknowledged At', 'Resolved By', 'Resolved At', 'Dismissed By', 'Dismissed At', 'Value', 'Threshold', 'Duration (minutes)', 'Impact', 'Priority', 'Root Cause', 'Corrective Actions']],
                           body: tableData,
                           startY: 45,
-                          styles: { fontSize: 8 },
+                          styles: { fontSize: 6 },
                           headStyles: { fillColor: [51, 51, 51] },
                         });
                         
