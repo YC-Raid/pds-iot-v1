@@ -16,6 +16,23 @@ interface SensorData {
   timestamp?: string;
 }
 
+// Priority mapping for different alert types
+const getPriorityAndType = (alertCategory: string, value: number, threshold: number): { priority: 'P1' | 'P2' | 'P3' | 'P4', type: 'error' | 'warning' | 'info' } => {
+  if (alertCategory === 'vibration' && value > 15) {
+    return { priority: 'P1', type: 'error' }; // Critical - immediate attention
+  } else if (alertCategory === 'vibration' && value > 10) {
+    return { priority: 'P2', type: 'warning' }; // High - urgent attention
+  } else if (alertCategory === 'temperature' && value > threshold + 10) {
+    return { priority: 'P2', type: 'warning' }; // High temperature variance
+  } else if (alertCategory === 'humidity' && value > threshold + 15) {
+    return { priority: 'P2', type: 'warning' }; // High humidity variance
+  } else if ((alertCategory === 'temperature' || alertCategory === 'humidity') && value > threshold) {
+    return { priority: 'P3', type: 'warning' }; // Standard threshold exceeded
+  } else {
+    return { priority: 'P4', type: 'info' }; // Low priority informational
+  }
+};
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -42,17 +59,35 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const alerts = [];
+    const dbAlerts = [];
 
     // Check temperature alerts
     if (sensorData.temperature !== undefined) {
       for (const setting of settings) {
         if (sensorData.temperature > setting.alert_threshold_temp) {
-          alerts.push({
+          const { priority, type } = getPriorityAndType('temperature', sensorData.temperature, setting.alert_threshold_temp);
+          const shouldEmailP1P2 = (priority === 'P1' || priority === 'P2') && setting.email_enabled;
+          
+          const alertData = {
             user_id: setting.user_id,
-            title: 'High Temperature Alert',
+            title: `${priority} Temperature Alert`,
             message: `Temperature reading of ${sensorData.temperature}°C exceeds threshold of ${setting.alert_threshold_temp}°C at ${sensorData.sensor_location || 'unknown location'}`,
-            type: 'warning',
-            send_email: setting.email_enabled
+            type: type,
+            send_email: shouldEmailP1P2
+          };
+          
+          alerts.push(alertData);
+          
+          // Create alert in database
+          dbAlerts.push({
+            title: alertData.title,
+            description: alertData.message,
+            priority: priority,
+            sensor_type: 'temperature',
+            sensor_location: sensorData.sensor_location || 'Unknown',
+            sensor_value: sensorData.temperature,
+            threshold_value: setting.alert_threshold_temp,
+            status: 'active'
           });
         }
       }
@@ -62,12 +97,29 @@ const handler = async (req: Request): Promise<Response> => {
     if (sensorData.humidity !== undefined) {
       for (const setting of settings) {
         if (sensorData.humidity > setting.alert_threshold_humidity) {
-          alerts.push({
+          const { priority, type } = getPriorityAndType('humidity', sensorData.humidity, setting.alert_threshold_humidity);
+          const shouldEmailP1P2 = (priority === 'P1' || priority === 'P2') && setting.email_enabled;
+          
+          const alertData = {
             user_id: setting.user_id,
-            title: 'High Humidity Alert',
+            title: `${priority} Humidity Alert`,
             message: `Humidity reading of ${sensorData.humidity}% exceeds threshold of ${setting.alert_threshold_humidity}% at ${sensorData.sensor_location || 'unknown location'}`,
-            type: 'warning',
-            send_email: setting.email_enabled
+            type: type,
+            send_email: shouldEmailP1P2
+          };
+          
+          alerts.push(alertData);
+          
+          // Create alert in database
+          dbAlerts.push({
+            title: alertData.title,
+            description: alertData.message,
+            priority: priority,
+            sensor_type: 'humidity',
+            sensor_location: sensorData.sensor_location || 'Unknown',
+            sensor_value: sensorData.humidity,
+            threshold_value: setting.alert_threshold_humidity,
+            status: 'active'
           });
         }
       }
@@ -76,13 +128,44 @@ const handler = async (req: Request): Promise<Response> => {
     // Check vibration alerts (critical threshold)
     if (sensorData.vibration !== undefined && sensorData.vibration > 10) {
       for (const setting of settings) {
-        alerts.push({
+        const { priority, type } = getPriorityAndType('vibration', sensorData.vibration, 10);
+        const shouldEmailP1P2 = (priority === 'P1' || priority === 'P2') && setting.email_enabled;
+        
+        const alertData = {
           user_id: setting.user_id,
-          title: 'Critical Vibration Alert',
-          message: `Dangerous vibration level detected: ${sensorData.vibration} units at ${sensorData.sensor_location || 'unknown location'}. Immediate inspection required!`,
-          type: 'error',
-          send_email: setting.email_enabled
+          title: `${priority} Vibration Alert`,
+          message: `Dangerous vibration level detected: ${sensorData.vibration} units at ${sensorData.sensor_location || 'unknown location'}. ${priority === 'P1' ? 'IMMEDIATE INSPECTION REQUIRED!' : 'Urgent inspection required.'}`,
+          type: type,
+          send_email: shouldEmailP1P2
+        };
+        
+        alerts.push(alertData);
+        
+        // Create alert in database
+        dbAlerts.push({
+          title: alertData.title,
+          description: alertData.message,
+          priority: priority,
+          sensor_type: 'vibration',
+          sensor_location: sensorData.sensor_location || 'Unknown',
+          sensor_value: sensorData.vibration,
+          threshold_value: 10,
+          status: 'active'
         });
+      }
+    }
+
+    // Insert alerts into database
+    if (dbAlerts.length > 0) {
+      console.log(`Creating ${dbAlerts.length} alerts in database...`);
+      const { error: alertError } = await supabase
+        .from('alerts')
+        .insert(dbAlerts);
+      
+      if (alertError) {
+        console.error('Error creating alerts in database:', alertError);
+      } else {
+        console.log('Successfully created alerts in database');
       }
     }
 
