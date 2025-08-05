@@ -137,14 +137,16 @@ export function DataExport({ title = "Sensor Data Export", description, classNam
       doc.text(`Maximum: ${maxValue.toFixed(2)} ${data[0]?.unit || ''}`, 20, 90);
       doc.text(`Minimum: ${minValue.toFixed(2)} ${data[0]?.unit || ''}`, 20, 100);
       
-      // Data table
+      // Data table - matching Excel format exactly
       const tableData = data.map(item => [
         format(new Date(item.timestamp), 'yyyy-MM-dd HH:mm:ss'),
-        `${item.value} ${item.unit}`
+        item.value.toString(),
+        item.unit,
+        sensorLabel
       ]);
       
       autoTable(doc, {
-        head: [['Timestamp', 'Value']],
+        head: [['Timestamp', 'Value', 'Unit', 'Sensor']],
         body: tableData,
         startY: 115,
         styles: { fontSize: 8 },
