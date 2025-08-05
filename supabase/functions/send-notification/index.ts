@@ -21,7 +21,7 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+const resend = Deno.env.get('RESEND_API_KEY') ? new Resend(Deno.env.get('RESEND_API_KEY')) : null;
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
@@ -110,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Send email notifications if requested
-    if (send_email && Deno.env.get('RESEND_API_KEY')) {
+    if (send_email && resend) {
       console.log('Sending email notifications...');
       
       for (const user of targetUsers) {

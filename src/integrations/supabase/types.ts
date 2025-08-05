@@ -72,9 +72,13 @@ export type Database = {
           resolved_by: string | null
           root_cause: string | null
           sensor: string
+          sensor_location: string | null
+          sensor_type: string | null
+          sensor_value: number | null
           severity: string
           status: string
           threshold: string | null
+          threshold_value: number | null
           title: string
           unit: string | null
           updated_at: string
@@ -102,9 +106,13 @@ export type Database = {
           resolved_by?: string | null
           root_cause?: string | null
           sensor: string
+          sensor_location?: string | null
+          sensor_type?: string | null
+          sensor_value?: number | null
           severity: string
           status: string
           threshold?: string | null
+          threshold_value?: number | null
           title: string
           unit?: string | null
           updated_at?: string
@@ -132,9 +140,13 @@ export type Database = {
           resolved_by?: string | null
           root_cause?: string | null
           sensor?: string
+          sensor_location?: string | null
+          sensor_type?: string | null
+          sensor_value?: number | null
           severity?: string
           status?: string
           threshold?: string | null
+          threshold_value?: number | null
           title?: string
           unit?: string | null
           updated_at?: string
