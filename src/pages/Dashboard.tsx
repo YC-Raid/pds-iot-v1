@@ -7,6 +7,7 @@ import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { CriticalAlertsPanel } from "@/components/dashboard/CriticalAlertsPanel";
 import { AnalyticsPanel } from "@/components/dashboard/AnalyticsPanel";
 import { HangarStatus } from "@/components/dashboard/HangarStatus";
+import CriticalAlertsOverview from "@/components/dashboard/CriticalAlertsOverview";
 import { VibrationMonitoring } from "@/components/dashboard/VibrationMonitoring";
 import { SystemLongevity } from "@/components/dashboard/SystemLongevity";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
@@ -26,6 +27,7 @@ const Dashboard = () => {
       icon: <Building className="h-4 w-4" />,
       content: (
         <div className="space-y-6">
+          <CriticalAlertsOverview />
           <HangarStatus />
         </div>
       ),

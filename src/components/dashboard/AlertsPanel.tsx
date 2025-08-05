@@ -499,6 +499,35 @@ const AlertsPanel = () => {
     }
   };
 
+  const updateAlertImpact = async (alertId: string, impact: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ impact: impact })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId 
+          ? { ...alert, impact: impact }
+          : alert
+      ));
+
+      toast({
+        title: "Impact Updated",
+        description: "Alert impact assessment has been updated."
+      });
+    } catch (error) {
+      console.error('Error updating impact:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update impact assessment.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const dismissAlert = async (alertId: string) => {
     const userName = profile?.nickname || "Current User";
     
@@ -681,13 +710,31 @@ const AlertsPanel = () => {
                 </div>
               )}
 
-              {alert.impact && (
-                <div className="flex items-center gap-1 text-xs">
-                  <AlertOctagon className="h-3 w-3" />
-                  <span className="font-medium">Impact:</span>
-                  <span>{alert.impact}</span>
+              <div className="flex items-start gap-1 text-xs">
+                <AlertOctagon className="h-3 w-3 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium">Impact Assessment:</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 text-xs px-1"
+                      onClick={() => {
+                        const currentImpact = alert.impact || "";
+                        const newImpact = prompt("Edit impact assessment:", currentImpact);
+                        if (newImpact !== null && newImpact !== currentImpact) {
+                          updateAlertImpact(alert.id, newImpact);
+                        }
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                  <span className="text-muted-foreground">
+                    {alert.impact || "Impact assessment pending..."}
+                  </span>
                 </div>
-              )}
+              </div>
 
               {alert.notes.length > 0 && (
                 <div className="space-y-1">

@@ -16,7 +16,7 @@ interface SensorData {
   timestamp?: string;
 }
 
-// Priority mapping for different alert types
+// Priority mapping and impact generation for different alert types
 const getPriorityAndType = (alertCategory: string, value: number, threshold: number): { priority: 'P1' | 'P2' | 'P3' | 'P4', type: 'error' | 'warning' | 'info' } => {
   if (alertCategory === 'vibration' && value > 15) {
     return { priority: 'P1', type: 'error' }; // Critical - immediate attention
@@ -30,6 +30,62 @@ const getPriorityAndType = (alertCategory: string, value: number, threshold: num
     return { priority: 'P3', type: 'warning' }; // Standard threshold exceeded
   } else {
     return { priority: 'P4', type: 'info' }; // Low priority informational
+  }
+};
+
+// Generate automatic impact assessment based on sensor type and severity
+const generateImpact = (alertCategory: string, value: number, threshold: number, priority: string): string => {
+  const variance = value - threshold;
+  
+  switch (alertCategory) {
+    case 'temperature':
+      if (priority === 'P1') {
+        return 'CRITICAL: Equipment overheating risk, potential fire hazard, immediate shutdown required to prevent damage';
+      } else if (priority === 'P2') {
+        return `High temperature detected (${variance.toFixed(1)}°C above threshold). Risk of equipment degradation, reduced lifespan, and potential thermal damage`;
+      } else if (priority === 'P3') {
+        return `Moderate temperature elevation. May cause accelerated wear, reduced efficiency, and increased maintenance needs`;
+      }
+      return 'Minor temperature variance. Monitor for trends and potential equipment stress';
+      
+    case 'humidity':
+      if (priority === 'P1') {
+        return 'CRITICAL: Extreme humidity levels pose corrosion risk, electrical hazards, and material degradation. Immediate environmental control required';
+      } else if (priority === 'P2') {
+        return `High humidity detected (${variance.toFixed(1)}% above threshold). Risk of corrosion, mold growth, electrical issues, and equipment malfunction`;
+      } else if (priority === 'P3') {
+        return `Elevated humidity levels. May cause condensation, reduced air quality, and gradual equipment deterioration`;
+      }
+      return 'Minor humidity variance. Monitor for environmental control system performance';
+      
+    case 'vibration':
+      if (priority === 'P1') {
+        return `CRITICAL: Dangerous vibration levels (${value} units) indicate potential mechanical failure, bearing damage, or structural issues. IMMEDIATE INSPECTION REQUIRED`;
+      } else if (priority === 'P2') {
+        return `High vibration detected (${value} units). Risk of mechanical wear, component loosening, and eventual equipment failure if not addressed`;
+      } else if (priority === 'P3') {
+        return `Elevated vibration levels. May indicate developing mechanical issues, misalignment, or need for maintenance`;
+      }
+      return 'Minor vibration variance. Normal operational fluctuation, continue monitoring';
+      
+    case 'pressure':
+      if (priority === 'P1') {
+        return 'CRITICAL: Extreme pressure variance poses safety risk, potential system rupture, and equipment damage';
+      } else if (priority === 'P2') {
+        return 'High pressure variance detected. Risk of system stress, seal failure, and performance degradation';
+      }
+      return 'Moderate pressure variance. Monitor for system efficiency and potential maintenance needs';
+      
+    case 'air_quality':
+      if (priority === 'P1') {
+        return 'CRITICAL: Poor air quality poses health risks and equipment contamination. Immediate air filtration and ventilation required';
+      } else if (priority === 'P2') {
+        return 'Poor air quality detected. Risk of respiratory issues, equipment contamination, and reduced operational efficiency';
+      }
+      return 'Air quality variance detected. Monitor ventilation systems and filter maintenance schedules';
+      
+    default:
+      return 'Impact assessment required. Monitor for operational changes and potential safety implications';
   }
 };
 
@@ -87,7 +143,16 @@ const handler = async (req: Request): Promise<Response> => {
             sensor_location: sensorData.sensor_location || 'Unknown',
             sensor_value: sensorData.temperature,
             threshold_value: setting.alert_threshold_temp,
-            status: 'active'
+            status: 'active',
+            severity: priority === 'P1' ? 'critical' : priority === 'P2' ? 'high' : 'medium',
+            category: 'environmental',
+            equipment: 'Temperature Sensor',
+            location: sensorData.sensor_location || 'Unknown',
+            sensor: `Temp-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
+            value: sensorData.temperature.toString(),
+            threshold: setting.alert_threshold_temp.toString(),
+            unit: '°C',
+            impact: generateImpact('temperature', sensorData.temperature, setting.alert_threshold_temp, priority)
           });
         }
       }
@@ -119,7 +184,16 @@ const handler = async (req: Request): Promise<Response> => {
             sensor_location: sensorData.sensor_location || 'Unknown',
             sensor_value: sensorData.humidity,
             threshold_value: setting.alert_threshold_humidity,
-            status: 'active'
+            status: 'active',
+            severity: priority === 'P1' ? 'critical' : priority === 'P2' ? 'high' : 'medium',
+            category: 'environmental',
+            equipment: 'Humidity Sensor',
+            location: sensorData.sensor_location || 'Unknown',
+            sensor: `Hum-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
+            value: sensorData.humidity.toString(),
+            threshold: setting.alert_threshold_humidity.toString(),
+            unit: '%',
+            impact: generateImpact('humidity', sensorData.humidity, setting.alert_threshold_humidity, priority)
           });
         }
       }
@@ -150,7 +224,16 @@ const handler = async (req: Request): Promise<Response> => {
           sensor_location: sensorData.sensor_location || 'Unknown',
           sensor_value: sensorData.vibration,
           threshold_value: 10,
-          status: 'active'
+          status: 'active',
+          severity: priority === 'P1' ? 'critical' : priority === 'P2' ? 'high' : 'medium',
+          category: 'equipment',
+          equipment: 'Vibration Sensor',
+          location: sensorData.sensor_location || 'Unknown',
+          sensor: `Vib-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
+          value: sensorData.vibration.toString(),
+          threshold: '10',
+          unit: 'units',
+          impact: generateImpact('vibration', sensorData.vibration, 10, priority)
         });
       }
     }
