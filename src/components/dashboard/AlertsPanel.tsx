@@ -1064,6 +1064,40 @@ const AlertsPanel = () => {
             <FileDown className="w-4 h-4 mr-2" />
             Export Data
           </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="destructive" 
+                className="flex items-center gap-2 border-2 border-red-500"
+              >
+                <X className="h-4 w-4" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete All Alerts</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete all alerts from the system.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => {
+                    setAlerts([]);
+                    toast({
+                      title: "Alerts Deleted",
+                      description: "All alerts have been permanently deleted.",
+                    });
+                  }}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Delete All
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -1386,44 +1420,6 @@ const AlertsPanel = () => {
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Priority Actions</Label>
-              <div className="flex gap-2">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="flex items-center gap-1"
-                    >
-                      <X className="h-3 w-3" />
-                      Dismiss
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Confirm Alert Dismissal</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to dismiss this alert? This action cannot be undone and the alert will be permanently archived in the system.
-                        <br /><br />
-                        <strong>Alert:</strong> {selectedAlert?.title}
-                        <br />
-                        <strong>Severity:</strong> {selectedAlert?.severity.toUpperCase()}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={() => selectedAlert && dismissAlert(selectedAlert.id)}
-                        className="bg-destructive hover:bg-destructive/90"
-                      >
-                        Yes, Dismiss Alert
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
             
             <div className="grid gap-2">
               <Label htmlFor="note">Add Note</Label>
