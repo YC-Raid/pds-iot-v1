@@ -7,10 +7,10 @@ import { TopHeader } from "./TopHeader";
 import { ProtectedRoute } from "../ProtectedRoute";
 
 export function MainLayout() {
-  // Get initial theme from localStorage or default to dark
+  // Get initial theme from localStorage or default to light
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
-    return saved ? saved === 'dark' : true;
+    return saved ? saved === 'dark' : false; // Default to light mode
   });
 
   useEffect(() => {
