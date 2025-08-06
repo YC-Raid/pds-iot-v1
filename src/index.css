@@ -44,6 +44,12 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
+    --chart-1: 221 64% 39%; /* Primary blue for temperature */
+    --chart-2: 195 100% 31%; /* Teal for humidity */
+    --chart-3: 123 43% 43%; /* Green for air quality */
+    --chart-4: 42 96% 49%; /* Yellow for additional metrics */
+    --chart-5: 348 83% 62%; /* Red for alerts */
+
     --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
@@ -93,6 +99,12 @@
     --border: 210 11% 15%;
     --input: 210 11% 15%;
     --ring: 221 64% 39%;
+
+    --chart-1: 221 64% 59%; /* Lighter blue for dark mode visibility */
+    --chart-2: 195 100% 51%; /* Lighter teal for dark mode */
+    --chart-3: 123 43% 63%; /* Lighter green for dark mode */
+    --chart-4: 42 96% 69%; /* Lighter yellow for dark mode */
+    --chart-5: 348 83% 72%; /* Lighter red for dark mode */
 
     --sidebar-background: 210 11% 7%;
     --sidebar-foreground: 210 40% 98%;

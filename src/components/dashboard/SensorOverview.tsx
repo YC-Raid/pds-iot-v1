@@ -95,20 +95,20 @@ const SensorOverview = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "online":
-        return "text-green-600 bg-green-100";
+        return "bg-success/10 text-success border-success/20";
       case "warning":
-        return "text-yellow-600 bg-yellow-100";
+        return "bg-warning/10 text-warning border-warning/20";
       case "offline":
-        return "text-red-600 bg-red-100";
+        return "bg-destructive/10 text-destructive border-destructive/20";
       default:
-        return "text-gray-600 bg-gray-100";
+        return "bg-muted/10 text-muted-foreground border-muted/20";
     }
   };
 
   const getBatteryColor = (battery: number) => {
-    if (battery > 50) return "text-green-600";
-    if (battery > 20) return "text-yellow-600";
-    return "text-red-600";
+    if (battery > 50) return "text-success";
+    if (battery > 20) return "text-warning";
+    return "text-destructive";
   };
 
   return (
@@ -131,7 +131,7 @@ const SensorOverview = () => {
                   {sensor.location} • {sensor.lastUpdate}
                 </p>
                 <div className="flex items-center justify-between">
-                  <Badge className={getStatusColor(sensor.status)}>
+                  <Badge variant="outline" className={getStatusColor(sensor.status)}>
                     {sensor.status === "online" && <Wifi className="h-3 w-3 mr-1" />}
                     {sensor.status === "warning" && <AlertCircle className="h-3 w-3 mr-1" />}
                     {sensor.status}
@@ -159,30 +159,44 @@ const SensorOverview = () => {
           <ChartContainer config={chartConfig} className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timeSeriesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
+                <CartesianGrid 
+                  strokeDasharray="3 3" 
+                  stroke="hsl(var(--muted-foreground))" 
+                  opacity={0.3}
+                />
+                <XAxis 
+                  dataKey="time" 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line 
                   type="monotone" 
                   dataKey="temperature" 
-                  stroke="var(--color-temperature)" 
+                  stroke="hsl(var(--chart-1))" 
                   strokeWidth={2}
-                  dot={{ fill: "var(--color-temperature)" }}
+                  dot={{ fill: "hsl(var(--chart-1))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                  activeDot={{ r: 6, fill: "hsl(var(--chart-1))" }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="humidity" 
-                  stroke="var(--color-humidity)" 
+                  stroke="hsl(var(--chart-2))" 
                   strokeWidth={2}
-                  dot={{ fill: "var(--color-humidity)" }}
+                  dot={{ fill: "hsl(var(--chart-2))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                  activeDot={{ r: 6, fill: "hsl(var(--chart-2))" }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="airQuality" 
-                  stroke="var(--color-airQuality)" 
+                  stroke="hsl(var(--chart-3))" 
                   strokeWidth={2}
-                  dot={{ fill: "var(--color-airQuality)" }}
+                  dot={{ fill: "hsl(var(--chart-3))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                  activeDot={{ r: 6, fill: "hsl(var(--chart-3))" }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -215,7 +229,7 @@ const SensorOverview = () => {
                     <p className="font-medium">{sensor.value} {sensor.unit}</p>
                     <p className="text-xs text-muted-foreground">{sensor.lastUpdate}</p>
                   </div>
-                  <Badge className={getStatusColor(sensor.status)}>
+                  <Badge variant="outline" className={getStatusColor(sensor.status)}>
                     {sensor.status}
                   </Badge>
                   <div className={`flex items-center gap-1 text-sm ${getBatteryColor(sensor.battery)}`}>
