@@ -199,7 +199,7 @@ export function MaintenanceCalendar() {
       due_date: selectedDate ? selectedDate.toISOString().split('T')[0] : "",
       priority: "medium",
       status: "pending",
-      assignee_id: "",
+      assignee_id: "unassigned",
       equipment: "",
       task_type: "routine"
     });
@@ -214,7 +214,7 @@ export function MaintenanceCalendar() {
       due_date: task.due_date,
       priority: task.priority,
       status: task.status,
-      assignee_id: task.assignee_id || "",
+      assignee_id: task.assignee_id || "unassigned",
       equipment: task.equipment || "",
       task_type: task.task_type
     });
@@ -253,7 +253,7 @@ export function MaintenanceCalendar() {
     try {
       const taskData = {
         ...formData,
-        assignee_id: formData.assignee_id || null,
+        assignee_id: formData.assignee_id === "unassigned" ? null : formData.assignee_id,
         created_by: user?.id,
         completed_at: formData.status === 'completed' ? new Date().toISOString() : null
       };
@@ -611,7 +611,7 @@ export function MaintenanceCalendar() {
                   <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border border-border z-50">
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {profiles.map((profile) => (
                     <SelectItem key={profile.user_id} value={profile.user_id}>
                       {profile.nickname}
