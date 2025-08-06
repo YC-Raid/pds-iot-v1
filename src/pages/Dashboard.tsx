@@ -98,14 +98,7 @@ const Dashboard = () => {
       icon: <Settings className="h-4 w-4" />,
       content: (
         <div className="space-y-6">
-          <Card className="relative">
-            <GlowingEffect
-              spread={40}
-              glow={true}
-              disabled={false}
-              proximity={64}
-              inactiveZone={0.01}
-            />
+          <Card>
             <CardHeader>
               <CardTitle>System Settings</CardTitle>
               <CardDescription>Configure your IoT monitoring system</CardDescription>
@@ -113,14 +106,7 @@ const Dashboard = () => {
             <CardContent>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className="relative">
-                    <GlowingEffect
-                      spread={30}
-                      glow={true}
-                      disabled={false}
-                      proximity={48}
-                      inactiveZone={0.01}
-                    />
+                  <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Sensor Configuration</CardTitle>
                     </CardHeader>
@@ -128,14 +114,7 @@ const Dashboard = () => {
                       <p className="text-muted-foreground">Manage sensor thresholds and calibration settings.</p>
                     </CardContent>
                   </Card>
-                  <Card className="relative">
-                    <GlowingEffect
-                      spread={30}
-                      glow={true}
-                      disabled={false}
-                      proximity={48}
-                      inactiveZone={0.01}
-                    />
+                  <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Alert Settings</CardTitle>
                     </CardHeader>
@@ -143,14 +122,7 @@ const Dashboard = () => {
                       <p className="text-muted-foreground">Configure notification preferences and alert rules.</p>
                     </CardContent>
                   </Card>
-                  <Card className="relative">
-                    <GlowingEffect
-                      spread={30}
-                      glow={true}
-                      disabled={false}
-                      proximity={48}
-                      inactiveZone={0.01}
-                    />
+                  <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Data Retention</CardTitle>
                     </CardHeader>
@@ -158,14 +130,7 @@ const Dashboard = () => {
                       <p className="text-muted-foreground">Set data storage and backup policies.</p>
                     </CardContent>
                   </Card>
-                  <Card className="relative">
-                    <GlowingEffect
-                      spread={30}
-                      glow={true}
-                      disabled={false}
-                      proximity={48}
-                      inactiveZone={0.01}
-                    />
+                  <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">User Management</CardTitle>
                     </CardHeader>
@@ -197,9 +162,6 @@ const Dashboard = () => {
             </Badge>
             <Badge variant="outline">
               Last Updated: 2 min ago
-            </Badge>
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-              🔒 Login Required for Full Access
             </Badge>
           </div>
         </div>

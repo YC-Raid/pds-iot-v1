@@ -7,15 +7,21 @@ import { TopHeader } from "./TopHeader";
 import { ProtectedRoute } from "../ProtectedRoute";
 
 export function MainLayout() {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  // Get initial theme from localStorage or default to dark
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved ? saved === 'dark' : true;
+  });
 
   useEffect(() => {
-    // Apply dark mode class to html element
+    // Apply dark mode class to html element and save to localStorage
     const html = document.documentElement;
     if (isDarkMode) {
       html.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     } else {
       html.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 
