@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { 
   Plus, 
   Calendar as CalendarIcon, 
@@ -30,59 +40,120 @@ import {
 import { DataExport } from "@/components/ui/data-export";
 
 interface MaintenanceTask {
-  id: number;
+  id: string;
   title: string;
-  description: string;
-  dueDate: string;
+  description: string | null;
+  due_date: string;
   priority: "low" | "medium" | "high";
   status: "pending" | "in-progress" | "completed";
-  assignee: string;
-  equipment: string;
-  type: "routine" | "emergency" | "predictive";
+  assignee_id: string | null;
+  assignee_name?: string;
+  equipment: string | null;
+  task_type: "routine" | "emergency" | "predictive";
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
 }
 
-const sampleTasks: MaintenanceTask[] = [
-  {
-    id: 1,
-    title: "Temperature Sensor Calibration",
-    description: "Calibrate all temperature sensors in Zone A",
-    dueDate: "2024-01-15",
-    priority: "high",
-    status: "pending",
-    assignee: "John Smith",
-    equipment: "TempSensor-001 to TempSensor-005",
-    type: "routine"
-  },
-  {
-    id: 2,
-    title: "Air Quality Monitor Cleaning", 
-    description: "Clean PM2.5 and PM10 sensors",
-    dueDate: "2024-01-18",
-    priority: "medium",
-    status: "in-progress",
-    assignee: "Sarah Johnson",
-    equipment: "AQM-001, AQM-002",
-    type: "routine"
-  },
-  {
-    id: 3,
-    title: "Humidity Sensor Replacement",
-    description: "Replace faulty humidity sensor in Zone C",
-    dueDate: "2024-01-12", 
-    priority: "high",
-    status: "completed",
-    assignee: "Mike Davis",
-    equipment: "HumSensor-012",
-    type: "emergency"
-  }
-];
+interface UserProfile {
+  user_id: string;
+  nickname: string;
+}
 
 export function MaintenanceCalendar() {
+  const { user } = useAuth();
+  const { profile } = useUserProfile();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [tasks, setTasks] = useState<MaintenanceTask[]>(sampleTasks);
+  const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<MaintenanceTask | null>(null);
   const [showQR, setShowQR] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    due_date: "",
+    priority: "medium" as "low" | "medium" | "high",
+    status: "pending" as "pending" | "in-progress" | "completed",
+    assignee_id: "",
+    equipment: "",
+    task_type: "routine" as "routine" | "emergency" | "predictive"
+  });
+
+  // Fetch user profiles
+  const fetchProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, nickname')
+        .order('nickname');
+      
+      if (error) {
+        console.error('Error fetching profiles:', error);
+        return;
+      }
+      
+      setProfiles(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  // Fetch maintenance tasks
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('maintenance_tasks')
+        .select(`
+          *,
+          profiles:assignee_id (
+            nickname
+          )
+        `)
+        .order('due_date', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching tasks:', error);
+        toast.error('Failed to load maintenance tasks');
+        return;
+      }
+      
+      // Transform data to include assignee name
+      const transformedTasks: MaintenanceTask[] = data?.map(task => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        due_date: task.due_date,
+        priority: task.priority as "low" | "medium" | "high",
+        status: task.status as "pending" | "in-progress" | "completed",
+        assignee_id: task.assignee_id,
+        assignee_name: (task.profiles as any)?.nickname || 'Unassigned',
+        equipment: task.equipment,
+        task_type: task.task_type as "routine" | "emergency" | "predictive",
+        created_by: task.created_by,
+        created_at: task.created_at,
+        updated_at: task.updated_at,
+        completed_at: task.completed_at
+      })) || [];
+      
+      setTasks(transformedTasks);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to load maintenance tasks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfiles();
+    fetchTasks();
+  }, []);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -95,10 +166,10 @@ export function MaintenanceCalendar() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "completed": return "bg-success/10 text-success";
-      case "in-progress": return "bg-warning/10 text-warning";  
-      case "pending": return "bg-muted text-muted-foreground";
-      default: return "bg-muted text-muted-foreground";
+      case "completed": return "bg-success/10 text-success border-success/20";
+      case "in-progress": return "bg-warning/10 text-warning border-warning/20";  
+      case "pending": return "bg-muted/10 text-muted-foreground border-muted/20";
+      default: return "bg-muted/10 text-muted-foreground border-muted/20";
     }
   };
 
@@ -122,29 +193,141 @@ export function MaintenanceCalendar() {
 
   const handleAddTask = () => {
     setEditingTask(null);
+    setFormData({
+      title: "",
+      description: "",
+      due_date: selectedDate ? selectedDate.toISOString().split('T')[0] : "",
+      priority: "medium",
+      status: "pending",
+      assignee_id: "",
+      equipment: "",
+      task_type: "routine"
+    });
     setIsDialogOpen(true);
   };
 
   const handleEditTask = (task: MaintenanceTask) => {
     setEditingTask(task);
+    setFormData({
+      title: task.title,
+      description: task.description || "",
+      due_date: task.due_date,
+      priority: task.priority,
+      status: task.status,
+      assignee_id: task.assignee_id || "",
+      equipment: task.equipment || "",
+      task_type: task.task_type
+    });
     setIsDialogOpen(true);
   };
 
-  const handleDeleteTask = (taskId: number) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+  const handleDeleteTask = async (taskId: string) => {
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('maintenance_tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) {
+        console.error('Error deleting task:', error);
+        toast.error('Failed to delete task');
+        return;
+      }
+
+      toast.success('Task deleted successfully');
+      fetchTasks();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to delete task');
+    }
   };
 
-  const currentUrl = `${window.location.origin}/?tab=maintenance`;
-  
+  const handleSubmit = async () => {
+    if (!formData.title || !formData.due_date) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const taskData = {
+        ...formData,
+        assignee_id: formData.assignee_id || null,
+        created_by: user?.id,
+        completed_at: formData.status === 'completed' ? new Date().toISOString() : null
+      };
+
+      if (editingTask) {
+        const { error } = await supabase
+          .from('maintenance_tasks')
+          .update(taskData)
+          .eq('id', editingTask.id);
+
+        if (error) {
+          console.error('Error updating task:', error);
+          toast.error('Failed to update task');
+          return;
+        }
+
+        toast.success('Task updated successfully');
+      } else {
+        const { error } = await supabase
+          .from('maintenance_tasks')
+          .insert([taskData]);
+
+        if (error) {
+          console.error('Error creating task:', error);
+          toast.error('Failed to create task');
+          return;
+        }
+
+        toast.success('Task created successfully');
+      }
+
+      setIsDialogOpen(false);
+      fetchTasks();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to save task');
+    }
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (date) {
+      // Filter tasks for selected date
+      const selectedDateStr = date.toISOString().split('T')[0];
+      const tasksForDate = tasks.filter(task => task.due_date === selectedDateStr);
+      
+      if (tasksForDate.length === 0) {
+        // No tasks for this date, offer to create one
+        const shouldCreate = window.confirm(`No tasks scheduled for ${date.toLocaleDateString()}. Would you like to create a new task for this date?`);
+        if (shouldCreate) {
+          handleAddTask();
+        }
+      }
+    }
+  };
+
   // Get upcoming tasks (next 7 days)
   const upcomingTasks = tasks
     .filter(task => {
-      const taskDate = new Date(task.dueDate);
+      const taskDate = new Date(task.due_date);
       const today = new Date();
       const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
       return taskDate >= today && taskDate <= nextWeek && task.status !== 'completed';
     })
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+  // Get tasks for selected date
+  const tasksForSelectedDate = selectedDate ? tasks.filter(task => 
+    task.due_date === selectedDate.toISOString().split('T')[0]
+  ) : [];
+
+  if (loading) {
+    return <div className="p-6">Loading maintenance tasks...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -176,24 +359,17 @@ export function MaintenanceCalendar() {
 
       {/* Export Data Section */}
       {showQR && (
-        <Card className="relative">
-          <GlowingEffect
-            spread={30}
-            glow={true}
-            disabled={false}
-            proximity={48}
-            inactiveZone={0.01}
-          />
+        <Card>
           <CardHeader>
-            <CardTitle>Export Sensor Data</CardTitle>
+            <CardTitle>Export Maintenance Data</CardTitle>
             <CardDescription>
-              Export sensor data for analysis and sharing with your team
+              Export maintenance data for analysis and sharing with your team
             </CardDescription>
           </CardHeader>
           <CardContent>
             <DataExport 
-              title="Sensor Data Export"
-              description="Select a sensor and time period to export historical data as PDF or Excel files"
+              title="Maintenance Data Export"
+              description="Select a time period to export maintenance task data as PDF or Excel files"
             />
           </CardContent>
         </Card>
@@ -201,50 +377,44 @@ export function MaintenanceCalendar() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Calendar View */}
-        <Card className="relative">
-          <GlowingEffect
-            spread={30}
-            glow={true}
-            disabled={false}
-            proximity={48}
-            inactiveZone={0.01}
-          />
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarIcon className="w-5 h-5" />
               Schedule Calendar
             </CardTitle>
             <CardDescription>
-              Click on dates to view scheduled tasks
+              Click on dates to view/add scheduled tasks
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Calendar
               mode="single"
               selected={selectedDate}
-              onSelect={setSelectedDate}
+              onSelect={handleDateSelect}
               className="rounded-md border"
+              modifiers={{
+                hasTask: tasks.map(task => new Date(task.due_date))
+              }}
+              modifiersStyles={{
+                hasTask: { backgroundColor: 'hsl(var(--primary) / 0.1)' }
+              }}
             />
           </CardContent>
         </Card>
 
         {/* Task List */}
-        <Card className="lg:col-span-2 relative">
-          <GlowingEffect
-            spread={40}
-            glow={true}
-            disabled={false}
-            proximity={64}
-            inactiveZone={0.01}
-          />
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Maintenance Tasks</CardTitle>
+            <CardTitle>
+              {selectedDate ? `Tasks for ${selectedDate.toLocaleDateString()}` : 'All Maintenance Tasks'}
+            </CardTitle>
             <CardDescription>
-              Upcoming and ongoing maintenance activities
+              {selectedDate ? 'Tasks scheduled for the selected date' : 'Upcoming and ongoing maintenance activities'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {tasks.map((task) => (
+            {(selectedDate ? tasksForSelectedDate : tasks).map((task) => (
               <div
                 key={task.id}
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
@@ -255,7 +425,7 @@ export function MaintenanceCalendar() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      {getTypeIcon(task.type)}
+                      {getTypeIcon(task.task_type)}
                       <h4 className="font-medium">{task.title}</h4>
                     </div>
                     <p className="text-sm text-muted-foreground">{task.description}</p>
@@ -264,10 +434,10 @@ export function MaintenanceCalendar() {
                         {task.priority}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                        Due: {new Date(task.due_date).toLocaleDateString()}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        Assignee: {task.assignee}
+                        Assignee: {task.assignee_name || 'Unassigned'}
                       </span>
                     </div>
                   </div>
@@ -291,19 +461,17 @@ export function MaintenanceCalendar() {
                 </div>
               </div>
             ))}
+            {(selectedDate ? tasksForSelectedDate : tasks).length === 0 && (
+              <p className="text-muted-foreground text-center py-8">
+                {selectedDate ? 'No tasks scheduled for this date' : 'No maintenance tasks found'}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Upcoming Tasks Summary */}
-      <Card className="relative">
-        <GlowingEffect
-          spread={30}
-          glow={true}
-          disabled={false}
-          proximity={48}
-          inactiveZone={0.01}
-        />
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
@@ -319,12 +487,12 @@ export function MaintenanceCalendar() {
               {upcomingTasks.map((task) => (
                 <div key={task.id} className="border rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    {getTypeIcon(task.type)}
+                    {getTypeIcon(task.task_type)}
                     <h5 className="font-medium text-sm">{task.title}</h5>
                   </div>
                   <div className="space-y-1 text-xs text-muted-foreground">
-                    <p>📅 {new Date(task.dueDate).toLocaleDateString()}</p>
-                    <p>👤 {task.assignee}</p>
+                    <p>📅 {new Date(task.due_date).toLocaleDateString()}</p>
+                    <p>👤 {task.assignee_name || 'Unassigned'}</p>
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <Badge variant={getPriorityColor(task.priority) as any}>
@@ -344,7 +512,7 @@ export function MaintenanceCalendar() {
 
       {/* Add/Edit Task Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[525px]">
+        <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingTask ? "Edit Task" : "Add New Task"}
@@ -355,11 +523,12 @@ export function MaintenanceCalendar() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="title">Task Title</Label>
+              <Label htmlFor="title">Task Title *</Label>
               <Input
                 id="title"
                 placeholder="Enter task title"
-                defaultValue={editingTask?.title || ""}
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
             <div className="grid gap-2">
@@ -367,45 +536,97 @@ export function MaintenanceCalendar() {
               <Textarea
                 id="description"
                 placeholder="Enter task description"
-                defaultValue={editingTask?.description || ""}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="dueDate">Due Date</Label>
+                <Label htmlFor="dueDate">Due Date *</Label>
                 <Input
                   id="dueDate"
                   type="date"
-                  defaultValue={editingTask?.dueDate || ""}
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                 />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="priority">Priority</Label>
-                <select
-                  id="priority"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  defaultValue={editingTask?.priority || "medium"}
+                <Select 
+                  value={formData.priority} 
+                  onValueChange={(value) => setFormData({ ...formData, priority: value as any })}
                 >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border border-border z-50">
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="status">Status</Label>
+                <Select 
+                  value={formData.status} 
+                  onValueChange={(value) => setFormData({ ...formData, status: value as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border border-border z-50">
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="taskType">Task Type</Label>
+                <Select 
+                  value={formData.task_type} 
+                  onValueChange={(value) => setFormData({ ...formData, task_type: value as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border border-border z-50">
+                    <SelectItem value="routine">Routine</SelectItem>
+                    <SelectItem value="emergency">Emergency</SelectItem>
+                    <SelectItem value="predictive">Predictive</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="assignee">Assignee</Label>
-              <Input
-                id="assignee"
-                placeholder="Enter assignee name"
-                defaultValue={editingTask?.assignee || ""}
-              />
+              <Label htmlFor="assignee">Assigned To</Label>
+              <Select 
+                value={formData.assignee_id} 
+                onValueChange={(value) => setFormData({ ...formData, assignee_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border border-border z-50">
+                  <SelectItem value="">Unassigned</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.user_id} value={profile.user_id}>
+                      {profile.nickname}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="equipment">Equipment</Label>
               <Input
                 id="equipment"
                 placeholder="Enter equipment identifiers"
-                defaultValue={editingTask?.equipment || ""}
+                value={formData.equipment}
+                onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
               />
             </div>
           </div>
@@ -413,7 +634,7 @@ export function MaintenanceCalendar() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => setIsDialogOpen(false)}>
+            <Button onClick={handleSubmit}>
               {editingTask ? "Update Task" : "Add Task"}
             </Button>
           </div>
