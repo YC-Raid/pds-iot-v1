@@ -295,19 +295,6 @@ export function MaintenanceCalendar() {
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
-    if (date) {
-      // Filter tasks for selected date
-      const selectedDateStr = date.toISOString().split('T')[0];
-      const tasksForDate = tasks.filter(task => task.due_date === selectedDateStr);
-      
-      if (tasksForDate.length === 0) {
-        // No tasks for this date, offer to create one
-        const shouldCreate = window.confirm(`No tasks scheduled for ${date.toLocaleDateString()}. Would you like to create a new task for this date?`);
-        if (shouldCreate) {
-          handleAddTask();
-        }
-      }
-    }
   };
 
   // Get upcoming tasks (next 7 days)
@@ -324,6 +311,19 @@ export function MaintenanceCalendar() {
   const tasksForSelectedDate = selectedDate ? tasks.filter(task => 
     task.due_date === selectedDate.toISOString().split('T')[0]
   ) : [];
+
+  // Create modifiers for task types on calendar
+  const routineDates = tasks
+    .filter(task => task.task_type === 'routine')
+    .map(task => new Date(task.due_date));
+  
+  const emergencyDates = tasks
+    .filter(task => task.task_type === 'emergency')
+    .map(task => new Date(task.due_date));
+  
+  const predictiveDates = tasks
+    .filter(task => task.task_type === 'predictive')
+    .map(task => new Date(task.due_date));
 
   if (loading) {
     return <div className="p-6">Loading maintenance tasks...</div>;
@@ -384,22 +384,94 @@ export function MaintenanceCalendar() {
               Schedule Calendar
             </CardTitle>
             <CardDescription>
-              Click on dates to view/add scheduled tasks
+              Click dates to view scheduled tasks. Color indicators show task types.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={handleDateSelect}
-              className="rounded-md border"
-              modifiers={{
-                hasTask: tasks.map(task => new Date(task.due_date))
-              }}
-              modifiersStyles={{
-                hasTask: { backgroundColor: 'hsl(var(--primary) / 0.1)' }
-              }}
-            />
+          <CardContent className="space-y-4">
+            <style>{`
+              .calendar-routine::after {
+                content: '';
+                position: absolute;
+                bottom: 2px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 6px;
+                height: 6px;
+                background: hsl(var(--primary));
+                border-radius: 50%;
+              }
+              
+              .calendar-emergency::after {
+                content: '';
+                position: absolute;
+                bottom: 2px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 6px;
+                height: 6px;
+                background: hsl(var(--destructive));
+                border-radius: 50%;
+              }
+              
+              .calendar-predictive::after {
+                content: '';
+                position: absolute;
+                bottom: 2px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 6px;
+                height: 6px;
+                background: hsl(var(--warning));
+                border-radius: 50%;
+              }
+              
+              .calendar-multiple::after {
+                content: '';
+                position: absolute;
+                bottom: 2px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 8px;
+                height: 6px;
+                background: linear-gradient(90deg, hsl(var(--primary)) 33%, hsl(var(--destructive)) 33% 66%, hsl(var(--warning)) 66%);
+                border-radius: 3px;
+              }
+            `}</style>
+            
+            <div className="flex justify-center">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                className="rounded-md border"
+                modifiers={{
+                  routine: routineDates,
+                  emergency: emergencyDates,
+                  predictive: predictiveDates
+                }}
+                modifiersClassNames={{
+                  routine: "calendar-routine",
+                  emergency: "calendar-emergency", 
+                  predictive: "calendar-predictive"
+                }}
+              />
+            </div>
+            
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-primary"></div>
+                <span>Routine</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-destructive"></div>
+                <span>Emergency</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-warning"></div>
+                <span>Predictive</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
