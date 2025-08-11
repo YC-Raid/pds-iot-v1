@@ -308,9 +308,12 @@ export function MaintenanceCalendar() {
     .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
 
   // Get tasks for selected date
-  const tasksForSelectedDate = selectedDate ? tasks.filter(task => 
-    task.due_date === selectedDate.toISOString().split('T')[0]
-  ) : [];
+  const tasksForSelectedDate = selectedDate ? tasks.filter(task => {
+    const taskDate = new Date(task.due_date);
+    const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    const taskDateOnly = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+    return selectedDateOnly.getTime() === taskDateOnly.getTime();
+  }) : [];
 
   // Create modifiers for task types on calendar
   const routineDates = tasks
@@ -489,7 +492,7 @@ export function MaintenanceCalendar() {
             {(selectedDate ? tasksForSelectedDate : tasks).map((task) => (
               <div
                 key={task.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                className="group flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 hover:text-accent-foreground transition-colors"
               >
                 <div className="flex items-center space-x-4">
                   <div className={`p-2 rounded-lg ${getStatusColor(task.status)}`}>
@@ -500,15 +503,15 @@ export function MaintenanceCalendar() {
                       {getTypeIcon(task.task_type)}
                       <h4 className="font-medium">{task.title}</h4>
                     </div>
-                    <p className="text-sm text-muted-foreground">{task.description}</p>
+                    <p className="text-sm text-muted-foreground group-hover:text-accent-foreground/80">{task.description}</p>
                     <div className="flex items-center space-x-2 mt-2">
                       <Badge variant={getPriorityColor(task.priority) as any}>
                         {task.priority}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground group-hover:text-accent-foreground/70">
                         Due: {new Date(task.due_date).toLocaleDateString()}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground group-hover:text-accent-foreground/70">
                         Assignee: {task.assignee_name || 'Unassigned'}
                       </span>
                     </div>
