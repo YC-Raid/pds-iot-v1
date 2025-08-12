@@ -23,6 +23,17 @@ const Dashboard = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const activeTab = searchParams.get('tab') || 'overview';
+  const pageMeta = {
+    overview: { title: "Hangar Guardian — Overview", description: "Overview of IoT monitoring and predictive maintenance." },
+    sensors: { title: "Hangar Guardian — Sensors", description: "Air quality, temperature, humidity, pressure, vibration sensors." },
+    vibration: { title: "Hangar Guardian — Vibration Monitoring", description: "Real-time vibration analytics and thresholds." },
+    longevity: { title: "Hangar Guardian — System Longevity", description: "Equipment lifespan projections and health scores." },
+    maintenance: { title: "Hangar Guardian — Maintenance Schedule", description: "Upcoming maintenance dates and tasks." },
+    alerts: { title: "Hangar Guardian — Alerts Center", description: "Live alerts, notifications, and critical warnings." },
+    analytics: { title: "Hangar Guardian — Analytics", description: "Trends and insights across sensor data." },
+    settings: { title: "Hangar Guardian — Settings", description: "User preferences, roles, and notification settings." },
+  } as const;
+
   const tabs = [
     {
       title: "Overview",
@@ -109,7 +120,7 @@ const Dashboard = () => {
 
   return (
     <>
-      <SEO title="Hangar Guardian Dashboard" description="IoT monitoring, alerts, maintenance and analytics." />
+      <SEO title={pageMeta[activeTab as keyof typeof pageMeta]?.title || "Hangar Guardian Dashboard"} description={pageMeta[activeTab as keyof typeof pageMeta]?.description || "IoT monitoring, alerts, maintenance and analytics."} />
       <JsonLd data={{
         "@context": "https://schema.org",
         "@type": "WebApplication",
@@ -119,6 +130,29 @@ const Dashboard = () => {
         operatingSystem: "Web",
         url: window.location.origin
       }} />
+      {activeTab === 'alerts' && (
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "Alerts Center",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Critical Alerts" },
+            { "@type": "ListItem", position: 2, name: "Warnings" },
+            { "@type": "ListItem", position: 3, name: "Notifications" }
+          ]
+        }} />
+      )}
+      {activeTab === 'maintenance' && (
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "Maintenance Schedule",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Upcoming Maintenance" },
+            { "@type": "ListItem", position: 2, name: "Overdue Tasks" }
+          ]
+        }} />
+      )}
     <div className="min-h-screen bg-background p-6 animate-fade-in">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
