@@ -63,6 +63,11 @@ interface MaintenanceTask {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  labor_hours: number;
+  labor_rate: number;
+  parts_cost: number;
+  other_cost: number;
+  total_cost?: number | null;
 }
 
 interface UserProfile {
@@ -95,7 +100,11 @@ export function MaintenanceCalendar() {
     status: "pending" as "pending" | "in-progress" | "completed",
     assignee_id: "",
     equipment: "",
-    task_type: "routine" as "routine" | "emergency" | "predictive"
+    task_type: "routine" as "routine" | "emergency" | "predictive",
+    labor_hours: 0,
+    labor_rate: 0,
+    parts_cost: 0,
+    other_cost: 0,
   });
 
   // Fetch user profiles
@@ -137,7 +146,6 @@ export function MaintenanceCalendar() {
         return;
       }
       
-      // Transform data to include assignee name
       const transformedTasks: MaintenanceTask[] = data?.map(task => ({
         id: task.id,
         title: task.title,
@@ -152,7 +160,12 @@ export function MaintenanceCalendar() {
         created_by: task.created_by,
         created_at: task.created_at,
         updated_at: task.updated_at,
-        completed_at: task.completed_at
+        completed_at: task.completed_at,
+        labor_hours: Number(task.labor_hours || 0),
+        labor_rate: Number(task.labor_rate || 0),
+        parts_cost: Number(task.parts_cost || 0),
+        other_cost: Number(task.other_cost || 0),
+        total_cost: typeof task.total_cost === 'number' ? task.total_cost : Number(task.total_cost || 0)
       })) || [];
       
       setTasks(transformedTasks);
@@ -215,7 +228,11 @@ export function MaintenanceCalendar() {
       status: "pending",
       assignee_id: "unassigned",
       equipment: "",
-      task_type: "routine"
+      task_type: "routine",
+      labor_hours: 0,
+      labor_rate: 0,
+      parts_cost: 0,
+      other_cost: 0,
     });
     setIsDialogOpen(true);
   };
@@ -230,7 +247,11 @@ export function MaintenanceCalendar() {
       status: task.status,
       assignee_id: task.assignee_id || "unassigned",
       equipment: task.equipment || "",
-      task_type: task.task_type
+      task_type: task.task_type,
+      labor_hours: task.labor_hours ?? 0,
+      labor_rate: task.labor_rate ?? 0,
+      parts_cost: task.parts_cost ?? 0,
+      other_cost: task.other_cost ?? 0,
     });
     setIsDialogOpen(true);
   };
@@ -891,6 +912,54 @@ export function MaintenanceCalendar() {
                 value={formData.equipment}
                 onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="laborHours">Labor Hours</Label>
+                <Input
+                  id="laborHours"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.labor_hours}
+                  onChange={(e) => setFormData({ ...formData, labor_hours: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="laborRate">Labor Rate (USD/hr)</Label>
+                <Input
+                  id="laborRate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.labor_rate}
+                  onChange={(e) => setFormData({ ...formData, labor_rate: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="partsCost">Parts Cost (USD)</Label>
+                <Input
+                  id="partsCost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.parts_cost}
+                  onChange={(e) => setFormData({ ...formData, parts_cost: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="otherCost">Other Cost (USD)</Label>
+                <Input
+                  id="otherCost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.other_cost}
+                  onChange={(e) => setFormData({ ...formData, other_cost: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
             </div>
           </div>
           <div className="flex justify-end space-x-2">

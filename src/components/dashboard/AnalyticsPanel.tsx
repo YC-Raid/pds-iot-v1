@@ -108,6 +108,8 @@ const AnalyticsPanel = () => {
   const [mttrHours, setMttrHours] = useState<number | null>(null);
   const [mtbfHours, setMtbfHours] = useState<number | null>(null);
   const [sensorCorrelations, setSensorCorrelations] = useState<{ sensor_type: string; r: number }[]>([]);
+  const [costTotal, setCostTotal] = useState<number | null>(null);
+  const [costChangePct, setCostChangePct] = useState<number | null>(null);
 
   const timeframeToStartDate = (tf: '7d'|'30d'|'90d') => {
     const d = new Date();
@@ -205,6 +207,37 @@ const AnalyticsPanel = () => {
     fetchReliability();
   }, [timeframe]);
 
+  // Maintenance and alerts cost aggregation
+  useEffect(() => {
+    const fetchCosts = async () => {
+      const since = timeframeToStartDate(timeframe);
+      const days = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : 90;
+      const prevEnd = new Date(since);
+      const prevStart = new Date(prevEnd);
+      prevStart.setDate(prevStart.getDate() - days);
+
+      const [{ data: mt }, { data: al }] = await Promise.all([
+        supabase.from('maintenance_tasks').select('total_cost, completed_at').gte('completed_at', since),
+        supabase.from('alerts').select('cost, created_at').gte('created_at', since),
+      ]);
+      const curr = (mt||[]).reduce((s: number, t: any) => s + (Number(t.total_cost)||0), 0)
+        + (al||[]).reduce((s: number,a:any)=> s + (Number(a.cost)||0), 0);
+
+      const prevSince = prevStart.toISOString();
+      const prevUntil = prevEnd.toISOString();
+      const [{ data: mtPrev }, { data: alPrev }] = await Promise.all([
+        supabase.from('maintenance_tasks').select('total_cost, completed_at').gte('completed_at', prevSince).lt('completed_at', prevUntil),
+        supabase.from('alerts').select('cost, created_at').gte('created_at', prevSince).lt('created_at', prevUntil),
+      ]);
+      const prev = (mtPrev||[]).reduce((s: number, t: any) => s + (Number(t.total_cost)||0), 0)
+        + (alPrev||[]).reduce((s: number,a:any)=> s + (Number(a.cost)||0), 0);
+
+      setCostTotal(curr);
+      setCostChangePct(prev > 0 ? ((curr - prev) / prev) * 100 : null);
+    };
+    fetchCosts();
+  }, [timeframe]);
+
   
   const getTrendIcon = (trend: string) => {
     switch (trend) {
@@ -264,9 +297,15 @@ const AnalyticsPanel = () => {
             <Calendar className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$2,340</div>
+            <div className="text-2xl font-bold">{costTotal != null ? `$${Math.round(costTotal).toLocaleString()}` : '—'}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-yellow-600">-12%</span> vs last month
+              {costChangePct != null ? (
+                <span className={costChangePct >= 0 ? 'text-yellow-600' : 'text-green-600'}>
+                  {`${costChangePct >= 0 ? '+' : ''}${Math.abs(costChangePct).toFixed(1)}%`}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">n/a</span>
+              )} vs previous period
             </p>
           </CardContent>
         </Card>
