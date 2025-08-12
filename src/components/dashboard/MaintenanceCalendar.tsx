@@ -20,6 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +41,10 @@ import {
   Download,
   Wrench,
   AlertTriangle,
-  Filter
+  Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { DataExport } from "@/components/ui/data-export";
 
@@ -71,6 +80,11 @@ export function MaintenanceCalendar() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<MaintenanceTask | null>(null);
   const [showQR, setShowQR] = useState(false);
+  
+  // Filtering and sorting state
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"date" | "priority">("date");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -297,15 +311,33 @@ export function MaintenanceCalendar() {
     setSelectedDate(date);
   };
 
-  // Get upcoming tasks (next 7 days)
+  // Get upcoming tasks (next 7 days) with filtering and sorting
   const upcomingTasks = tasks
     .filter(task => {
       const taskDate = new Date(task.due_date);
       const today = new Date();
       const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-      return taskDate >= today && taskDate <= nextWeek && task.status !== 'completed';
+      const isInTimeRange = taskDate >= today && taskDate <= nextWeek && task.status !== 'completed';
+      
+      if (!isInTimeRange) return false;
+      
+      // Filter by task type
+      if (filterType !== "all" && task.task_type !== filterType) return false;
+      
+      // Filter by priority
+      if (filterPriority !== "all" && task.priority !== filterPriority) return false;
+      
+      return true;
     })
-    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+    .sort((a, b) => {
+      if (sortBy === "date") {
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      } else {
+        // Sort by priority (high -> medium -> low)
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        return priorityOrder[b.priority] - priorityOrder[a.priority];
+      }
+    });
 
   // Get tasks for selected date
   const tasksForSelectedDate = selectedDate ? tasks.filter(task => {
@@ -342,10 +374,29 @@ export function MaintenanceCalendar() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filter
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuItem onClick={() => setFilterType("all")}>
+                All Task Types
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterType("routine")}>
+                Routine Tasks Only
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterType("emergency")}>
+                Emergency Tasks Only
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterType("predictive")}>
+                Predictive Tasks Only
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
           <Button 
             variant="outline" 
             onClick={() => setShowQR(!showQR)}
@@ -548,39 +599,162 @@ export function MaintenanceCalendar() {
       {/* Upcoming Tasks Summary */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Upcoming This Week
-          </CardTitle>
-          <CardDescription>
-            Tasks scheduled for the next 7 days
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Upcoming This Week
+                {(filterType !== "all" || filterPriority !== "all") && (
+                  <Badge variant="secondary" className="ml-2">
+                    Filtered ({upcomingTasks.length})
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Tasks scheduled for the next 7 days {filterType !== "all" ? `• ${filterType} tasks` : ''} {filterPriority !== "all" ? `• ${filterPriority} priority` : ''}
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              {/* Priority Filter */}
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Sort Toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortBy(sortBy === "date" ? "priority" : "date")}
+                className="flex items-center gap-1"
+              >
+                {sortBy === "date" ? (
+                  <>
+                    <CalendarIcon className="h-4 w-4" />
+                    Date
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-4 w-4" />
+                    Priority
+                  </>
+                )}
+                <ArrowUpDown className="h-3 w-3" />
+              </Button>
+              
+              {/* Clear Filters */}
+              {(filterType !== "all" || filterPriority !== "all") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterType("all");
+                    setFilterPriority("all");
+                  }}
+                  className="text-xs"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {upcomingTasks.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {upcomingTasks.map((task) => (
-                <div key={task.id} className="border rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    {getTypeIcon(task.task_type)}
-                    <h5 className="font-medium text-sm">{task.title}</h5>
+              {upcomingTasks.map((task, index) => {
+                const daysUntilDue = Math.ceil((new Date(task.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                const isOverdue = daysUntilDue < 0;
+                const isDueToday = daysUntilDue === 0;
+                const isDueTomorrow = daysUntilDue === 1;
+                
+                return (
+                  <div 
+                    key={task.id} 
+                    className={`border rounded-lg p-3 transition-all hover:shadow-md cursor-pointer ${
+                      isOverdue ? 'border-destructive/50 bg-destructive/5' : 
+                      isDueToday ? 'border-warning/50 bg-warning/5' : 
+                      isDueTomorrow ? 'border-primary/50 bg-primary/5' : ''
+                    }`}
+                    onClick={() => handleEditTask(task)}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      {sortBy === "priority" && (
+                        <div className="text-xs font-mono text-muted-foreground">
+                          #{index + 1}
+                        </div>
+                      )}
+                      {getTypeIcon(task.task_type)}
+                      <h5 className="font-medium text-sm flex-1">{task.title}</h5>
+                      {isOverdue && <ArrowDown className="h-3 w-3 text-destructive" />}
+                      {isDueToday && <AlertCircle className="h-3 w-3 text-warning" />}
+                    </div>
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <p className="flex items-center gap-1">
+                        📅 {new Date(task.due_date).toLocaleDateString()}
+                        <span className={`font-medium ${
+                          isOverdue ? 'text-destructive' : 
+                          isDueToday ? 'text-warning' : 
+                          isDueTomorrow ? 'text-primary' : ''
+                        }`}>
+                          {isOverdue ? `${Math.abs(daysUntilDue)} days overdue` :
+                           isDueToday ? 'Due today' :
+                           isDueTomorrow ? 'Due tomorrow' :
+                           `${daysUntilDue} days left`}
+                        </span>
+                      </p>
+                      <p>👤 {task.assignee_name || 'Unassigned'}</p>
+                      {task.equipment && <p>🔧 {task.equipment}</p>}
+                    </div>
+                    <div className="flex justify-between items-center mt-3">
+                      <Badge 
+                        variant={getPriorityColor(task.priority) as any}
+                        className="text-xs"
+                      >
+                        {task.priority}
+                      </Badge>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className={`w-2 h-2 rounded-full ${
+                          task.task_type === 'routine' ? 'bg-primary' :
+                          task.task_type === 'emergency' ? 'bg-destructive' :
+                          'bg-warning'
+                        }`}></div>
+                        {task.task_type}
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <p>📅 {new Date(task.due_date).toLocaleDateString()}</p>
-                    <p>👤 {task.assignee_name || 'Unassigned'}</p>
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <Badge variant={getPriorityColor(task.priority) as any}>
-                      {task.priority}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">
-              No upcoming maintenance tasks for this week
-            </p>
+            <div className="text-center py-8">
+              <Clock className="h-12 w-12 text-muted-foreground/50 mx-auto mb-2" />
+              <p className="text-muted-foreground">
+                {filterType !== "all" || filterPriority !== "all" 
+                  ? "No tasks match your current filters" 
+                  : "No upcoming maintenance tasks for this week"}
+              </p>
+              {(filterType !== "all" || filterPriority !== "all") && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setFilterType("all");
+                    setFilterPriority("all");
+                  }}
+                  className="mt-2"
+                >
+                  Clear filters to see all tasks
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
