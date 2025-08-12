@@ -17,6 +17,7 @@ import { DataExport } from "@/components/ui/data-export";
 import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, Settings, AlertTriangle } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { SEO } from "@/components/seo/SEO";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 const Dashboard = () => {
   const location = useLocation();
@@ -109,7 +110,16 @@ const Dashboard = () => {
   return (
     <>
       <SEO title="Hangar Guardian Dashboard" description="IoT monitoring, alerts, maintenance and analytics." />
-    <div className="min-h-screen bg-background p-6">
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        name: "Hangar Guardian",
+        description: "IoT monitoring, alerts, maintenance and analytics dashboard",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        url: window.location.origin
+      }} />
+    <div className="min-h-screen bg-background p-6 animate-fade-in">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

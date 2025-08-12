@@ -1,4 +1,6 @@
 
+import { SEO } from "@/components/seo/SEO";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +50,18 @@ const airQualityData = [
 
 const DashboardHome = () => {
   return (
-    <div className="min-h-screen bg-background p-6">
+    <>
+      <SEO title="Hangar Guardian – Overview" description="Overview of real-time IoT monitoring for storage facilities." />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        name: "Hangar Guardian",
+        description: "Real-time IoT monitoring dashboard",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        url: window.location.origin
+      }} />
+      <div className="min-h-screen bg-background p-6 animate-fade-in">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -312,6 +325,7 @@ const DashboardHome = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

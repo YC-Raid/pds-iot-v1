@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { SEO } from "@/components/seo/SEO";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 interface SignUpForm {
   email: string;
@@ -71,7 +72,16 @@ export default function Auth() {
   return (
     <>
       <SEO title={isSignUp ? 'Create Account – Hangar Guardian' : 'Sign In – Hangar Guardian'} description={isSignUp ? 'Create your Hangar Guardian account to access IoT monitoring.' : 'Sign in to Hangar Guardian to access your dashboard.'} />
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        name: "Hangar Guardian",
+        description: "IoT monitoring authentication",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        url: window.location.origin + '/auth'
+      }} />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 animate-fade-in">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow">

@@ -17,6 +17,8 @@ import {
   Share
 } from "lucide-react";
 import { QRCodeGenerator } from "@/components/ui/qr-code-generator";
+import { SEO } from "@/components/seo/SEO";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 interface AlertData {
   id: string;
@@ -92,7 +94,16 @@ export default function CriticalAlert() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <>
+      <SEO title={`Alert – ${alertData.title}`} description={`Details for ${alertData.sensorType} alert`} />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: `Alert – ${alertData.title}`,
+        description: `Details for ${alertData.sensorType} alert`,
+        url: window.location.href
+      }} />
+      <div className="min-h-screen bg-background p-6 animate-fade-in">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -248,5 +259,6 @@ export default function CriticalAlert() {
         </Card>
       </div>
     </div>
+    </>
   );
 }
