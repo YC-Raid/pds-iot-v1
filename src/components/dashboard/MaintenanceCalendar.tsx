@@ -312,12 +312,16 @@ export function MaintenanceCalendar() {
   };
 
   // Get upcoming tasks (next 7 days) with filtering and sorting
+  const startOfToday = new Date();
+  const todayDateOnly = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate());
+  const endOfRange = new Date(todayDateOnly);
+  endOfRange.setDate(endOfRange.getDate() + 6); // Next 7 days including today
+
   const upcomingTasks = tasks
     .filter(task => {
-      const taskDate = new Date(task.due_date);
-      const today = new Date();
-      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-      const isInTimeRange = taskDate >= today && taskDate <= nextWeek && task.status !== 'completed';
+      const td = new Date(task.due_date);
+      const taskDateOnly = new Date(td.getFullYear(), td.getMonth(), td.getDate());
+      const isInTimeRange = taskDateOnly >= todayDateOnly && taskDateOnly <= endOfRange && task.status !== 'completed';
       
       if (!isInTimeRange) return false;
       
@@ -670,7 +674,11 @@ export function MaintenanceCalendar() {
           {upcomingTasks.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {upcomingTasks.map((task, index) => {
-                const daysUntilDue = Math.ceil((new Date(task.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                const now = new Date();
+                const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                const t = new Date(task.due_date);
+                const taskOnly = new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+                const daysUntilDue = Math.round((taskOnly - todayOnly) / (1000 * 60 * 60 * 24));
                 const isOverdue = daysUntilDue < 0;
                 const isDueToday = daysUntilDue === 0;
                 const isDueTomorrow = daysUntilDue === 1;
