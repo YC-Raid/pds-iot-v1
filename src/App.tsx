@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import CriticalAlert from "./pages/CriticalAlert";
+import Profile from "./pages/Profile";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<Dashboard />} />
+                <Route path="profile" element={<Profile />} />
               </Route>
               <Route path="/alert/:alertId" element={<CriticalAlert />} />
               <Route path="*" element={<NotFound />} />

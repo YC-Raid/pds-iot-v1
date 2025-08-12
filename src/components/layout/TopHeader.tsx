@@ -12,6 +12,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { NotificationBell } from "@/components/ui/notification-bell";
+import { useNavigate } from "react-router-dom";
 
 interface TopHeaderProps {
   isDarkMode: boolean;
@@ -22,6 +23,7 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
   const { state } = useSidebar();
   const { signOut } = useAuth();
   const { profile, getInitials } = useUserProfile();
+  const navigate = useNavigate();
 
   const handleSignOut = () => {
     signOut();
@@ -83,8 +85,8 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
                   </p>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/profile')}>Profile</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/?tab=settings')}>Settings</DropdownMenuItem>
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
