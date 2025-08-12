@@ -86,7 +86,7 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate('/profile')}>Profile</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate('/?tab=settings')}>Settings</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/settings')}>Settings</DropdownMenuItem>
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out

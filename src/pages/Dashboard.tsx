@@ -10,17 +10,19 @@ import { HangarStatus } from "@/components/dashboard/HangarStatus";
 import CriticalAlertsOverview from "@/components/dashboard/CriticalAlertsOverview";
 import { VibrationMonitoring } from "@/components/dashboard/VibrationMonitoring";
 import { SystemLongevity } from "@/components/dashboard/SystemLongevity";
-import SettingsTab from "@/components/settings/SettingsTab";
+
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { DataExport } from "@/components/ui/data-export";
-import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, Settings, AlertTriangle } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, AlertTriangle } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/seo/SEO";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { useEffect } from "react";
 
 const Dashboard = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const activeTab = searchParams.get('tab') || 'overview';
   const pageMeta = {
@@ -31,8 +33,14 @@ const Dashboard = () => {
     maintenance: { title: "Hangar Guardian — Maintenance Schedule", description: "Upcoming maintenance dates and tasks." },
     alerts: { title: "Hangar Guardian — Alerts Center", description: "Live alerts, notifications, and critical warnings." },
     analytics: { title: "Hangar Guardian — Analytics", description: "Trends and insights across sensor data." },
-    settings: { title: "Hangar Guardian — Settings", description: "User preferences, roles, and notification settings." },
+    
   } as const;
+
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      navigate('/settings', { replace: true });
+    }
+  }, [activeTab, navigate]);
 
   const tabs = [
     {
@@ -106,16 +114,6 @@ const Dashboard = () => {
         </div>
       ),
     },
-      {
-        title: "Settings",
-        value: "settings",
-        icon: <Settings className="h-4 w-4" />,
-        content: (
-          <div className="space-y-6">
-            <SettingsTab />
-          </div>
-        ),
-      },
   ];
 
   return (

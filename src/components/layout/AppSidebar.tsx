@@ -3,7 +3,6 @@
 import { 
   LayoutDashboard, 
   Calendar, 
-  Settings, 
   LogOut, 
   Activity,
   Bell,
@@ -44,9 +43,6 @@ const mainItems = [
   { title: "Analytics", url: "/?tab=analytics", icon: TrendingUp },
 ];
 
-const systemItems = [
-  { title: "Settings", url: "/?tab=settings", icon: Settings },
-];
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -112,27 +108,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-            System
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-               {systemItems.map((item) => (
-                 <SidebarMenuItem key={item.title}>
-                   <SidebarMenuButton
-                     onClick={() => handleNavigation(item.url)}
-                     className={`${getNavClass(isActive(item.url))} rounded-lg cursor-pointer`}
-                     title={collapsed ? item.title : undefined}
-                   >
-                     <item.icon className="w-5 h-5" />
-                     {!collapsed && <span className="ml-3">{item.title}</span>}
-                   </SidebarMenuButton>
-                 </SidebarMenuItem>
-               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-4">
