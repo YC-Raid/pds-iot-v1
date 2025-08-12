@@ -56,6 +56,7 @@ export type Database = {
           assigned_to: string | null
           category: string
           corrective_actions: string[] | null
+          cost: number
           created_at: string
           created_by: string | null
           description: string
@@ -90,6 +91,7 @@ export type Database = {
           assigned_to?: string | null
           category: string
           corrective_actions?: string[] | null
+          cost?: number
           created_at?: string
           created_by?: string | null
           description: string
@@ -124,6 +126,7 @@ export type Database = {
           assigned_to?: string | null
           category?: string
           corrective_actions?: string[] | null
+          cost?: number
           created_at?: string
           created_by?: string | null
           description?: string
@@ -164,10 +167,15 @@ export type Database = {
           due_date: string
           equipment: string | null
           id: string
+          labor_hours: number
+          labor_rate: number
+          other_cost: number
+          parts_cost: number
           priority: string
           status: string
           task_type: string
           title: string
+          total_cost: number | null
           updated_at: string
         }
         Insert: {
@@ -179,10 +187,15 @@ export type Database = {
           due_date: string
           equipment?: string | null
           id?: string
+          labor_hours?: number
+          labor_rate?: number
+          other_cost?: number
+          parts_cost?: number
           priority?: string
           status?: string
           task_type?: string
           title: string
+          total_cost?: number | null
           updated_at?: string
         }
         Update: {
@@ -194,10 +207,15 @@ export type Database = {
           due_date?: string
           equipment?: string | null
           id?: string
+          labor_hours?: number
+          labor_rate?: number
+          other_cost?: number
+          parts_cost?: number
           priority?: string
           status?: string
           task_type?: string
           title?: string
+          total_cost?: number | null
           updated_at?: string
         }
         Relationships: [
