@@ -281,6 +281,24 @@ const AlertsPanel = () => {
     return `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`;
   };
 
+  // Compute duration dynamically from timestamps rather than relying on stored value
+  const computeAlertDurationMinutes = (alert: any) => {
+    try {
+      const start = alert?.created_at ? new Date(alert.created_at) : null;
+      if (!start) return 0;
+      const resolved = alert?.resolved_at ? new Date(alert.resolved_at) : null;
+      const dismissed = alert?.dismissed_at ? new Date(alert.dismissed_at) : null;
+      const endCandidate = resolved || dismissed || null;
+      const now = new Date();
+      const endTime = endCandidate && endCandidate.getTime() > start.getTime() ? endCandidate : now;
+      const diffMs = endTime.getTime() - start.getTime();
+      const mins = Math.floor(diffMs / (1000 * 60));
+      return mins >= 0 ? mins : 0;
+    } catch {
+      return 0;
+    }
+  };
+
   // Alert actions with database updates
   const acknowledgeAlert = async (alertId: string, assignedTo?: string) => {
     const userName = profile?.nickname || "Current User";
@@ -643,7 +661,7 @@ const AlertsPanel = () => {
         'Dismissed At': alert.dismissed_at ? new Date(alert.dismissed_at).toLocaleString() : 'N/A',
         'Value': alert.value || 'N/A',
         'Threshold': alert.threshold || 'N/A',
-        'Duration (minutes)': alert.duration || 0,
+        'Duration (minutes)': computeAlertDurationMinutes(alert),
         'Impact': alert.impact || 'N/A',
         'Priority': alert.priority || 'P4',
         'Root Cause': alert.root_cause || 'Not identified',
@@ -748,7 +766,7 @@ const AlertsPanel = () => {
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   <span className="font-medium">Duration:</span>
-                  <span>{formatDuration(alert.duration)}</span>
+                  <span>{formatDuration(computeAlertDurationMinutes(alert))}</span>
                 </div>
               </div>
 
