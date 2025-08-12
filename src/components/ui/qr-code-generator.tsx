@@ -73,6 +73,8 @@ export function QRCodeGenerator({
               <img 
                 src={qrCodeUrl} 
                 alt="QR Code" 
+                loading="lazy"
+                decoding="async"
                 className="rounded-lg"
                 width={size}
                 height={size}

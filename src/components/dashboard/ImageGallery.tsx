@@ -65,6 +65,7 @@ export function ImageGallery() {
               <img
                 src={image.src}
                 alt={image.alt}
+                loading="lazy"
                 className="w-full h-48 object-cover image-zoom transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">

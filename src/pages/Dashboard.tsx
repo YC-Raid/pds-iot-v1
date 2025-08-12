@@ -16,6 +16,7 @@ import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { DataExport } from "@/components/ui/data-export";
 import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, Settings, AlertTriangle } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { SEO } from "@/components/seo/SEO";
 
 const Dashboard = () => {
   const location = useLocation();
@@ -106,6 +107,8 @@ const Dashboard = () => {
   ];
 
   return (
+    <>
+      <SEO title="Hangar Guardian Dashboard" description="IoT monitoring, alerts, maintenance and analytics." />
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
@@ -137,6 +140,7 @@ const Dashboard = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
