@@ -174,7 +174,7 @@ const Dashboard = () => {
           <AnimatedTabs 
             tabs={tabs}
             defaultValue={activeTab}
-            containerClassName="grid w-full grid-cols-8 bg-muted p-1 rounded-lg"
+            containerClassName="grid w-full grid-cols-7 bg-muted p-1 rounded-lg"
             tabClassName="text-sm font-medium transition-all duration-200"
             activeTabClassName="bg-background shadow-sm"
             contentClassName="min-h-[600px]"
