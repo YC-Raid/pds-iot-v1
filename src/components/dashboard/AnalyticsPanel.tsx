@@ -7,6 +7,7 @@ import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Cartesia
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -217,7 +218,7 @@ const AnalyticsPanel = () => {
       prevStart.setDate(prevStart.getDate() - days);
 
       const [{ data: mt }, { data: al }] = await Promise.all([
-        supabase.from('maintenance_tasks').select('total_cost, completed_at').gte('completed_at', since),
+        supabase.from('maintenance_tasks').select('total_cost, created_at').gte('created_at', since),
         supabase.from('alerts').select('cost, created_at').gte('created_at', since),
       ]);
       const curr = (mt||[]).reduce((s: number, t: any) => s + (Number(t.total_cost)||0), 0)
@@ -226,7 +227,7 @@ const AnalyticsPanel = () => {
       const prevSince = prevStart.toISOString();
       const prevUntil = prevEnd.toISOString();
       const [{ data: mtPrev }, { data: alPrev }] = await Promise.all([
-        supabase.from('maintenance_tasks').select('total_cost, completed_at').gte('completed_at', prevSince).lt('completed_at', prevUntil),
+        supabase.from('maintenance_tasks').select('total_cost, created_at').gte('created_at', prevSince).lt('created_at', prevUntil),
         supabase.from('alerts').select('cost, created_at').gte('created_at', prevSince).lt('created_at', prevUntil),
       ]);
       const prev = (mtPrev||[]).reduce((s: number, t: any) => s + (Number(t.total_cost)||0), 0)
@@ -297,7 +298,7 @@ const AnalyticsPanel = () => {
             <Calendar className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{costTotal != null ? `$${Math.round(costTotal).toLocaleString()}` : '—'}</div>
+            <div className="text-2xl font-bold">{costTotal != null ? formatCurrency(costTotal) : '—'}</div>
             <p className="text-xs text-muted-foreground">
               {costChangePct != null ? (
                 <span className={costChangePct >= 0 ? 'text-yellow-600' : 'text-green-600'}>

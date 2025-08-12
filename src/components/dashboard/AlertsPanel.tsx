@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatCurrency } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -804,7 +805,7 @@ const AlertsPanel = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="font-medium">Cost:</span>
-                  <span>${Number(alert.cost || 0).toLocaleString()}</span>
+                  <span>{formatCurrency(Number(alert.cost || 0))}</span>
                 </div>
               </div>
 
@@ -1459,7 +1460,7 @@ const AlertsPanel = () => {
             </div>
 
             <div className="grid gap-2">
-              <Label>Alert Cost (USD)</Label>
+              <Label>Alert Cost (SGD)</Label>
               <Input
                 type="number"
                 min="0"

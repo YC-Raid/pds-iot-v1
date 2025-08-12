@@ -92,19 +92,32 @@ export function MaintenanceCalendar() {
   const [sortBy, setSortBy] = useState<"date" | "priority">("date");
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    due_date: string;
+    priority: "low" | "medium" | "high";
+    status: "pending" | "in-progress" | "completed";
+    assignee_id: string;
+    equipment: string;
+    task_type: "routine" | "emergency" | "predictive";
+    labor_hours: string;
+    labor_rate: string;
+    parts_cost: string;
+    other_cost: string;
+  }>({
     title: "",
     description: "",
     due_date: "",
-    priority: "medium" as "low" | "medium" | "high",
-    status: "pending" as "pending" | "in-progress" | "completed",
+    priority: "medium",
+    status: "pending",
     assignee_id: "",
     equipment: "",
-    task_type: "routine" as "routine" | "emergency" | "predictive",
-    labor_hours: 0,
-    labor_rate: 0,
-    parts_cost: 0,
-    other_cost: 0,
+    task_type: "routine",
+    labor_hours: "",
+    labor_rate: "",
+    parts_cost: "",
+    other_cost: "",
   });
 
   // Fetch user profiles
@@ -229,10 +242,10 @@ export function MaintenanceCalendar() {
       assignee_id: "unassigned",
       equipment: "",
       task_type: "routine",
-      labor_hours: 0,
-      labor_rate: 0,
-      parts_cost: 0,
-      other_cost: 0,
+      labor_hours: "",
+      labor_rate: "",
+      parts_cost: "",
+      other_cost: "",
     });
     setIsDialogOpen(true);
   };
@@ -248,10 +261,10 @@ export function MaintenanceCalendar() {
       assignee_id: task.assignee_id || "unassigned",
       equipment: task.equipment || "",
       task_type: task.task_type,
-      labor_hours: task.labor_hours ?? 0,
-      labor_rate: task.labor_rate ?? 0,
-      parts_cost: task.parts_cost ?? 0,
-      other_cost: task.other_cost ?? 0,
+      labor_hours: task.labor_hours != null ? String(task.labor_hours) : "",
+      labor_rate: task.labor_rate != null ? String(task.labor_rate) : "",
+      parts_cost: task.parts_cost != null ? String(task.parts_cost) : "",
+      other_cost: task.other_cost != null ? String(task.other_cost) : "",
     });
     setIsDialogOpen(true);
   };
@@ -286,9 +299,24 @@ export function MaintenanceCalendar() {
     }
 
     try {
+      const lh = parseFloat(formData.labor_hours);
+      const lr = parseFloat(formData.labor_rate);
+      const pc = parseFloat(formData.parts_cost);
+      const oc = parseFloat(formData.other_cost);
+
       const taskData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description || null,
+        due_date: formData.due_date,
+        priority: formData.priority,
+        status: formData.status,
         assignee_id: formData.assignee_id === "unassigned" ? null : formData.assignee_id,
+        equipment: formData.equipment || null,
+        task_type: formData.task_type,
+        labor_hours: isNaN(lh) ? 0 : lh,
+        labor_rate: isNaN(lr) ? 0 : lr,
+        parts_cost: isNaN(pc) ? 0 : pc,
+        other_cost: isNaN(oc) ? 0 : oc,
         created_by: user?.id,
         completed_at: formData.status === 'completed' ? new Date().toISOString() : null
       };
@@ -922,42 +950,42 @@ export function MaintenanceCalendar() {
                   min="0"
                   step="0.1"
                   value={formData.labor_hours}
-                  onChange={(e) => setFormData({ ...formData, labor_hours: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, labor_hours: e.target.value })}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="laborRate">Labor Rate (USD/hr)</Label>
+                <Label htmlFor="laborRate">Labor Rate (SGD/hr)</Label>
                 <Input
                   id="laborRate"
                   type="number"
                   min="0"
                   step="0.01"
                   value={formData.labor_rate}
-                  onChange={(e) => setFormData({ ...formData, labor_rate: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, labor_rate: e.target.value })}
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="partsCost">Parts Cost (USD)</Label>
+                <Label htmlFor="partsCost">Parts Cost (SGD)</Label>
                 <Input
                   id="partsCost"
                   type="number"
                   min="0"
                   step="0.01"
                   value={formData.parts_cost}
-                  onChange={(e) => setFormData({ ...formData, parts_cost: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, parts_cost: e.target.value })}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="otherCost">Other Cost (USD)</Label>
+                <Label htmlFor="otherCost">Other Cost (SGD)</Label>
                 <Input
                   id="otherCost"
                   type="number"
                   min="0"
                   step="0.01"
                   value={formData.other_cost}
-                  onChange={(e) => setFormData({ ...formData, other_cost: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, other_cost: e.target.value })}
                 />
               </div>
             </div>
