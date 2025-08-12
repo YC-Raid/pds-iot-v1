@@ -311,17 +311,21 @@ export function MaintenanceCalendar() {
     setSelectedDate(date);
   };
 
-  // Get upcoming tasks (next 7 days) with filtering and sorting
-  const startOfToday = new Date();
-  const todayDateOnly = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate());
-  const endOfRange = new Date(todayDateOnly);
-  endOfRange.setDate(endOfRange.getDate() + 6); // Next 7 days including today
+  // Get upcoming tasks for the selected week (Mon-Sun) with filtering and sorting
+  const baseDate = selectedDate ? new Date(selectedDate) : new Date();
+  const startOfWeek = new Date(baseDate);
+  const day = (startOfWeek.getDay() + 6) % 7; // Monday = 0
+  startOfWeek.setDate(startOfWeek.getDate() - day);
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(endOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
 
   const upcomingTasks = tasks
     .filter(task => {
       const td = new Date(task.due_date);
       const taskDateOnly = new Date(td.getFullYear(), td.getMonth(), td.getDate());
-      const isInTimeRange = taskDateOnly >= todayDateOnly && taskDateOnly <= endOfRange && task.status !== 'completed';
+      const isInTimeRange = taskDateOnly >= startOfWeek && taskDateOnly <= endOfWeek && task.status !== 'completed';
       
       if (!isInTimeRange) return false;
       
@@ -338,7 +342,7 @@ export function MaintenanceCalendar() {
         return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
       } else {
         // Sort by priority (high -> medium -> low)
-        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        const priorityOrder = { high: 3, medium: 2, low: 1 } as const;
         return priorityOrder[b.priority] - priorityOrder[a.priority];
       }
     });
@@ -615,7 +619,9 @@ export function MaintenanceCalendar() {
                 )}
               </CardTitle>
               <CardDescription>
-                Tasks scheduled for the next 7 days {filterType !== "all" ? `• ${filterType} tasks` : ''} {filterPriority !== "all" ? `• ${filterPriority} priority` : ''}
+                {`Week: ${startOfWeek.toLocaleDateString()} - ${endOfWeek.toLocaleDateString()} `}
+                {filterType !== "all" ? `• ${filterType} tasks ` : ''}
+                {filterPriority !== "all" ? `• ${filterPriority} priority` : ''}
               </CardDescription>
             </div>
             <div className="flex gap-2">

@@ -1,9 +1,12 @@
 
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -100,6 +103,109 @@ const AnalyticsPanel = () => {
     }
   };
 
+  // Reliability metrics state
+  const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d'>('30d');
+  const [mttrHours, setMttrHours] = useState<number | null>(null);
+  const [mtbfHours, setMtbfHours] = useState<number | null>(null);
+  const [sensorCorrelations, setSensorCorrelations] = useState<{ sensor_type: string; r: number }[]>([]);
+
+  const timeframeToStartDate = (tf: '7d'|'30d'|'90d') => {
+    const d = new Date();
+    const days = tf === '7d' ? 7 : tf === '30d' ? 30 : 90;
+    d.setDate(d.getDate() - days);
+    return d.toISOString();
+  };
+
+  const pearson = (x: number[], y: number[]) => {
+    if (x.length !== y.length || x.length < 2) return 0;
+    const n = x.length;
+    const mx = x.reduce((a,b)=>a+b,0)/n;
+    const my = y.reduce((a,b)=>a+b,0)/n;
+    let num=0, dx=0, dy=0;
+    for (let i=0;i<n;i++) { const xv=x[i]-mx; const yv=y[i]-my; num += xv*yv; dx += xv*xv; dy += yv*yv; }
+    const den = Math.sqrt(dx*dy);
+    return den === 0 ? 0 : num/den;
+  };
+
+  const formatHours = (h: number | null) => {
+    if (h == null) return '—';
+    const hrs = Math.floor(h);
+    const mins = Math.round((h - hrs) * 60);
+    return `${hrs}h ${mins}m`;
+  };
+
+  useEffect(() => {
+    const fetchReliability = async () => {
+      const since = timeframeToStartDate(timeframe);
+      // MTTR
+      const { data: tasks } = await supabase
+        .from('maintenance_tasks')
+        .select('created_at, completed_at, task_type')
+        .gte('created_at', since)
+        .not('completed_at','is', null);
+      if (tasks && tasks.length) {
+        const durations = tasks
+          .map(t => (new Date(t.completed_at as string).getTime() - new Date(t.created_at as string).getTime())/(1000*60*60))
+          .filter(v => isFinite(v) && v >= 0);
+        setMttrHours(durations.length ? durations.reduce((a,b)=>a+b,0)/durations.length : null);
+      } else { setMttrHours(null); }
+
+      // Failures (alerts)
+      const { data: alerts } = await supabase
+        .from('alerts')
+        .select('created_at, sensor_type, sensor_value, priority, severity')
+        .gte('created_at', since);
+      // MTBF
+      const failureEvents = (alerts || []).filter(a => a.severity === 'critical' || a.priority === 'P1')
+        .sort((a,b) => new Date(a.created_at as string).getTime() - new Date(b.created_at as string).getTime());
+      if (failureEvents.length >= 2) {
+        const gaps = [] as number[];
+        for (let i=1;i<failureEvents.length;i++) {
+          gaps.push((new Date(failureEvents[i].created_at as string).getTime() - new Date(failureEvents[i-1].created_at as string).getTime())/(1000*60*60));
+        }
+        setMtbfHours(gaps.reduce((a,b)=>a+b,0)/gaps.length);
+      } else { setMtbfHours(null); }
+
+      // Sensor correlation vs failures by day
+      const byDay = new Map<string, { values: Record<string, number[]>, failure: number }>();
+      const daysSet = new Set<string>();
+      (alerts || []).forEach(a => {
+        const d = new Date(a.created_at as string); const key = d.toISOString().split('T')[0];
+        daysSet.add(key);
+        const day = byDay.get(key) || { values: {}, failure: 0 };
+        if ((a.severity === 'critical' || a.priority === 'P1')) day.failure = 1;
+        if (a.sensor_type && typeof a.sensor_value === 'number') {
+          day.values[a.sensor_type] = day.values[a.sensor_type] || [];
+          day.values[a.sensor_type].push(a.sensor_value as number);
+        }
+        byDay.set(key, day);
+      });
+      const days = Array.from(daysSet).sort();
+      const sensorSet = new Set<string>();
+      byDay.forEach(d => Object.keys(d.values).forEach(s => sensorSet.add(s)));
+      const results: { sensor_type: string; r: number }[] = [];
+      sensorSet.forEach(sensor => {
+        const x: number[] = []; const y: number[] = [];
+        days.forEach(dayKey => {
+          const d = byDay.get(dayKey);
+          const vals = d?.values[sensor];
+          if (vals && vals.length) {
+            x.push(vals.reduce((a,b)=>a+b,0)/vals.length);
+            y.push(d!.failure);
+          } else {
+            // no reading that day; skip to keep alignment only on days with data
+          }
+        });
+        if (x.length >= 2 && x.length === y.length) {
+          results.push({ sensor_type: sensor, r: pearson(x,y) });
+        }
+      });
+      setSensorCorrelations(results.sort((a,b)=>Math.abs(b.r)-Math.abs(a.r)));
+    };
+    fetchReliability();
+  }, [timeframe]);
+
+  
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case "up":
@@ -180,11 +286,12 @@ const AnalyticsPanel = () => {
       </div>
 
       <Tabs defaultValue="trends" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="trends">Weekly Trends</TabsTrigger>
           <TabsTrigger value="monthly">Monthly Analysis</TabsTrigger>
           <TabsTrigger value="health">System Health</TabsTrigger>
           <TabsTrigger value="predictions">Predictions</TabsTrigger>
+          <TabsTrigger value="reliability">Reliability</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trends" className="space-y-6">
@@ -432,6 +539,77 @@ const AnalyticsPanel = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="reliability" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Reliability Metrics</CardTitle>
+              <CardDescription>MTTR, MTBF and sensor correlation vs failures</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Timeframe</span>
+              <Select value={timeframe} onValueChange={(v: any) => setTimeframe(v)}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 90 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Mean Time To Repair (MTTR)</CardTitle>
+                <CardDescription>Average repair duration</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{formatHours(mttrHours)}</div>
+                <p className="text-xs text-muted-foreground">Computed from maintenance_tasks created_at → completed_at</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Mean Time Between Failures (MTBF)</CardTitle>
+                <CardDescription>Average time between P1/Critical alerts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{formatHours(mtbfHours)}</div>
+                <p className="text-xs text-muted-foreground">Based on alerts severity=critical or priority=P1</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Sensor Correlation with Failures</CardTitle>
+              <CardDescription>Pearson correlation (−1 to +1) between sensor values and failure days</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {sensorCorrelations.length ? (
+                <ChartContainer config={chartConfig} className="h-[360px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={sensorCorrelations} margin={{ left: 12, right: 12 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="sensor_type" angle={-20} textAnchor="end" height={60} />
+                      <YAxis domain={[-1, 1]} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="r" fill="var(--color-alerts)" radius={[4,4,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground">Not enough data to compute correlations in this timeframe.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
     </div>
   );
