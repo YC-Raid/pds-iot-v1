@@ -10,6 +10,7 @@ import { HangarStatus } from "@/components/dashboard/HangarStatus";
 import CriticalAlertsOverview from "@/components/dashboard/CriticalAlertsOverview";
 import { VibrationMonitoring } from "@/components/dashboard/VibrationMonitoring";
 import { SystemLongevity } from "@/components/dashboard/SystemLongevity";
+import SettingsTab from "@/components/settings/SettingsTab";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { DataExport } from "@/components/ui/data-export";
@@ -92,59 +93,16 @@ const Dashboard = () => {
         </div>
       ),
     },
-    {
-      title: "Settings",
-      value: "settings",
-      icon: <Settings className="h-4 w-4" />,
-      content: (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>System Settings</CardTitle>
-              <CardDescription>Configure your IoT monitoring system</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Sensor Configuration</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">Manage sensor thresholds and calibration settings.</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Alert Settings</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">Configure notification preferences and alert rules.</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Data Retention</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">Set data storage and backup policies.</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">User Management</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">Manage user accounts and permissions.</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ),
-    },
+      {
+        title: "Settings",
+        value: "settings",
+        icon: <Settings className="h-4 w-4" />,
+        content: (
+          <div className="space-y-6">
+            <SettingsTab />
+          </div>
+        ),
+      },
   ];
 
   return (

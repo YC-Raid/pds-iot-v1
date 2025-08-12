@@ -31,7 +31,7 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm">
       <div className="flex items-center justify-between h-full px-6">
         <div className="flex items-center gap-4">
-          <SidebarTrigger className="hover:bg-accent" />
+          <SidebarTrigger className="hover:bg-accent z-50" />
           <div>
             <h1 className="text-xl font-semibold text-foreground">
               Hangar Guardian Dashboard
