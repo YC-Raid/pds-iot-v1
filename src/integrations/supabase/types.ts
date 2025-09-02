@@ -228,6 +228,92 @@ export type Database = {
           },
         ]
       }
+      ml_predictions: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          model_name: string
+          prediction_metadata: Json | null
+          prediction_type: string
+          prediction_value: number
+          sensor_reading_id: number | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          model_name: string
+          prediction_metadata?: Json | null
+          prediction_type: string
+          prediction_value: number
+          sensor_reading_id?: number | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          model_name?: string
+          prediction_metadata?: Json | null
+          prediction_type?: string
+          prediction_value?: number
+          sensor_reading_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_predictions_sensor_reading_id_fkey"
+            columns: ["sensor_reading_id"]
+            isOneToOne: false
+            referencedRelation: "processed_sensor_readings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ml_training_datasets: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          dataset_name: string
+          dataset_type: string
+          feature_columns: string[]
+          id: string
+          model_accuracy: number | null
+          sample_count: number | null
+          target_column: string | null
+          training_period_end: string
+          training_period_start: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          dataset_name: string
+          dataset_type: string
+          feature_columns: string[]
+          id?: string
+          model_accuracy?: number | null
+          sample_count?: number | null
+          target_column?: string | null
+          training_period_end: string
+          training_period_start: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          dataset_name?: string
+          dataset_type?: string
+          feature_columns?: string[]
+          id?: string
+          model_accuracy?: number | null
+          sample_count?: number | null
+          target_column?: string | null
+          training_period_end?: string
+          training_period_start?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           alert_threshold_humidity: number | null
@@ -294,6 +380,96 @@ export type Database = {
           type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      processed_sensor_readings: {
+        Row: {
+          accel_magnitude: number | null
+          accel_x: number | null
+          accel_y: number | null
+          accel_z: number | null
+          anomaly_score: number | null
+          created_at: string | null
+          gas_resistance: number | null
+          gyro_magnitude: number | null
+          gyro_x: number | null
+          gyro_y: number | null
+          gyro_z: number | null
+          humidity: number | null
+          id: number
+          location: string | null
+          maintenance_recommendation: string | null
+          original_id: number
+          pm1_0: number | null
+          pm10: number | null
+          pm2_5: number | null
+          predicted_failure_probability: number | null
+          pressure: number | null
+          processed_at: string | null
+          processing_version: string | null
+          quality_score: number | null
+          recorded_at: string
+          temperature: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          accel_magnitude?: number | null
+          accel_x?: number | null
+          accel_y?: number | null
+          accel_z?: number | null
+          anomaly_score?: number | null
+          created_at?: string | null
+          gas_resistance?: number | null
+          gyro_magnitude?: number | null
+          gyro_x?: number | null
+          gyro_y?: number | null
+          gyro_z?: number | null
+          humidity?: number | null
+          id?: number
+          location?: string | null
+          maintenance_recommendation?: string | null
+          original_id: number
+          pm1_0?: number | null
+          pm10?: number | null
+          pm2_5?: number | null
+          predicted_failure_probability?: number | null
+          pressure?: number | null
+          processed_at?: string | null
+          processing_version?: string | null
+          quality_score?: number | null
+          recorded_at: string
+          temperature?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          accel_magnitude?: number | null
+          accel_x?: number | null
+          accel_y?: number | null
+          accel_z?: number | null
+          anomaly_score?: number | null
+          created_at?: string | null
+          gas_resistance?: number | null
+          gyro_magnitude?: number | null
+          gyro_x?: number | null
+          gyro_y?: number | null
+          gyro_z?: number | null
+          humidity?: number | null
+          id?: number
+          location?: string | null
+          maintenance_recommendation?: string | null
+          original_id?: number
+          pm1_0?: number | null
+          pm10?: number | null
+          pm2_5?: number | null
+          predicted_failure_probability?: number | null
+          pressure?: number | null
+          processed_at?: string | null
+          processing_version?: string | null
+          quality_score?: number | null
+          recorded_at?: string
+          temperature?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -404,7 +580,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      sensor_dashboard_live: {
+        Row: {
+          avg_anomaly_score: number | null
+          avg_failure_risk: number | null
+          avg_humidity: number | null
+          avg_pm25: number | null
+          avg_pressure: number | null
+          avg_temperature: number | null
+          high_anomaly_count: number | null
+          high_risk_count: number | null
+          last_reading: string | null
+          location: string | null
+          total_readings: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
