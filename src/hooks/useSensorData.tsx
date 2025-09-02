@@ -107,7 +107,7 @@ export function useSensorData() {
       if (error) throw error;
       return data || [];
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch time range data');
+      console.error('Failed to fetch time range data:', err);
       return [];
     }
   };
@@ -124,7 +124,7 @@ export function useSensorData() {
       if (error) throw error;
       return data || [];
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch anomalous readings');
+      console.error('Failed to fetch anomalous readings:', err);
       return [];
     }
   };
