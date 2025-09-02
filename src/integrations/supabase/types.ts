@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -321,6 +321,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sensor_data: {
+        Row: {
+          accel_x: number | null
+          accel_y: number | null
+          accel_z: number | null
+          gas_resistance: number | null
+          gyro_x: number | null
+          gyro_y: number | null
+          gyro_z: number | null
+          humidity: number | null
+          id: number
+          local_date: string
+          local_time: string
+          pm1_0: number | null
+          pm10: number | null
+          pm2_5: number | null
+          pressure: number | null
+          temperature: number | null
+          utc_timestamp: string
+        }
+        Insert: {
+          accel_x?: number | null
+          accel_y?: number | null
+          accel_z?: number | null
+          gas_resistance?: number | null
+          gyro_x?: number | null
+          gyro_y?: number | null
+          gyro_z?: number | null
+          humidity?: number | null
+          id: number
+          local_date: string
+          local_time: string
+          pm1_0?: number | null
+          pm10?: number | null
+          pm2_5?: number | null
+          pressure?: number | null
+          temperature?: number | null
+          utc_timestamp: string
+        }
+        Update: {
+          accel_x?: number | null
+          accel_y?: number | null
+          accel_z?: number | null
+          gas_resistance?: number | null
+          gyro_x?: number | null
+          gyro_y?: number | null
+          gyro_z?: number | null
+          humidity?: number | null
+          id?: number
+          local_date?: string
+          local_time?: string
+          pm1_0?: number | null
+          pm10?: number | null
+          pm2_5?: number | null
+          pressure?: number | null
+          temperature?: number | null
+          utc_timestamp?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -349,10 +409,26 @@ export type Database = {
     Functions: {
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
+      }
+      postgres_fdw_disconnect: {
+        Args: { "": string }
+        Returns: boolean
+      }
+      postgres_fdw_disconnect_all: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      postgres_fdw_get_connections: {
+        Args: Record<PropertyKey, never>
+        Returns: Record<string, unknown>[]
+      }
+      postgres_fdw_handler: {
+        Args: Record<PropertyKey, never>
+        Returns: unknown
       }
     }
     Enums: {
