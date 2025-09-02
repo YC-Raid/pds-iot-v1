@@ -10,28 +10,60 @@ import {
   Plane, 
   AlertTriangle, 
   CheckCircle,
-  TrendingUp
+  TrendingUp,
+  Waves
 } from "lucide-react";
+import { useSensorData } from "@/hooks/useSensorData";
+import { useEffect, useState } from "react";
 
 const VibrationMonitoring = () => {
-  // Mock vibration data
-  const groundVibrationData = [
-    { time: "00:00", amplitude: 0.12, frequency: 8.5, severity: "low" },
-    { time: "04:00", amplitude: 0.08, frequency: 6.2, severity: "low" },
-    { time: "08:00", amplitude: 0.25, frequency: 12.1, severity: "medium" },
-    { time: "12:00", amplitude: 0.35, frequency: 15.8, severity: "high" },
-    { time: "16:00", amplitude: 0.22, frequency: 11.3, severity: "medium" },
-    { time: "20:00", amplitude: 0.15, frequency: 9.1, severity: "low" },
-  ];
+  const { sensorReadings, isLoading, getSensorReadingsByTimeRange } = useSensorData();
+  const [accelerometerData, setAccelerometerData] = useState([]);
+  const [gyroscopeData, setGyroscopeData] = useState([]);
 
-  const airVibrationData = [
-    { time: "00:00", amplitude: 0.05, frequency: 2.1, severity: "low" },
-    { time: "04:00", amplitude: 0.03, frequency: 1.8, severity: "low" },
-    { time: "08:00", amplitude: 0.18, frequency: 4.2, severity: "medium" },
-    { time: "12:00", amplitude: 0.28, frequency: 6.5, severity: "high" },
-    { time: "16:00", amplitude: 0.12, frequency: 3.1, severity: "medium" },
-    { time: "20:00", amplitude: 0.07, frequency: 2.3, severity: "low" },
-  ];
+  useEffect(() => {
+    const loadVibrationData = async () => {
+      const data = await getSensorReadingsByTimeRange(24);
+      
+      // Process accelerometer data (ground vibration)
+      const accelData = data.map(reading => ({
+        time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        }),
+        amplitude: reading.accel_magnitude || 0,
+        x: reading.accel_x || 0,
+        y: reading.accel_y || 0,
+        z: reading.accel_z || 0,
+        severity: reading.accel_magnitude > 0.3 ? "high" : reading.accel_magnitude > 0.15 ? "medium" : "low"
+      })).slice(-20);
+      
+      // Process gyroscope data (rotational vibration)  
+      const gyroData = data.map(reading => ({
+        time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        }),
+        amplitude: reading.gyro_magnitude || 0,
+        x: reading.gyro_x || 0,
+        y: reading.gyro_y || 0,
+        z: reading.gyro_z || 0,
+        severity: reading.gyro_magnitude > 0.2 ? "high" : reading.gyro_magnitude > 0.1 ? "medium" : "low"
+      })).slice(-20);
+
+      setAccelerometerData(accelData);
+      setGyroscopeData(gyroData);
+    };
+
+    if (!isLoading) {
+      loadVibrationData();
+    }
+  }, [getSensorReadingsByTimeRange, isLoading]);
+
+  // Get latest readings for current status
+  const latestReading = sensorReadings[0];
 
   const structuralImpact = {
     foundationStress: 23, // percentage
@@ -70,28 +102,40 @@ const VibrationMonitoring = () => {
             <Mountain className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0.25 m/s²</div>
+            <div className="text-2xl font-bold">
+              {latestReading?.accel_magnitude?.toFixed(3) || "0.000"} m/s²
+            </div>
             <p className="text-xs text-muted-foreground">
-              Current amplitude
+              Current acceleration magnitude
             </p>
-            <Badge className={`mt-2 ${getSeverityColor("medium")}`}>
-              Medium Impact
+            <Badge className={`mt-2 ${getSeverityColor(
+              latestReading?.accel_magnitude > 0.3 ? "high" : 
+              latestReading?.accel_magnitude > 0.15 ? "medium" : "low"
+            )}`}>
+              {latestReading?.accel_magnitude > 0.3 ? "High" : 
+               latestReading?.accel_magnitude > 0.15 ? "Medium" : "Low"} Impact
             </Badge>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Air Vibration</CardTitle>
-            <Plane className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Rotational Motion</CardTitle>
+            <Waves className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0.12 m/s²</div>
+            <div className="text-2xl font-bold">
+              {latestReading?.gyro_magnitude?.toFixed(3) || "0.000"} °/s
+            </div>
             <p className="text-xs text-muted-foreground">
-              Current amplitude
+              Current gyroscope magnitude
             </p>
-            <Badge className={`mt-2 ${getSeverityColor("low")}`}>
-              Low Impact
+            <Badge className={`mt-2 ${getSeverityColor(
+              latestReading?.gyro_magnitude > 0.2 ? "high" : 
+              latestReading?.gyro_magnitude > 0.1 ? "medium" : "low"
+            )}`}>
+              {latestReading?.gyro_magnitude > 0.2 ? "High" : 
+               latestReading?.gyro_magnitude > 0.1 ? "Medium" : "Low"} Impact
             </Badge>
           </CardContent>
         </Card>
@@ -133,16 +177,16 @@ const VibrationMonitoring = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Mountain className="h-5 w-5" />
-              Ground Vibration Analysis
+              Accelerometer Analysis
             </CardTitle>
             <CardDescription>
-              Seismic activity and ground-based vibrations affecting structure
+              Linear acceleration affecting hangar structure (X, Y, Z axes)
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={groundVibrationData}>
+                <AreaChart data={accelerometerData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="time" />
                   <YAxis />
@@ -163,17 +207,17 @@ const VibrationMonitoring = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Plane className="h-5 w-5" />
-              Air Vibration Analysis
+              <Waves className="h-5 w-5" />
+              Gyroscope Analysis
             </CardTitle>
             <CardDescription>
-              Wind loads and aerial disturbances affecting hangar stability
+              Rotational motion and angular velocity affecting hangar stability
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={airVibrationData}>
+                <AreaChart data={gyroscopeData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="time" />
                   <YAxis />

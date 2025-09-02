@@ -2,6 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SensorOverview } from "@/components/dashboard/SensorOverview";
+import { AirQualityPanel } from "@/components/dashboard/AirQualityPanel";
 import { MaintenanceCalendar } from "@/components/dashboard/MaintenanceCalendar";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { CriticalAlertsPanel } from "@/components/dashboard/CriticalAlertsPanel";
@@ -62,6 +63,7 @@ const Dashboard = () => {
       content: (
         <div className="space-y-6">
           <SensorOverview />
+          <AirQualityPanel />
         </div>
       ),
     },

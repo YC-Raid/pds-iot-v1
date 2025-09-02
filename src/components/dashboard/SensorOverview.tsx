@@ -11,71 +11,159 @@ import {
   Cpu,
   Wifi,
   Battery,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  Activity,
+  Mountain,
+  Eye,
+  Cloud,
+  Waves
 } from "lucide-react";
+import { useSensorData } from "@/hooks/useSensorData";
+import { useEffect, useState } from "react";
 
 const SensorOverview = () => {
-  // Mock sensor data - replace with real data
-  const sensors = [
+  const { sensorReadings, dashboardData, isLoading, getSensorReadingsByTimeRange } = useSensorData();
+  const [timeSeriesData, setTimeSeriesData] = useState([]);
+
+  useEffect(() => {
+    const loadTimeSeriesData = async () => {
+      const data = await getSensorReadingsByTimeRange(24);
+      const formattedData = data.map((reading, index) => ({
+        time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        }),
+        temperature: reading.temperature || 0,
+        humidity: reading.humidity || 0,
+        pressure: reading.pressure || 0,
+        pm25: reading.pm2_5 || 0,
+        accel_magnitude: reading.accel_magnitude || 0,
+        gyro_magnitude: reading.gyro_magnitude || 0
+      })).slice(-20); // Show last 20 readings for performance
+      setTimeSeriesData(formattedData);
+    };
+
+    if (!isLoading) {
+      loadTimeSeriesData();
+    }
+  }, [getSensorReadingsByTimeRange, isLoading]);
+
+  // Get latest sensor readings
+  const latestReading = sensorReadings[0];
+  
+  // Create sensor cards from real data
+  const sensors = latestReading ? [
     {
       id: "temp_01",
-      name: "Temperature Sensor #1",
+      name: "Temperature Sensor",
       type: "Temperature",
-      location: "North Wall",
-      value: 22.5,
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.temperature?.toFixed(1) || "N/A",
       unit: "°C",
-      status: "online",
-      lastUpdate: "30s ago",
+      status: latestReading.temperature ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
       icon: Thermometer,
-      battery: 85
+      battery: 85 // Mock battery for now
     },
     {
       id: "hum_01",
-      name: "Humidity Sensor #1",
+      name: "Humidity Sensor",
       type: "Humidity",
-      location: "Center",
-      value: 65,
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.humidity?.toFixed(1) || "N/A",
       unit: "%",
-      status: "online",
-      lastUpdate: "45s ago",
+      status: latestReading.humidity ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
       icon: Droplets,
-      battery: 72
-    },
-    {
-      id: "air_01",
-      name: "Air Quality Monitor",
-      type: "Air Quality",
-      location: "Entrance",
-      value: 85,
-      unit: "AQI",
-      status: "warning",
-      lastUpdate: "1m ago",
-      icon: Wind,
-      battery: 91
+      battery: 92
     },
     {
       id: "press_01",
       name: "Pressure Sensor",
       type: "Pressure",
-      location: "South Wall",
-      value: 1013.2,
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.pressure?.toFixed(1) || "N/A",
       unit: "hPa",
-      status: "online",
-      lastUpdate: "15s ago",
+      status: latestReading.pressure ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
       icon: Gauge,
       battery: 88
+    },
+    {
+      id: "gas_01",
+      name: "Gas Resistance",
+      type: "Gas Quality",
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.gas_resistance?.toFixed(0) || "N/A",
+      unit: "Ω",
+      status: latestReading.gas_resistance ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      icon: Zap,
+      battery: 79
+    },
+    {
+      id: "pm1_01",
+      name: "PM1.0 Monitor",
+      type: "PM1.0",
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.pm1_0 || "N/A",
+      unit: "μg/m³",
+      status: latestReading.pm1_0 !== null ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      icon: Eye,
+      battery: 94
+    },
+    {
+      id: "pm25_01",
+      name: "PM2.5 Monitor",
+      type: "PM2.5",
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.pm2_5 || "N/A",
+      unit: "μg/m³",
+      status: latestReading.pm2_5 !== null ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      icon: Cloud,
+      battery: 87
+    },
+    {
+      id: "pm10_01",
+      name: "PM10 Monitor",
+      type: "PM10",
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.pm10 || "N/A",
+      unit: "μg/m³",
+      status: latestReading.pm10 !== null ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      icon: Wind,
+      battery: 91
+    },
+    {
+      id: "accel_01",
+      name: "Accelerometer",
+      type: "Acceleration",
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.accel_magnitude?.toFixed(3) || "N/A",
+      unit: "m/s²",
+      status: latestReading.accel_magnitude !== null ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      icon: Activity,
+      battery: 83
+    },
+    {
+      id: "gyro_01",
+      name: "Gyroscope",
+      type: "Rotation",
+      location: latestReading.location || "Hangar 01",
+      value: latestReading.gyro_magnitude?.toFixed(3) || "N/A",
+      unit: "°/s",
+      status: latestReading.gyro_magnitude !== null ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      icon: Waves,
+      battery: 76
     }
-  ];
-
-  // Mock time series data
-  const timeSeriesData = [
-    { time: "00:00", temperature: 21.2, humidity: 68, airQuality: 82 },
-    { time: "04:00", temperature: 20.8, humidity: 70, airQuality: 85 },
-    { time: "08:00", temperature: 22.1, humidity: 65, airQuality: 88 },
-    { time: "12:00", temperature: 24.5, humidity: 62, airQuality: 91 },
-    { time: "16:00", temperature: 23.8, humidity: 64, airQuality: 87 },
-    { time: "20:00", temperature: 22.5, humidity: 66, airQuality: 85 },
-  ];
+  ] : [];
 
   const chartConfig = {
     temperature: {
@@ -86,9 +174,17 @@ const SensorOverview = () => {
       label: "Humidity (%)",
       color: "hsl(var(--chart-2))",
     },
-    airQuality: {
-      label: "Air Quality (AQI)",
+    pressure: {
+      label: "Pressure (hPa)",
       color: "hsl(var(--chart-3))",
+    },
+    pm25: {
+      label: "PM2.5 (μg/m³)",
+      color: "hsl(var(--chart-4))",
+    },
+    accel_magnitude: {
+      label: "Acceleration (m/s²)",
+      color: "hsl(var(--chart-5))",
     },
   };
 
@@ -114,8 +210,24 @@ const SensorOverview = () => {
   return (
     <div className="space-y-6">
       {/* Real-time Sensor Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {sensors.map((sensor) => {
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(9)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 w-20 bg-muted rounded"></div>
+                <div className="h-4 w-4 bg-muted rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-16 bg-muted rounded mb-2"></div>
+                <div className="h-3 w-24 bg-muted rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {sensors.map((sensor) => {
           const IconComponent = sensor.icon;
           return (
             <Card key={sensor.id}>
@@ -144,15 +256,16 @@ const SensorOverview = () => {
               </CardContent>
             </Card>
           );
-        })}
-      </div>
+          })}
+        </div>
+      )}
 
       {/* Time Series Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>24-Hour Sensor Trends</CardTitle>
+          <CardTitle>Sensor Trends - Last 24 Hours</CardTitle>
           <CardDescription>
-            Real-time environmental monitoring over the last 24 hours
+            Real-time data from your AWS RDS sensor network ({timeSeriesData.length} readings)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -192,11 +305,19 @@ const SensorOverview = () => {
                 />
                 <Line 
                   type="monotone" 
-                  dataKey="airQuality" 
+                  dataKey="pressure" 
                   stroke="hsl(var(--chart-3))" 
                   strokeWidth={2}
                   dot={{ fill: "hsl(var(--chart-3))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
                   activeDot={{ r: 6, fill: "hsl(var(--chart-3))" }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="pm25" 
+                  stroke="hsl(var(--chart-4))" 
+                  strokeWidth={2}
+                  dot={{ fill: "hsl(var(--chart-4))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                  activeDot={{ r: 6, fill: "hsl(var(--chart-4))" }}
                 />
               </LineChart>
             </ResponsiveContainer>

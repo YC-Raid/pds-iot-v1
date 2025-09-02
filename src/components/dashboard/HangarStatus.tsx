@@ -10,25 +10,53 @@ import {
   AlertTriangle, 
   CheckCircle, 
   Clock,
-  Wrench
+  Wrench,
+  Activity,
+  Eye
 } from "lucide-react";
+import { useSensorData } from "@/hooks/useSensorData";
 
 const HangarStatus = () => {
-  // Mock data - replace with real sensor data
+  const { sensorReadings, dashboardData, isLoading } = useSensorData();
+  
+  // Get latest readings or use defaults
+  const latestReading = sensorReadings[0];
+  const dashStats = dashboardData[0];
+  
   const currentReadings = {
-    temperature: { value: 22.5, unit: "°C", status: "normal", threshold: "18-25°C" },
-    humidity: { value: 65, unit: "%", status: "normal", threshold: "<70%" },
-    airQuality: { value: 85, unit: "AQI", status: "good", threshold: ">80" },
-    pressure: { value: 1013.2, unit: "hPa", status: "normal", threshold: "1010-1020" }
+    temperature: { 
+      value: latestReading?.temperature?.toFixed(1) || "N/A", 
+      unit: "°C", 
+      status: latestReading?.temperature && latestReading.temperature >= 18 && latestReading.temperature <= 25 ? "normal" : "warning", 
+      threshold: "18-25°C" 
+    },
+    humidity: { 
+      value: latestReading?.humidity?.toFixed(1) || "N/A", 
+      unit: "%", 
+      status: latestReading?.humidity && latestReading.humidity < 70 ? "normal" : "warning", 
+      threshold: "<70%" 
+    },
+    airQuality: { 
+      value: latestReading?.pm2_5 || "N/A", 
+      unit: "μg/m³", 
+      status: latestReading?.pm2_5 && latestReading.pm2_5 < 35 ? "good" : "warning", 
+      threshold: "<35 μg/m³" 
+    },
+    pressure: { 
+      value: latestReading?.pressure?.toFixed(1) || "N/A", 
+      unit: "hPa", 
+      status: latestReading?.pressure && latestReading.pressure >= 1010 && latestReading.pressure <= 1020 ? "normal" : "warning", 
+      threshold: "1010-1020" 
+    }
   };
 
   const systemHealth = {
-    overallScore: 94,
-    lastMaintenance: "15 days ago",
+    overallScore: dashStats?.avg_anomaly_score ? Math.round((1 - dashStats.avg_anomaly_score) * 100) : 94,
+    lastMaintenance: latestReading ? `${Math.floor((Date.now() - new Date(latestReading.recorded_at).getTime()) / (1000 * 60 * 60 * 24))} days ago` : "Unknown",
     nextMaintenance: "in 15 days",
-    activeAlerts: 2,
-    sensorsOnline: 12,
-    totalSensors: 12
+    activeAlerts: dashStats ? dashStats.high_anomaly_count + dashStats.high_risk_count : 0,
+    sensorsOnline: sensorReadings.length > 0 ? 9 : 0, // 9 sensor types
+    totalSensors: 9
   };
 
   const getStatusColor = (status: string) => {
@@ -44,6 +72,25 @@ const HangarStatus = () => {
         return "text-gray-600 bg-gray-100";
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="h-4 w-20 bg-muted rounded"></div>
+              <div className="h-4 w-4 bg-muted rounded"></div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 w-16 bg-muted rounded mb-2"></div>
+              <div className="h-3 w-24 bg-muted rounded"></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

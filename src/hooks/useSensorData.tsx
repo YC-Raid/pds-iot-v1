@@ -150,7 +150,7 @@ export function useSensorData() {
 
     // Set up real-time subscription for new sensor data
     const channel = supabase
-      .channel('sensor-data-changes')
+      .channel('processed-sensor-data-changes')
       .on(
         'postgres_changes',
         {
