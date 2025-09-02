@@ -10,11 +10,12 @@ import { HangarStatus } from "@/components/dashboard/HangarStatus";
 import CriticalAlertsOverview from "@/components/dashboard/CriticalAlertsOverview";
 import { VibrationMonitoring } from "@/components/dashboard/VibrationMonitoring";
 import { SystemLongevity } from "@/components/dashboard/SystemLongevity";
+import { RDSIntegration } from "@/components/dashboard/RDSIntegration";
 
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { DataExport } from "@/components/ui/data-export";
-import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, AlertTriangle } from "lucide-react";
+import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, AlertTriangle, Database } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/seo/SEO";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -114,6 +115,16 @@ const Dashboard = () => {
         </div>
       ),
     },
+    {
+      title: "AWS RDS",
+      value: "rds",
+      icon: <Database className="h-4 w-4" />,
+      content: (
+        <div className="space-y-6">
+          <RDSIntegration />
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -174,7 +185,7 @@ const Dashboard = () => {
           <AnimatedTabs 
             tabs={tabs}
             defaultValue={activeTab}
-            containerClassName="grid w-full grid-cols-7 bg-muted p-1 rounded-lg"
+            containerClassName="grid w-full grid-cols-8 bg-muted p-1 rounded-lg"
             tabClassName="text-sm font-medium transition-all duration-200"
             activeTabClassName="bg-background shadow-sm"
             contentClassName="min-h-[600px]"

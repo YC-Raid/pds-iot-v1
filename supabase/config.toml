@@ -54,3 +54,6 @@ verify_jwt = false
 
 [functions.alert-monitor]
 verify_jwt = false
+
+[functions.sync-rds-data]
+verify_jwt = true

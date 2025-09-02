@@ -598,6 +598,14 @@ export type Database = {
       }
     }
     Functions: {
+      get_rds_sensor_data_info: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          connection_status: string
+          latest_timestamp: string
+          total_count: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -620,6 +628,10 @@ export type Database = {
       postgres_fdw_handler: {
         Args: Record<PropertyKey, never>
         Returns: unknown
+      }
+      sync_sensor_data_from_rds: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
     }
     Enums: {
