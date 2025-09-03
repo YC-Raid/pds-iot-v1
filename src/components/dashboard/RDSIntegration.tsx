@@ -13,6 +13,7 @@ interface RDSIntegrationProps {
 export function RDSIntegration({ className }: RDSIntegrationProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const { dashboardData, syncRDSData } = useSensorData();
   const { toast } = useToast();
 
@@ -21,6 +22,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
     try {
       const result = await syncRDSData();
       setSyncResult(result);
+      setLastSyncTime(new Date());
       
       toast({
         title: "Sync Successful",
@@ -85,14 +87,36 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
           )}
         </div>
 
-        {/* Sync Status */}
-        {syncResult && (
-          <div className="p-3 bg-muted rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <RefreshCw className="h-4 w-4" />
-              <span className="font-medium">Last Sync Result</span>
+        {/* Last Sync Status Card */}
+        <div className="p-3 bg-muted rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <RefreshCw className="h-4 w-4" />
+            <span className="font-medium">Synchronization Status</span>
+          </div>
+          
+          {lastSyncTime ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Last Sync:</span>
+                <span className="text-sm font-medium">
+                  {lastSyncTime.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Auto-sync:</span>
+                <Badge variant="secondary" className="text-xs">
+                  Every 5 minutes
+                </Badge>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No sync performed yet. Auto-sync runs every 5 minutes.
+            </div>
+          )}
+          
+          {syncResult && (
+            <div className="grid grid-cols-2 gap-4 text-sm mt-3 pt-3 border-t border-border">
               <div>
                 <span className="text-muted-foreground">Records Synced:</span>
                 <span className="ml-2 font-medium">{syncResult.synced_count}</span>
@@ -104,8 +128,8 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
                 </Badge>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Local Data Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

@@ -98,17 +98,26 @@ export function useSensorData() {
     try {
       const startTime = new Date();
       startTime.setHours(startTime.getHours() - hours);
+      
+      console.log(`Fetching sensor data from ${startTime.toISOString()} to now`);
 
       const { data, error } = await supabase
         .from('processed_sensor_readings')
         .select('*')
         .gte('recorded_at', startTime.toISOString())
-        .order('recorded_at', { ascending: true });
+        .order('recorded_at', { ascending: true })
+        .limit(1000); // Add limit to prevent large queries
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+      }
+      
+      console.log(`Successfully fetched ${data?.length || 0} sensor readings`);
       return data || [];
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
+      // Return empty array but don't throw to prevent UI breaking
       return [];
     }
   };
