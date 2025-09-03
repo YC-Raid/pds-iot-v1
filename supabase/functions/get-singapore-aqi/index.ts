@@ -12,25 +12,39 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting Singapore AQI fetch...')
+    
     // Get API token from environment variables
     const apiToken = Deno.env.get('WAQI_API_TOKEN')
     
     if (!apiToken) {
+      console.error('WAQI_API_TOKEN not found in environment variables')
       throw new Error('WAQI_API_TOKEN not found in environment variables')
     }
 
+    console.log('API token found, fetching data from WAQI API...')
+
     // Fetch Singapore AQI data from World Air Quality Index API
-    const response = await fetch(`https://api.waqi.info/feed/singapore/?token=${apiToken}`)
+    const apiUrl = `https://api.waqi.info/feed/singapore/?token=${apiToken}`
+    console.log('Fetching from URL:', apiUrl.replace(apiToken, '[REDACTED]'))
+    
+    const response = await fetch(apiUrl)
+    console.log('API Response status:', response.status, response.statusText)
     
     if (!response.ok) {
+      console.error(`API request failed with status: ${response.status}`)
       throw new Error(`API request failed with status: ${response.status}`)
     }
 
     const data = await response.json()
+    console.log('API Response data status:', data.status)
     
     if (data.status !== 'ok') {
+      console.error('API returned error:', data.data || 'Unknown error')
       throw new Error(`API returned error: ${data.data || 'Unknown error'}`)
     }
+
+    console.log('Successfully received AQI data for:', data.data?.city?.name || 'Singapore')
 
     // Extract and format the relevant data
     const aqiInfo = {
@@ -48,6 +62,8 @@ serve(async (req) => {
       humidity: data.data.iaqi?.h?.v || 0,
     }
 
+    console.log('Formatted AQI data:', JSON.stringify(aqiInfo, null, 2))
+
     return new Response(
       JSON.stringify(aqiInfo),
       { 
@@ -64,7 +80,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Failed to fetch Singapore AQI data',
-        details: error.toString()
+        details: error.toString(),
+        timestamp: new Date().toISOString()
       }),
       { 
         headers: { 
