@@ -83,6 +83,10 @@ export function useSensorData() {
       
       if (error) throw error;
       
+      // Store sync time in localStorage for persistence
+      const now = new Date();
+      localStorage.setItem('lastSyncTime', now.toISOString());
+      
       // Refresh data after sync
       await fetchSensorReadings();
       await fetchDashboardData();

@@ -13,7 +13,10 @@ interface RDSIntegrationProps {
 export function RDSIntegration({ className }: RDSIntegrationProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(() => {
+    const stored = localStorage.getItem('lastSyncTime');
+    return stored ? new Date(stored) : null;
+  });
   const { dashboardData, syncRDSData } = useSensorData();
   const { toast } = useToast();
 
@@ -22,7 +25,9 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
     try {
       const result = await syncRDSData();
       setSyncResult(result);
-      setLastSyncTime(new Date());
+      const now = new Date();
+      setLastSyncTime(now);
+      localStorage.setItem('lastSyncTime', now.toISOString());
       
       toast({
         title: "Sync Successful",
