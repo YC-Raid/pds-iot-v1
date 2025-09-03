@@ -195,17 +195,23 @@ export function useSensorData() {
       )
       .subscribe();
 
-    // Auto-sync every 5 minutes
+    // Auto-sync every 5 minutes - start immediately for testing
+    console.log('⏰ Setting up auto-sync interval (5 minutes)');
     const autoSyncInterval = setInterval(async () => {
       try {
         console.log('🔄 Auto-syncing RDS data (5-min interval)...');
+        const syncStartTime = new Date().toISOString();
         const result = await syncRDSData();
         console.log('✅ Auto-sync completed successfully', result);
         
-        // Show subtle notification for successful sync
+        // Store sync time even if no new records
+        localStorage.setItem('lastSyncTime', syncStartTime);
+        
+        // Show notification with sync details
+        const syncedCount = result.synced_count || 0;
         toast({
           title: "Data Sync Complete",
-          description: "Latest sensor data synchronized from AWS RDS",
+          description: `Synced ${syncedCount} new records from AWS RDS`,
           duration: 3000,
         });
       } catch (error) {

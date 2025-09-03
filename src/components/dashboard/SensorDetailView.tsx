@@ -27,18 +27,18 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
     const loadDetailedData = async () => {
       setIsLoading(true);
       try {
-        console.log(`Loading data for sensor: ${sensor.type}`);
+        console.log(`🔍 Loading data for sensor: ${sensor.type}`);
         const data = await getSensorReadingsByTimeRange(24);
-        console.log(`Raw fetched data count: ${data.length}`);
+        console.log(`📊 Raw fetched data count: ${data.length}`);
         
         if (!data || data.length === 0) {
-          console.warn(`No data available for ${sensor.type}`);
+          console.warn(`⚠️ No data available for ${sensor.type}`);
           setChartData([]);
           return;
         }
         
         // Log first few records to debug data structure
-        console.log('Sample raw data:', data.slice(0, 3));
+        console.log('🔍 Sample raw data structure:', JSON.stringify(data.slice(0, 2), null, 2));
         
         let formattedData = [];
         
@@ -110,11 +110,15 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
             .slice(-100);
         }
         
-        console.log(`Final formatted data for ${sensor.type}:`, {
+        console.log(`📈 Final formatted data for ${sensor.type}:`, {
           count: formattedData.length,
-          sample: formattedData.slice(0, 3),
-          last: formattedData.slice(-3)
+          sample: formattedData.slice(0, 2),
+          dataStructure: formattedData.length > 0 ? Object.keys(formattedData[0]) : []
         });
+        
+        if (formattedData.length === 0) {
+          console.warn(`⚠️ No valid formatted data for ${sensor.type}`);
+        }
         
         setChartData(formattedData);
       } catch (error) {
@@ -226,10 +230,18 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
                 <p className="text-muted-foreground">Loading sensor data...</p>
               </div>
             </div>
+          ) : chartData.length === 0 ? (
+            <div className="h-[400px] flex items-center justify-center">
+              <div className="text-center">
+                <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No data available for this sensor</p>
+                <p className="text-sm text-muted-foreground mt-2">Data may still be syncing from AWS RDS</p>
+              </div>
+            </div>
           ) : (
             <ChartContainer config={chartConfig} className="h-[400px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid 
                     strokeDasharray="3 3" 
                     stroke="hsl(var(--muted-foreground))" 
