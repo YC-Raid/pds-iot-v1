@@ -98,7 +98,7 @@ const SensorDetail = () => {
     };
 
     loadData();
-  }, [sensorType, getSensorReadingsByTimeRange, currentSensor.dataKey]);
+  }, [sensorType]); // Fixed: Only depend on sensorType to prevent infinite loop
 
   return (
     <div className="min-h-screen bg-background p-6 animate-fade-in">
