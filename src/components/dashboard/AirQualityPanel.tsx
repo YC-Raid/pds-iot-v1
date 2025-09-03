@@ -116,7 +116,7 @@ const AirQualityPanel = () => {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
             <CardTitle className="text-lg font-semibold">Singapore Air Quality Index (Real-Time)</CardTitle>
-            <CardDescription>Live air quality data from Singapore's monitoring stations</CardDescription>
+            <CardDescription>Live air quality data from Singapore's monitoring stations - Taken from WAQI</CardDescription>
           </div>
           <CheckCircle className="h-6 w-6 text-muted-foreground" />
         </CardHeader>
