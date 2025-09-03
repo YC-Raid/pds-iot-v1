@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useEffect, useState } from "react";
+import { SingaporeAQICard } from "./SingaporeAQICard";
 
 const AirQualityPanel = () => {
   const { sensorReadings, isLoading, getSensorReadingsByTimeRange } = useSensorData();
