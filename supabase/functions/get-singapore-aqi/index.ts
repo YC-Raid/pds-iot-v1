@@ -12,58 +12,69 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting Singapore AQI fetch from aqicn.org API...')
-    
+    console.log('Starting Singapore AQI fetch from waqi.info API...')
+
+    // Read station id from query param or body; defaults to '@1666' (Singapore East station)
+    const url = new URL(req.url);
+    let station = url.searchParams.get('station') || '';
+    try {
+      const body = await req.json();
+      if (body && typeof body.station === 'string' && body.station.trim()) {
+        station = body.station.trim();
+      }
+    } catch (_) {
+      // no JSON body provided
+    }
+    if (!station) station = '@1666';
+
     // Get API token from environment variables
-    const apiToken = Deno.env.get('AQICN_API_TOKEN')
+    const apiToken = Deno.env.get('WAQI_API_TOKEN');
     
     if (!apiToken) {
-      console.error('AQICN_API_TOKEN not found in environment variables')
-      throw new Error('AQICN_API_TOKEN not found in environment variables')
+      console.error('WAQI_API_TOKEN not found in environment variables');
+      throw new Error('WAQI_API_TOKEN not found in environment variables');
     }
 
-    console.log('API token found, fetching data from aqicn.org API...')
+    console.log('Token found, building WAQI url...');
 
-    // Fetch Singapore East AQI data from aqicn.org API
-    // Format: https://api.aqicn.org/feed/@{station_id}/?token={token}
-    // For Singapore East, using the specific feed endpoint
-    const apiUrl = `https://api.aqicn.org/feed/singapore/east/?token=${apiToken}`
-    console.log('Fetching from URL:', apiUrl.replace(apiToken, '[REDACTED]'))
+    // Compose feed endpoint. Accepts either '@1666' or a path like 'singapore/east'
+    const feedPath = station.startsWith('@') || /^[0-9]+$/.test(station) ? `@${station.replace(/^@/, '')}` : station;
+    const apiUrl = `https://api.waqi.info/feed/${feedPath}/?token=${apiToken}`;
+    console.log('Fetching from URL:', apiUrl.replace(apiToken, '[REDACTED]'));
     
-    const response = await fetch(apiUrl)
-    console.log('API Response status:', response.status, response.statusText)
+    const response = await fetch(apiUrl);
+    console.log('API Response status:', response.status, response.statusText);
     
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`API request failed with status: ${response.status}, body: ${errorText}`)
-      throw new Error(`API request failed with status: ${response.status}`)
+      const errorText = await response.text();
+      console.error(`API request failed with status: ${response.status}, body: ${errorText}`);
+      throw new Error(`API request failed with status: ${response.status}`);
     }
 
-    const data = await response.json()
-    console.log('API Response data status:', data.status)
-    console.log('Full response data:', JSON.stringify(data, null, 2))
+    const data = await response.json();
+    console.log('API Response data status:', data.status);
     
     if (data.status !== 'ok') {
-      console.error('API returned error:', data.data || 'Unknown error')
-      throw new Error(`API returned error: ${data.data || 'Unknown error'}`)
+      console.error('API returned error:', data.data || 'Unknown error');
+      throw new Error(`API returned error: ${data.data || 'Unknown error'}`);
     }
 
-    console.log('Successfully received AQI data for:', data.data?.city?.name || 'Singapore East')
+    console.log('Successfully received AQI data for:', data.data?.city?.name || feedPath);
 
-    // Extract and format the relevant data from aqicn.org format
+    // Normalize response
     const aqiInfo = {
-      aqi: data.data?.aqi || 0,
-      city: data.data?.city?.name || 'Singapore East',
-      dominantPollutant: data.data?.dominentpol || 'pm25',
-      pm25: data.data?.iaqi?.pm25?.v || 0,
-      pm10: data.data?.iaqi?.pm10?.v || 0,
-      o3: data.data?.iaqi?.o3?.v || 0,
-      no2: data.data?.iaqi?.no2?.v || 0,
-      so2: data.data?.iaqi?.so2?.v || 0,
-      co: data.data?.iaqi?.co?.v || 0,
-      time: data.data?.time?.s || new Date().toISOString(),
-      temperature: data.data?.iaqi?.t?.v || 0,
-      humidity: data.data?.iaqi?.h?.v || 0,
+      aqi: data.data?.aqi ?? 0,
+      city: data.data?.city?.name ?? feedPath,
+      dominantPollutant: data.data?.dominentpol ?? 'pm25',
+      pm25: data.data?.iaqi?.pm25?.v ?? 0,
+      pm10: data.data?.iaqi?.pm10?.v ?? 0,
+      o3: data.data?.iaqi?.o3?.v ?? 0,
+      no2: data.data?.iaqi?.no2?.v ?? 0,
+      so2: data.data?.iaqi?.so2?.v ?? 0,
+      co: data.data?.iaqi?.co?.v ?? 0,
+      time: data.data?.time?.s ?? new Date().toISOString(),
+      temperature: data.data?.iaqi?.t?.v ?? 0,
+      humidity: data.data?.iaqi?.h?.v ?? 0,
     }
 
     console.log('Formatted AQI data:', JSON.stringify(aqiInfo, null, 2))
