@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -19,12 +18,12 @@ import {
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useEffect, useState } from "react";
-import { SensorDetailView } from "./SensorDetailView";
+import { useNavigate } from "react-router-dom";
 
 const SensorOverview = () => {
   const { sensorReadings, dashboardData, isLoading, getSensorReadingsByTimeRange } = useSensorData();
   const [timeSeriesData, setTimeSeriesData] = useState([]);
-  const [selectedSensor, setSelectedSensor] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadTimeSeriesData = async () => {
@@ -194,17 +193,6 @@ const SensorOverview = () => {
     }
   };
 
-
-  // If sensor is selected, show detailed view
-  if (selectedSensor) {
-    return (
-      <SensorDetailView 
-        sensor={selectedSensor} 
-        onBack={() => setSelectedSensor(null)} 
-      />
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Real-time Sensor Grid */}
@@ -244,7 +232,7 @@ const SensorOverview = () => {
                   "Rotation": "rotation"
                 };
                 const sensorPath = sensorTypeMap[sensor.type] || "temperature";
-                window.location.href = `/sensor/${sensorPath}`;
+                navigate(`/sensor/${sensorPath}`);
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

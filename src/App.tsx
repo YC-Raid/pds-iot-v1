@@ -30,6 +30,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<Dashboard />} />
+                <Route path="sensor/:sensorType" element={<SensorDetail />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
