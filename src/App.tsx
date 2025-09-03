@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import CriticalAlert from "./pages/CriticalAlert";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import SensorDetail from "./pages/SensorDetail";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 const queryClient = new QueryClient();

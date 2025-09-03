@@ -231,7 +231,21 @@ const SensorOverview = () => {
             <Card 
               key={sensor.id} 
               className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setSelectedSensor(sensor)}
+              onClick={() => {
+                const sensorTypeMap = {
+                  "Temperature": "temperature",
+                  "Humidity": "humidity", 
+                  "Pressure": "pressure",
+                  "Gas Quality": "gas",
+                  "PM1.0": "pm1",
+                  "PM2.5": "pm25", 
+                  "PM10": "pm10",
+                  "Acceleration": "acceleration",
+                  "Rotation": "rotation"
+                };
+                const sensorPath = sensorTypeMap[sensor.type] || "temperature";
+                window.location.href = `/sensor/${sensorPath}`;
+              }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{sensor.type}</CardTitle>
