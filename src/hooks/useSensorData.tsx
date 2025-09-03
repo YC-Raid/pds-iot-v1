@@ -167,8 +167,20 @@ export function useSensorData() {
       )
       .subscribe();
 
+    // Auto-sync every 5 minutes
+    const autoSyncInterval = setInterval(async () => {
+      try {
+        console.log('Auto-syncing RDS data...');
+        await syncRDSData();
+      } catch (error) {
+        console.error('Auto-sync failed:', error);
+        // Don't set error state for background sync failures
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(autoSyncInterval);
     };
   }, []);
 

@@ -10,21 +10,21 @@ import {
   Gauge,
   Cpu,
   Wifi,
-  Battery,
   AlertCircle,
   Zap,
   Activity,
-  Mountain,
   Eye,
   Cloud,
   Waves
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useEffect, useState } from "react";
+import { SensorDetailView } from "./SensorDetailView";
 
 const SensorOverview = () => {
   const { sensorReadings, dashboardData, isLoading, getSensorReadingsByTimeRange } = useSensorData();
   const [timeSeriesData, setTimeSeriesData] = useState([]);
+  const [selectedSensor, setSelectedSensor] = useState(null);
 
   useEffect(() => {
     const loadTimeSeriesData = async () => {
@@ -64,8 +64,7 @@ const SensorOverview = () => {
       unit: "°C",
       status: latestReading.temperature ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Thermometer,
-      battery: 85 // Mock battery for now
+      icon: Thermometer
     },
     {
       id: "hum_01",
@@ -76,8 +75,7 @@ const SensorOverview = () => {
       unit: "%",
       status: latestReading.humidity ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Droplets,
-      battery: 92
+      icon: Droplets
     },
     {
       id: "press_01",
@@ -88,8 +86,7 @@ const SensorOverview = () => {
       unit: "hPa",
       status: latestReading.pressure ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Gauge,
-      battery: 88
+      icon: Gauge
     },
     {
       id: "gas_01",
@@ -100,8 +97,7 @@ const SensorOverview = () => {
       unit: "Ω",
       status: latestReading.gas_resistance ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Zap,
-      battery: 79
+      icon: Zap
     },
     {
       id: "pm1_01",
@@ -112,8 +108,7 @@ const SensorOverview = () => {
       unit: "μg/m³",
       status: latestReading.pm1_0 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Eye,
-      battery: 94
+      icon: Eye
     },
     {
       id: "pm25_01",
@@ -124,8 +119,7 @@ const SensorOverview = () => {
       unit: "μg/m³",
       status: latestReading.pm2_5 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Cloud,
-      battery: 87
+      icon: Cloud
     },
     {
       id: "pm10_01",
@@ -136,32 +130,31 @@ const SensorOverview = () => {
       unit: "μg/m³",
       status: latestReading.pm10 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Wind,
-      battery: 91
+      icon: Wind
     },
     {
       id: "accel_01",
       name: "Accelerometer",
       type: "Acceleration",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.accel_magnitude?.toFixed(3) || "N/A",
+      value: `X: ${latestReading.accel_x?.toFixed(3) || "N/A"} | Y: ${latestReading.accel_y?.toFixed(3) || "N/A"} | Z: ${latestReading.accel_z?.toFixed(3) || "N/A"}`,
+      magnitude: latestReading.accel_magnitude?.toFixed(3) || "N/A",
       unit: "m/s²",
       status: latestReading.accel_magnitude !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Activity,
-      battery: 83
+      icon: Activity
     },
     {
       id: "gyro_01",
       name: "Gyroscope",
       type: "Rotation",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.gyro_magnitude?.toFixed(3) || "N/A",
+      value: `X: ${latestReading.gyro_x?.toFixed(3) || "N/A"} | Y: ${latestReading.gyro_y?.toFixed(3) || "N/A"} | Z: ${latestReading.gyro_z?.toFixed(3) || "N/A"}`,
+      magnitude: latestReading.gyro_magnitude?.toFixed(3) || "N/A",
       unit: "°/s",
       status: latestReading.gyro_magnitude !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Waves,
-      battery: 76
+      icon: Waves
     }
   ] : [];
 
@@ -201,11 +194,16 @@ const SensorOverview = () => {
     }
   };
 
-  const getBatteryColor = (battery: number) => {
-    if (battery > 50) return "text-success";
-    if (battery > 20) return "text-warning";
-    return "text-destructive";
-  };
+
+  // If sensor is selected, show detailed view
+  if (selectedSensor) {
+    return (
+      <SensorDetailView 
+        sensor={selectedSensor} 
+        onBack={() => setSelectedSensor(null)} 
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -230,28 +228,39 @@ const SensorOverview = () => {
           {sensors.map((sensor) => {
           const IconComponent = sensor.icon;
           return (
-            <Card key={sensor.id}>
+            <Card 
+              key={sensor.id} 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setSelectedSensor(sensor)}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{sensor.type}</CardTitle>
                 <IconComponent className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {sensor.value} {sensor.unit}
-                </div>
+                {sensor.type === "Acceleration" || sensor.type === "Rotation" ? (
+                  <>
+                    <div className="text-sm font-medium mb-1">
+                      Magnitude: {sensor.magnitude} {sensor.unit}
+                    </div>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      {sensor.value}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-2xl font-bold mb-2">
+                    {sensor.value} {sensor.unit}
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground mb-2">
-                  {sensor.location} • {sensor.lastUpdate}
+                  {sensor.location} • Click to view details
                 </p>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center">
                   <Badge variant="outline" className={getStatusColor(sensor.status)}>
                     {sensor.status === "online" && <Wifi className="h-3 w-3 mr-1" />}
                     {sensor.status === "warning" && <AlertCircle className="h-3 w-3 mr-1" />}
                     {sensor.status}
                   </Badge>
-                  <div className={`flex items-center gap-1 text-xs ${getBatteryColor(sensor.battery)}`}>
-                    <Battery className="h-3 w-3" />
-                    {sensor.battery}%
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -353,10 +362,6 @@ const SensorOverview = () => {
                   <Badge variant="outline" className={getStatusColor(sensor.status)}>
                     {sensor.status}
                   </Badge>
-                  <div className={`flex items-center gap-1 text-sm ${getBatteryColor(sensor.battery)}`}>
-                    <Battery className="h-4 w-4" />
-                    {sensor.battery}%
-                  </div>
                 </div>
               </div>
             ))}
