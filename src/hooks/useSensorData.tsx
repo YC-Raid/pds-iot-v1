@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface SensorReading {
   id: number;
@@ -170,11 +171,26 @@ export function useSensorData() {
     // Auto-sync every 5 minutes
     const autoSyncInterval = setInterval(async () => {
       try {
-        console.log('Auto-syncing RDS data...');
-        await syncRDSData();
+        console.log('🔄 Auto-syncing RDS data...');
+        const result = await syncRDSData();
+        console.log('✅ Auto-sync completed successfully', result);
+        
+        // Show subtle notification for successful sync
+        toast({
+          title: "Data Sync Complete",
+          description: "Latest sensor data has been synchronized from AWS RDS",
+          duration: 3000,
+        });
       } catch (error) {
-        console.error('Auto-sync failed:', error);
-        // Don't set error state for background sync failures
+        console.error('❌ Auto-sync failed:', error);
+        
+        // Show error notification for failed sync
+        toast({
+          title: "Sync Failed",
+          description: "Failed to sync data from AWS RDS. Will retry in 5 minutes.",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
     }, 5 * 60 * 1000); // 5 minutes
 

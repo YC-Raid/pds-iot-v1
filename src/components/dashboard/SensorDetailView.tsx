@@ -27,7 +27,9 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
     const loadDetailedData = async () => {
       setIsLoading(true);
       try {
+        console.log(`Loading data for sensor: ${sensor.type}`);
         const data = await getSensorReadingsByTimeRange(24);
+        console.log(`Fetched ${data.length} readings for ${sensor.type}:`, data);
         
         let formattedData = [];
         
@@ -42,7 +44,7 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
             y_axis: reading.accel_y || 0,
             z_axis: reading.accel_z || 0,
             magnitude: reading.accel_magnitude || 0
-          })).slice(-30);
+          })).slice(-50);
         } else if (sensor.type === "Rotation") {
           formattedData = data.map((reading) => ({
             time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
@@ -54,7 +56,7 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
             y_axis: reading.gyro_y || 0,
             z_axis: reading.gyro_z || 0,
             magnitude: reading.gyro_magnitude || 0
-          })).slice(-30);
+          })).slice(-50);
         } else {
           // For other sensors, show single value trend
           formattedData = data.map((reading) => ({
@@ -64,9 +66,10 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
               hour12: false 
             }),
             value: getValueBySensorType(reading, sensor.type)
-          })).slice(-30);
+          })).filter(item => item.value !== null && item.value !== undefined).slice(-50);
         }
         
+        console.log(`Formatted data for ${sensor.type}:`, formattedData);
         setChartData(formattedData);
       } catch (error) {
         console.error('Failed to load detailed sensor data:', error);
