@@ -158,6 +158,20 @@ export function useSensorData() {
 
     loadData();
 
+    // Perform initial sync when component mounts
+    const performInitialSync = async () => {
+      try {
+        console.log('🚀 Performing initial RDS data sync...');
+        await syncRDSData();
+        console.log('✅ Initial sync completed');
+      } catch (error) {
+        console.error('❌ Initial sync failed:', error);
+      }
+    };
+
+    // Trigger initial sync after a short delay
+    const initialSyncTimeout = setTimeout(performInitialSync, 2000);
+
     // Set up real-time subscription for new sensor data
     const channel = supabase
       .channel('processed-sensor-data-changes')
@@ -180,14 +194,14 @@ export function useSensorData() {
     // Auto-sync every 5 minutes
     const autoSyncInterval = setInterval(async () => {
       try {
-        console.log('🔄 Auto-syncing RDS data...');
+        console.log('🔄 Auto-syncing RDS data (5-min interval)...');
         const result = await syncRDSData();
         console.log('✅ Auto-sync completed successfully', result);
         
         // Show subtle notification for successful sync
         toast({
           title: "Data Sync Complete",
-          description: "Latest sensor data has been synchronized from AWS RDS",
+          description: "Latest sensor data synchronized from AWS RDS",
           duration: 3000,
         });
       } catch (error) {
@@ -206,6 +220,7 @@ export function useSensorData() {
     return () => {
       supabase.removeChannel(channel);
       clearInterval(autoSyncInterval);
+      clearTimeout(initialSyncTimeout);
     };
   }, []);
 

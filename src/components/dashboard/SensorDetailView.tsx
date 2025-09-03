@@ -29,50 +29,89 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
       try {
         console.log(`Loading data for sensor: ${sensor.type}`);
         const data = await getSensorReadingsByTimeRange(24);
-        console.log(`Fetched ${data.length} readings for ${sensor.type}:`, data);
+        console.log(`Raw fetched data count: ${data.length}`);
+        
+        if (!data || data.length === 0) {
+          console.warn(`No data available for ${sensor.type}`);
+          setChartData([]);
+          return;
+        }
         
         let formattedData = [];
         
         if (sensor.type === "Acceleration") {
-          formattedData = data.map((reading) => ({
-            time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false 
-            }),
-            x_axis: reading.accel_x || 0,
-            y_axis: reading.accel_y || 0,
-            z_axis: reading.accel_z || 0,
-            magnitude: reading.accel_magnitude || 0
-          })).slice(-50);
+          formattedData = data
+            .filter(reading => 
+              reading.accel_x !== null && reading.accel_x !== undefined &&
+              reading.accel_y !== null && reading.accel_y !== undefined &&
+              reading.accel_z !== null && reading.accel_z !== undefined
+            )
+            .map((reading, index) => ({
+              time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              }),
+              timestamp: reading.recorded_at,
+              x_axis: Number(reading.accel_x) || 0,
+              y_axis: Number(reading.accel_y) || 0,
+              z_axis: Number(reading.accel_z) || 0,
+              magnitude: Number(reading.accel_magnitude) || 0
+            }))
+            .slice(-100); // Increased data points
         } else if (sensor.type === "Rotation") {
-          formattedData = data.map((reading) => ({
-            time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false 
-            }),
-            x_axis: reading.gyro_x || 0,
-            y_axis: reading.gyro_y || 0,
-            z_axis: reading.gyro_z || 0,
-            magnitude: reading.gyro_magnitude || 0
-          })).slice(-50);
+          formattedData = data
+            .filter(reading => 
+              reading.gyro_x !== null && reading.gyro_x !== undefined &&
+              reading.gyro_y !== null && reading.gyro_y !== undefined &&
+              reading.gyro_z !== null && reading.gyro_z !== undefined
+            )
+            .map((reading, index) => ({
+              time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              }),
+              timestamp: reading.recorded_at,
+              x_axis: Number(reading.gyro_x) || 0,
+              y_axis: Number(reading.gyro_y) || 0,
+              z_axis: Number(reading.gyro_z) || 0,
+              magnitude: Number(reading.gyro_magnitude) || 0
+            }))
+            .slice(-100); // Increased data points
         } else {
           // For other sensors, show single value trend
-          formattedData = data.map((reading) => ({
-            time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false 
-            }),
-            value: getValueBySensorType(reading, sensor.type)
-          })).filter(item => item.value !== null && item.value !== undefined).slice(-50);
+          formattedData = data
+            .map((reading) => {
+              const value = getValueBySensorType(reading, sensor.type);
+              return {
+                time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: false 
+                }),
+                timestamp: reading.recorded_at,
+                value: Number(value) || 0
+              };
+            })
+            .filter(item => 
+              item.value !== null && 
+              item.value !== undefined && 
+              !isNaN(item.value)
+            )
+            .slice(-100); // Increased data points
         }
         
-        console.log(`Formatted data for ${sensor.type}:`, formattedData);
+        console.log(`Final formatted data for ${sensor.type}:`, {
+          count: formattedData.length,
+          sample: formattedData.slice(0, 3),
+          last: formattedData.slice(-3)
+        });
+        
         setChartData(formattedData);
       } catch (error) {
         console.error('Failed to load detailed sensor data:', error);
+        setChartData([]); // Set empty array on error
       } finally {
         setIsLoading(false);
       }
