@@ -110,58 +110,19 @@ const AirQualityPanel = () => {
 
   return (
     <div className="space-y-6">
-      {/* Current Air Quality Status */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">PM1.0</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{latestReading?.pm1_0 || 0}</div>
-            <p className="text-xs text-muted-foreground">μg/m³</p>
-            <Progress value={Math.min((latestReading?.pm1_0 || 0) / 50 * 100, 100)} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">PM2.5</CardTitle>
-            <Cloud className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{latestReading?.pm2_5 || 0}</div>
-            <p className="text-xs text-muted-foreground">μg/m³</p>
-            <Progress value={Math.min((latestReading?.pm2_5 || 0) / 35 * 100, 100)} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">PM10</CardTitle>
-            <Wind className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{latestReading?.pm10 || 0}</div>
-            <p className="text-xs text-muted-foreground">μg/m³</p>
-            <Progress value={Math.min((latestReading?.pm10 || 0) / 150 * 100, 100)} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Air Quality Index</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{currentAQI}</div>
-            <p className="text-xs text-muted-foreground">AQI Score</p>
-            <Badge className={`mt-2 ${aqiInfo.color}`}>
-              {aqiInfo.level}
-            </Badge>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Singapore Real-Time Air Quality Status */}
+      <Card className="col-span-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div>
+            <CardTitle className="text-lg font-semibold">Singapore Air Quality Index (Real-Time)</CardTitle>
+            <CardDescription>Live air quality data from Singapore's monitoring stations</CardDescription>
+          </div>
+          <CheckCircle className="h-6 w-6 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <SingaporeAQICard />
+        </CardContent>
+      </Card>
 
       {/* Particulate Matter Trends */}
       <Card>

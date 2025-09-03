@@ -52,8 +52,9 @@ const SensorOverview = () => {
   // Get latest sensor readings
   const latestReading = sensorReadings[0];
   
-  // Create sensor cards from real data
+  // Create sensor cards from real data - Rearranged for better visual organization
   const sensors = latestReading ? [
+    // First row: Environmental basics
     {
       id: "temp_01",
       name: "Temperature Sensor",
@@ -87,6 +88,7 @@ const SensorOverview = () => {
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
       icon: Gauge
     },
+    // Second row: Gas Quality, Acceleration, Rotation
     {
       id: "gas_01",
       name: "Gas Resistance",
@@ -98,6 +100,31 @@ const SensorOverview = () => {
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
       icon: Zap
     },
+    {
+      id: "accel_01",
+      name: "Accelerometer",
+      type: "Acceleration",
+      location: latestReading.location || "Hangar 01",
+      value: `X: ${latestReading.accel_x?.toFixed(3) || "N/A"} | Y: ${latestReading.accel_y?.toFixed(3) || "N/A"} | Z: ${latestReading.accel_z?.toFixed(3) || "N/A"}`,
+      magnitude: latestReading.accel_magnitude?.toFixed(3) || "N/A",
+      unit: "m/s²",
+      status: latestReading.accel_magnitude !== null ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      icon: Activity
+    },
+    {
+      id: "gyro_01",
+      name: "Gyroscope",
+      type: "Rotation",
+      location: latestReading.location || "Hangar 01",
+      value: `X: ${latestReading.gyro_x?.toFixed(3) || "N/A"} | Y: ${latestReading.gyro_y?.toFixed(3) || "N/A"} | Z: ${latestReading.gyro_z?.toFixed(3) || "N/A"}`,
+      magnitude: latestReading.gyro_magnitude?.toFixed(3) || "N/A",
+      unit: "°/s",
+      status: latestReading.gyro_magnitude !== null ? "online" : "offline",
+      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      icon: Waves
+    },
+    // Third row: Particulate Matter monitors
     {
       id: "pm1_01",
       name: "PM1.0 Monitor",
@@ -130,30 +157,6 @@ const SensorOverview = () => {
       status: latestReading.pm10 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
       icon: Wind
-    },
-    {
-      id: "accel_01",
-      name: "Accelerometer",
-      type: "Acceleration",
-      location: latestReading.location || "Hangar 01",
-      value: `X: ${latestReading.accel_x?.toFixed(3) || "N/A"} | Y: ${latestReading.accel_y?.toFixed(3) || "N/A"} | Z: ${latestReading.accel_z?.toFixed(3) || "N/A"}`,
-      magnitude: latestReading.accel_magnitude?.toFixed(3) || "N/A",
-      unit: "m/s²",
-      status: latestReading.accel_magnitude !== null ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Activity
-    },
-    {
-      id: "gyro_01",
-      name: "Gyroscope",
-      type: "Rotation",
-      location: latestReading.location || "Hangar 01",
-      value: `X: ${latestReading.gyro_x?.toFixed(3) || "N/A"} | Y: ${latestReading.gyro_y?.toFixed(3) || "N/A"} | Z: ${latestReading.gyro_z?.toFixed(3) || "N/A"}`,
-      magnitude: latestReading.gyro_magnitude?.toFixed(3) || "N/A",
-      unit: "°/s",
-      status: latestReading.gyro_magnitude !== null ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
-      icon: Waves
     }
   ] : [];
 
