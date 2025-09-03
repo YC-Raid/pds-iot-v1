@@ -25,7 +25,7 @@ interface AnomalyDetectionProps {
 }
 
 const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetectionProps) => {
-  const getRecommendation = (severity: string, sensor: string): string => {
+  function getRecommendation(severity: string, sensor: string): string {
     const recommendations = {
       low: `Monitor ${sensor} closely for trends`,
       medium: `Investigate ${sensor} readings and check equipment`,
@@ -33,7 +33,7 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
       critical: `URGENT: ${sensor} critical anomaly detected - immediate action required`
     };
     return recommendations[severity as keyof typeof recommendations];
-  };
+  }
 
   const anomalies = useMemo(() => {
     if (data.length < 10) return [];
