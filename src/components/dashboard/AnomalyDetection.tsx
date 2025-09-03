@@ -25,6 +25,16 @@ interface AnomalyDetectionProps {
 }
 
 const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetectionProps) => {
+  const getRecommendation = (severity: string, sensor: string): string => {
+    const recommendations = {
+      low: `Monitor ${sensor} closely for trends`,
+      medium: `Investigate ${sensor} readings and check equipment`,
+      high: `Immediate inspection required for ${sensor} system`,
+      critical: `URGENT: ${sensor} critical anomaly detected - immediate action required`
+    };
+    return recommendations[severity as keyof typeof recommendations];
+  };
+
   const anomalies = useMemo(() => {
     if (data.length < 10) return [];
 
@@ -64,16 +74,6 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
       };
     }).filter(p => p.isAnomalous);
   }, [data, sensorName, onAnomalyDetected]);
-
-  const getRecommendation = (severity: string, sensor: string): string => {
-    const recommendations = {
-      low: `Monitor ${sensor} closely for trends`,
-      medium: `Investigate ${sensor} readings and check equipment`,
-      high: `Immediate inspection required for ${sensor} system`,
-      critical: `URGENT: ${sensor} critical anomaly detected - immediate action required`
-    };
-    return recommendations[severity as keyof typeof recommendations];
-  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

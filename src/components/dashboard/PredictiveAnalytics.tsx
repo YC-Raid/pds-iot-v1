@@ -41,6 +41,27 @@ const PredictiveAnalytics = ({
   criticalThresholds 
 }: PredictiveAnalyticsProps) => {
   
+  const getRecommendation = (risk: string, type: string, sensor: string): string => {
+    const recommendations = {
+      'low-routine': `Continue monitoring ${sensor}. Next routine check in 90 days.`,
+      'medium-preventive': `Schedule preventive maintenance for ${sensor} system within 21 days.`,
+      'high-preventive': `Priority maintenance required for ${sensor}. Schedule within 14 days.`,
+      'critical-urgent': `URGENT: ${sensor} requires immediate attention. Schedule maintenance within 7 days.`
+    };
+    
+    return recommendations[`${risk}-${type}` as keyof typeof recommendations] || 
+           `Monitor ${sensor} system and schedule maintenance as needed.`;
+  };
+
+  const getEstimatedCost = (type: string): string => {
+    const costs = {
+      routine: '$200-500',
+      preventive: '$500-1,500',
+      urgent: '$1,500-5,000'
+    };
+    return costs[type as keyof typeof costs] || '$500-1,000';
+  };
+
   const prediction = useMemo((): MaintenancePrediction => {
     if (data.length < 5) {
       return {
@@ -132,27 +153,6 @@ const PredictiveAnalytics = ({
       estimatedCost: getEstimatedCost(maintenanceType)
     };
   }, [data, sensorName, optimalRange, criticalThresholds]);
-
-  const getRecommendation = (risk: string, type: string, sensor: string): string => {
-    const recommendations = {
-      'low-routine': `Continue monitoring ${sensor}. Next routine check in ${prediction.daysUntilMaintenance} days.`,
-      'medium-preventive': `Schedule preventive maintenance for ${sensor} system within ${prediction.daysUntilMaintenance} days.`,
-      'high-preventive': `Priority maintenance required for ${sensor}. Schedule within ${prediction.daysUntilMaintenance} days.`,
-      'critical-urgent': `URGENT: ${sensor} requires immediate attention. Schedule maintenance within ${prediction.daysUntilMaintenance} days.`
-    };
-    
-    return recommendations[`${risk}-${type}` as keyof typeof recommendations] || 
-           `Monitor ${sensor} system and schedule maintenance as needed.`;
-  };
-
-  const getEstimatedCost = (type: string): string => {
-    const costs = {
-      routine: '$200-500',
-      preventive: '$500-1,500',
-      urgent: '$1,500-5,000'
-    };
-    return costs[type as keyof typeof costs] || '$500-1,000';
-  };
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
