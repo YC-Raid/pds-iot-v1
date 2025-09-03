@@ -195,6 +195,28 @@ const SensorOverview = () => {
 
   return (
     <div className="space-y-6">
+      {/* Last Data Update Card */}
+      {!isLoading && latestReading && (
+        <Card className="relative">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Latest Data Update</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-semibold">
+              {new Date(latestReading.recorded_at).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Data from {latestReading.location || "Hangar 01"} • {sensorReadings.length} total readings
+            </p>
+            <Badge variant="outline" className="mt-2 bg-success/10 text-success border-success/20">
+              <Wifi className="h-3 w-3 mr-1" />
+              Connected
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Real-time Sensor Grid */}
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -336,40 +358,6 @@ const SensorOverview = () => {
         </CardContent>
       </Card>
 
-      {/* Sensor Network Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Cpu className="h-5 w-5" />
-            Sensor Network Status
-          </CardTitle>
-          <CardDescription>Detailed status of all connected sensors</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {sensors.map((sensor) => (
-              <div key={sensor.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <sensor.icon className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">{sensor.name}</p>
-                    <p className="text-sm text-muted-foreground">{sensor.location}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="font-medium">{sensor.value} {sensor.unit}</p>
-                    <p className="text-xs text-muted-foreground">{sensor.lastUpdate}</p>
-                  </div>
-                  <Badge variant="outline" className={getStatusColor(sensor.status)}>
-                    {sensor.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

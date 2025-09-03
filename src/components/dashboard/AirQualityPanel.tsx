@@ -191,44 +191,6 @@ const AirQualityPanel = () => {
         </CardContent>
       </Card>
 
-      {/* Environmental Factors */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Environmental Factors Affecting Air Quality
-          </CardTitle>
-          <CardDescription>
-            Temperature, humidity, and gas resistance correlation with air quality
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={environmentalData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="temperature" 
-                  stroke="hsl(var(--chart-4))" 
-                  strokeWidth={2}
-                  name="Temperature (°C)"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="humidity" 
-                  stroke="hsl(var(--chart-5))" 
-                  strokeWidth={2}
-                  name="Humidity (%)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
 
       {/* Air Quality Recommendations */}
       <Card>
