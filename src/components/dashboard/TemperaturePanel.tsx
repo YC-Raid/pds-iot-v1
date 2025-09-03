@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Thermometer } from "lucide-react";
 import { EnhancedSensorChart, SensorConfig, DataPoint } from "./EnhancedSensorChart";
+import AnomalyDetection from "./AnomalyDetection";
+import PredictiveAnalytics from "./PredictiveAnalytics";
 import { useSensorData } from "@/hooks/useSensorData";
 
 const TemperaturePanel = () => {
@@ -77,6 +79,25 @@ const TemperaturePanel = () => {
         timeRange="24 hours"
         isLoading={isLoading}
       />
+      
+      {/* Advanced Analytics Grid */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AnomalyDetection 
+          data={temperatureData}
+          sensorName="Temperature"
+          onAnomalyDetected={(anomaly) => {
+            console.log('Temperature anomaly detected:', anomaly);
+            // Here you could trigger notifications, alerts, etc.
+          }}
+        />
+        
+        <PredictiveAnalytics
+          data={temperatureData}
+          sensorName="Temperature"
+          optimalRange={temperatureConfig.optimalRange}
+          criticalThresholds={{ max: 30, min: 15 }}
+        />
+      </div>
       
       {/* Additional Temperature-Specific Insights */}
       <div className="grid gap-4 md:grid-cols-3">

@@ -15,14 +15,7 @@ import {
 import { useMemo } from "react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-// Type declaration for autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => void;
-  }
-}
+import autoTable from 'jspdf-autotable';
 
 interface ThresholdConfig {
   value: number;
@@ -158,7 +151,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading }: Enha
       getThresholdStatus(d.value)
     ]);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [['Timestamp', config.name, 'Status']],
       body: tableData,
       startY: 130,
