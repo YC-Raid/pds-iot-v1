@@ -6,6 +6,9 @@ import { useSensorData } from "@/hooks/useSensorData";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CustomTooltip } from "@/components/ui/custom-chart-tooltip";
+import { EnhancedSensorChart, SensorConfig, DataPoint } from "@/components/dashboard/EnhancedSensorChart";
+import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
+import PredictiveAnalytics from "@/components/dashboard/PredictiveAnalytics";
 
 const SensorDetail = () => {
   const { sensorType } = useParams();
@@ -122,92 +125,163 @@ const SensorDetail = () => {
           </CardHeader>
         </Card>
 
-        {/* Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{sensorType} Data - Last 24 Hours</CardTitle>
-            <CardDescription>Historical readings and trends ({chartData.length} data points)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[500px] w-full">
-              {isLoading ? (
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p>Loading sensor data...</p>
+        {/* Enhanced Chart for Temperature */}
+        {sensorType === 'temperature' ? (
+          <EnhancedSensorChart
+            data={chartData}
+            config={{
+              name: "Temperature",
+              unit: "°C", 
+              icon: Thermometer,
+              description: "Environmental temperature monitoring for optimal storage conditions",
+              optimalRange: { min: 18, max: 25 },
+              thresholds: [
+                { value: 15, label: "Low Critical", color: "#3b82f6", type: 'critical' },
+                { value: 16, label: "Low Warning", color: "#06b6d4", type: 'warning' },
+                { value: 28, label: "High Warning", color: "#f59e0b", type: 'warning' },
+                { value: 30, label: "High Critical", color: "#ef4444", type: 'critical' }
+              ]
+            }}
+            title="Temperature Monitoring - Advanced Analysis"
+            timeRange="24 hours"
+            isLoading={isLoading}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>{sensorType} Data - Last 24 Hours</CardTitle>
+              <CardDescription>Historical readings and trends ({chartData.length} data points)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[500px] w-full">
+                {isLoading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                      <p>Loading sensor data...</p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" opacity={0.3} />
-                    <XAxis 
-                      dataKey="time" 
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis 
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <Tooltip content={<CustomTooltip sensorType={sensorType} />} />
-                    
-                    {(sensorType === 'acceleration' || sensorType === 'rotation') ? (
-                      <>
-                        <Line 
-                          type="monotone" 
-                          dataKey="x_axis" 
-                          stroke="hsl(var(--chart-1))" 
-                          strokeWidth={2} 
-                          name="X-Axis"
-                          dot={false}
-                          activeDot={{ r: 4, fill: "hsl(var(--chart-1))" }}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="y_axis" 
-                          stroke="hsl(var(--chart-2))" 
-                          strokeWidth={2} 
-                          name="Y-Axis"
-                          dot={false}
-                          activeDot={{ r: 4, fill: "hsl(var(--chart-2))" }}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="z_axis" 
-                          stroke="hsl(var(--chart-3))" 
-                          strokeWidth={2} 
-                          name="Z-Axis"
-                          dot={false}
-                          activeDot={{ r: 4, fill: "hsl(var(--chart-3))" }}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="magnitude" 
-                          stroke="hsl(var(--chart-4))" 
-                          strokeWidth={3} 
-                          strokeDasharray="5 5"
-                          name="Magnitude"
-                          dot={false}
-                          activeDot={{ r: 5, fill: "hsl(var(--chart-4))" }}
-                        />
-                      </>
-                    ) : (
-                      <Line 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="hsl(var(--chart-1))" 
-                        strokeWidth={3}
-                        dot={false}
-                        activeDot={{ r: 5, fill: "hsl(var(--chart-1))" }}
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" opacity={0.3} />
+                      <XAxis 
+                        dataKey="time" 
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
                       />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
+                      <YAxis 
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                      />
+                      <Tooltip content={<CustomTooltip sensorType={sensorType} />} />
+                      
+                      {(sensorType === 'acceleration' || sensorType === 'rotation') ? (
+                        <>
+                          <Line 
+                            type="monotone" 
+                            dataKey="x_axis" 
+                            stroke="hsl(var(--chart-1))" 
+                            strokeWidth={2} 
+                            name="X-Axis"
+                            dot={false}
+                            activeDot={{ r: 4, fill: "hsl(var(--chart-1))" }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="y_axis" 
+                            stroke="hsl(var(--chart-2))" 
+                            strokeWidth={2} 
+                            name="Y-Axis"
+                            dot={false}
+                            activeDot={{ r: 4, fill: "hsl(var(--chart-2))" }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="z_axis" 
+                            stroke="hsl(var(--chart-3))" 
+                            strokeWidth={2} 
+                            name="Z-Axis"
+                            dot={false}
+                            activeDot={{ r: 4, fill: "hsl(var(--chart-3))" }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="magnitude" 
+                            stroke="hsl(var(--chart-4))" 
+                            strokeWidth={3} 
+                            strokeDasharray="5 5"
+                            name="Magnitude"
+                            dot={false}
+                            activeDot={{ r: 5, fill: "hsl(var(--chart-4))" }}
+                          />
+                        </>
+                      ) : (
+                        <Line 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="hsl(var(--chart-1))" 
+                          strokeWidth={3}
+                          dot={false}
+                          activeDot={{ r: 5, fill: "hsl(var(--chart-1))" }}
+                        />
+                      )}
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Advanced Analytics for Temperature Only */}
+        {sensorType === 'temperature' && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <AnomalyDetection 
+              data={chartData}
+              sensorName="Temperature"
+              onAnomalyDetected={(anomaly) => {
+                console.log('Temperature anomaly detected:', anomaly);
+              }}
+            />
+            
+            <PredictiveAnalytics
+              data={chartData}
+              sensorName="Temperature"
+              optimalRange={{ min: 18, max: 25 }}
+              criticalThresholds={{ max: 30, min: 15 }}
+            />
+          </div>
+        )}
+
+        {/* Temperature-Specific Insights */}
+        {sensorType === 'temperature' && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Storage Conditions</h4>
+              <p className="text-xs text-muted-foreground">
+                Optimal range: 18-25°C for most storage applications. 
+                Temperature fluctuations can affect stored materials and equipment longevity.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Maintenance Impact</h4>
+              <p className="text-xs text-muted-foreground">
+                Extreme temperatures may require HVAC system maintenance, 
+                insulation checks, or ventilation adjustments.
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Compliance Notes</h4>
+              <p className="text-xs text-muted-foreground">
+                Temperature logs are required for regulatory compliance in pharmaceutical, 
+                food storage, and sensitive equipment environments.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Current Values */}
         {chartData.length > 0 && (

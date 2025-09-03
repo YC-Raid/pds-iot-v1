@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Thermometer } from "lucide-react";
 import { EnhancedSensorChart, SensorConfig, DataPoint } from "./EnhancedSensorChart";
-import AnomalyDetection from "./AnomalyDetection";
-import PredictiveAnalytics from "./PredictiveAnalytics";
 import { useSensorData } from "@/hooks/useSensorData";
 
 const TemperaturePanel = () => {
@@ -79,52 +77,6 @@ const TemperaturePanel = () => {
         timeRange="24 hours"
         isLoading={isLoading}
       />
-      
-      {/* Advanced Analytics Grid */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <AnomalyDetection 
-          data={temperatureData}
-          sensorName="Temperature"
-          onAnomalyDetected={(anomaly) => {
-            console.log('Temperature anomaly detected:', anomaly);
-            // Here you could trigger notifications, alerts, etc.
-          }}
-        />
-        
-        <PredictiveAnalytics
-          data={temperatureData}
-          sensorName="Temperature"
-          optimalRange={temperatureConfig.optimalRange}
-          criticalThresholds={{ max: 30, min: 15 }}
-        />
-      </div>
-      
-      {/* Additional Temperature-Specific Insights */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="p-4 border rounded-lg bg-card">
-          <h4 className="font-medium text-sm mb-2">Storage Conditions</h4>
-          <p className="text-xs text-muted-foreground">
-            Optimal range: 18-25°C for most storage applications. 
-            Temperature fluctuations can affect stored materials and equipment longevity.
-          </p>
-        </div>
-        
-        <div className="p-4 border rounded-lg bg-card">
-          <h4 className="font-medium text-sm mb-2">Maintenance Impact</h4>
-          <p className="text-xs text-muted-foreground">
-            Extreme temperatures may require HVAC system maintenance, 
-            insulation checks, or ventilation adjustments.
-          </p>
-        </div>
-        
-        <div className="p-4 border rounded-lg bg-card">
-          <h4 className="font-medium text-sm mb-2">Compliance Notes</h4>
-          <p className="text-xs text-muted-foreground">
-            Temperature logs are required for regulatory compliance in pharmaceutical, 
-            food storage, and sensitive equipment environments.
-          </p>
-        </div>
-      </div>
     </div>
   );
 };
