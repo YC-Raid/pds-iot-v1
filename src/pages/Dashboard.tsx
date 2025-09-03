@@ -64,6 +64,7 @@ const Dashboard = () => {
         <div className="space-y-6">
           <SensorOverview />
           <AirQualityPanel />
+          <TemperaturePanel />
         </div>
       ),
     },
