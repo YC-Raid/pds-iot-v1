@@ -44,9 +44,18 @@ const SensorDetail = () => {
   const currentSensor = sensorConfig[sensorType] || sensorConfig.temperature;
   const IconComponent = currentSensor.icon;
 
-  // Dynamic thresholds for temperature sensor
+  // Dynamic thresholds for temperature sensor - always calculate when we have data
   const dynamicConfig = useMemo(() => {
-    if (sensorType !== 'temperature' || chartData.length === 0) {
+    if (sensorType !== 'temperature') {
+      return {
+        thresholds: [],
+        optimalRange: { min: 18, max: 25 },
+        yAxisRange: { min: 0, max: 50 },
+        statistics: { mean: 0, std: 0, min: 0, max: 0 }
+      };
+    }
+
+    if (chartData.length === 0) {
       return {
         thresholds: [],
         optimalRange: { min: 18, max: 25 },

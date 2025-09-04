@@ -279,9 +279,10 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                 <YAxis 
                   label={{ value: config.unit, angle: -90, position: 'insideLeft' }}
                   domain={config.yAxisRange ? [config.yAxisRange.min, config.yAxisRange.max] : ['auto', 'auto']}
+                  tickFormatter={(value) => value.toFixed(2)}
                 />
                 <ChartTooltip 
-                  content={<ChartTooltipContent />}
+                  content={<ChartTooltipContent formatter={(value) => [typeof value === 'number' ? value.toFixed(2) : value, '']} />}
                   labelFormatter={(value) => `Time: ${value}`}
                 />
                 
@@ -293,7 +294,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                     stroke={threshold.color}
                     strokeDasharray="5 5"
                     label={{
-                      value: threshold.label,
+                      value: `${threshold.label}: ${threshold.value.toFixed(2)}${config.unit}`,
                       position: "top"
                     }}
                   />
@@ -306,13 +307,13 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                       y={config.optimalRange.min}
                       stroke="green"
                       strokeDasharray="2 2"
-                      label={{ value: "Min Optimal", position: "left" }}
+                      label={{ value: `Min Optimal: ${config.optimalRange.min.toFixed(2)}${config.unit}`, position: "left" }}
                     />
                     <ReferenceLine
                       y={config.optimalRange.max}
                       stroke="green"
                       strokeDasharray="2 2"
-                      label={{ value: "Max Optimal", position: "right" }}
+                      label={{ value: `Max Optimal: ${config.optimalRange.max.toFixed(2)}${config.unit}`, position: "right" }}
                     />
                   </>
                 )}
@@ -334,7 +335,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
         <div className="flex flex-wrap gap-2">
           {config.thresholds.map((threshold, index) => (
             <Badge key={index} variant="outline" style={{ borderColor: threshold.color }}>
-              {threshold.label}: {threshold.value}{config.unit}
+              {threshold.label}: {threshold.value.toFixed(2)}{config.unit}
             </Badge>
           ))}
         </div>
