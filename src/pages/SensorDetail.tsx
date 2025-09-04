@@ -156,96 +156,92 @@ const SensorDetail = () => {
               <CardTitle>{sensorType} Data - Last 24 Hours</CardTitle>
               <CardDescription>Historical readings and trends ({chartData.length} data points)</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="h-[400px] w-full p-6">
-                {isLoading ? (
-                  <div className="h-full flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                      <p>Loading sensor data...</p>
+            <CardContent className="p-2 sm:p-6">
+              <div className="w-full overflow-hidden">
+                <div className="h-[300px] sm:h-[400px] w-full">
+                  {isLoading ? (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                        <p>Loading sensor data...</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart 
-                      data={chartData} 
-                      margin={{ 
-                        top: 10, 
-                        right: 10, 
-                        left: 10, 
-                        bottom: 50 
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" opacity={0.3} />
-                      <XAxis 
-                        dataKey="time" 
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={11}
-                        angle={-45}
-                        textAnchor="end"
-                        height={50}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis 
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={11}
-                        width={50}
-                      />
-                      <Tooltip content={<CustomTooltip sensorType={sensorType} />} />
-                      
-                      {(sensorType === 'acceleration' || sensorType === 'rotation') ? (
-                        <>
-                          <Line 
-                            type="monotone" 
-                            dataKey="x_axis" 
-                            stroke="hsl(var(--chart-1))" 
-                            strokeWidth={2} 
-                            name="X-Axis"
-                            dot={false}
-                            activeDot={{ r: 4, fill: "hsl(var(--chart-1))" }}
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="y_axis" 
-                            stroke="hsl(var(--chart-2))" 
-                            strokeWidth={2} 
-                            name="Y-Axis"
-                            dot={false}
-                            activeDot={{ r: 4, fill: "hsl(var(--chart-2))" }}
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="z_axis" 
-                            stroke="hsl(var(--chart-3))" 
-                            strokeWidth={2} 
-                            name="Z-Axis"
-                            dot={false}
-                            activeDot={{ r: 4, fill: "hsl(var(--chart-3))" }}
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="magnitude" 
-                            stroke="hsl(var(--chart-4))" 
-                            strokeWidth={3} 
-                            strokeDasharray="5 5"
-                            name="Magnitude"
-                            dot={false}
-                            activeDot={{ r: 5, fill: "hsl(var(--chart-4))" }}
-                          />
-                        </>
-                      ) : (
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="hsl(var(--chart-1))" 
-                          strokeWidth={3}
-                          dot={false}
-                          activeDot={{ r: 5, fill: "hsl(var(--chart-1))" }}
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart 
+                        data={chartData} 
+                        margin={{ top: 5, right: 10, left: 10, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" opacity={0.3} />
+                        <XAxis 
+                          dataKey="time" 
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={10}
+                          tick={{ fontSize: 10 }}
+                          interval="preserveStartEnd"
                         />
-                      )}
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
+                        <YAxis 
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={10}
+                          tick={{ fontSize: 10 }}
+                          width={40}
+                        />
+                        <Tooltip content={<CustomTooltip sensorType={sensorType} />} />
+                        
+                        {(sensorType === 'acceleration' || sensorType === 'rotation') ? (
+                          <>
+                            <Line 
+                              type="monotone" 
+                              dataKey="x_axis" 
+                              stroke="hsl(var(--chart-1))" 
+                              strokeWidth={2} 
+                              name="X-Axis"
+                              dot={false}
+                              activeDot={{ r: 4, fill: "hsl(var(--chart-1))" }}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="y_axis" 
+                              stroke="hsl(var(--chart-2))" 
+                              strokeWidth={2} 
+                              name="Y-Axis"
+                              dot={false}
+                              activeDot={{ r: 4, fill: "hsl(var(--chart-2))" }}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="z_axis" 
+                              stroke="hsl(var(--chart-3))" 
+                              strokeWidth={2} 
+                              name="Z-Axis"
+                              dot={false}
+                              activeDot={{ r: 4, fill: "hsl(var(--chart-3))" }}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="magnitude" 
+                              stroke="hsl(var(--chart-4))" 
+                              strokeWidth={3} 
+                              strokeDasharray="5 5"
+                              name="Magnitude"
+                              dot={false}
+                              activeDot={{ r: 5, fill: "hsl(var(--chart-4))" }}
+                            />
+                          </>
+                        ) : (
+                          <Line 
+                            type="monotone" 
+                            dataKey="value" 
+                            stroke="hsl(var(--chart-1))" 
+                            strokeWidth={3}
+                            dot={false}
+                            activeDot={{ r: 5, fill: "hsl(var(--chart-1))" }}
+                          />
+                        )}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

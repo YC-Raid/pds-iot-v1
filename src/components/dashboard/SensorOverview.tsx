@@ -55,10 +55,7 @@ const SensorOverview = () => {
           // For 1 week and 1 month: show date and time
           timeLabel = date.toLocaleDateString('en-US', { 
             month: 'short', 
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
+            day: 'numeric'
           });
         }
         
@@ -183,7 +180,7 @@ const SensorOverview = () => {
       name: "PM10 Monitor",
       type: "PM10",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pm10 !== null ? latestReading.pm10 : "N/A",
+      value: latestReading.pm10 !== null ? latestReading.pm10 : "0",
       unit: "μg/m³",
       status: latestReading.pm10 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
@@ -330,7 +327,7 @@ const SensorOverview = () => {
       {/* Time Series Chart */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Sensor Trends - Last {timeRange === '1' ? '1 Hour' : timeRange === '24' ? '24 Hours' : timeRange === '168' ? '1 Week' : '1 Month'}</CardTitle>
               <CardDescription>
@@ -350,60 +347,69 @@ const SensorOverview = () => {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeSeriesData}>
-                <CartesianGrid 
-                  strokeDasharray="3 3" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  opacity={0.3}
-                />
-                <XAxis 
-                  dataKey="time" 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="temperature" 
-                  stroke="hsl(var(--chart-1))" 
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(var(--chart-1))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                  activeDot={{ r: 6, fill: "hsl(var(--chart-1))" }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="humidity" 
-                  stroke="hsl(var(--chart-2))" 
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(var(--chart-2))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                  activeDot={{ r: 6, fill: "hsl(var(--chart-2))" }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="pressure" 
-                  stroke="hsl(var(--chart-3))" 
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(var(--chart-3))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                  activeDot={{ r: 6, fill: "hsl(var(--chart-3))" }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="pm25" 
-                  stroke="hsl(var(--chart-4))" 
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(var(--chart-4))", strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                  activeDot={{ r: 6, fill: "hsl(var(--chart-4))" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
+        <CardContent className="p-2 sm:p-6">
+          <div className="w-full overflow-hidden">
+            <ChartContainer config={chartConfig} className="h-[300px] sm:h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart 
+                  data={timeSeriesData}
+                  margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid 
+                    strokeDasharray="3 3" 
+                    stroke="hsl(var(--muted-foreground))" 
+                    opacity={0.3}
+                  />
+                  <XAxis 
+                    dataKey="time" 
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    tick={{ fontSize: 10 }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    tick={{ fontSize: 10 }}
+                    width={40}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="temperature" 
+                    stroke="hsl(var(--chart-1))" 
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: "hsl(var(--chart-1))" }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="humidity" 
+                    stroke="hsl(var(--chart-2))" 
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: "hsl(var(--chart-2))" }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="pressure" 
+                    stroke="hsl(var(--chart-3))" 
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: "hsl(var(--chart-3))" }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="pm25" 
+                    stroke="hsl(var(--chart-4))" 
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: "hsl(var(--chart-4))" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </div>
         </CardContent>
       </Card>
 
