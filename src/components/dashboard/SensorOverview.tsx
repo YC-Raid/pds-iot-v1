@@ -47,18 +47,19 @@ const SensorOverview = () => {
           const minuteGroups = new Map();
           
           data.forEach((reading: any) => {
-            const date = new Date(reading.recorded_at);
-            const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-            const minuteKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
+            // Convert UTC to Singapore (+8 hours)
+            const utcDate = new Date(reading.recorded_at);
+            utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+            const singaporeTime = `${utcDate.getHours().toString().padStart(2, '0')}:${utcDate.getMinutes().toString().padStart(2, '0')}`;
             
-            if (!minuteGroups.has(minuteKey)) {
-              minuteGroups.set(minuteKey, {
+            if (!minuteGroups.has(singaporeTime)) {
+              minuteGroups.set(singaporeTime, {
                 temperature: [], humidity: [], pressure: [], pm25: [],
                 accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
               });
             }
             
-            const group = minuteGroups.get(minuteKey);
+            const group = minuteGroups.get(singaporeTime);
             group.temperature.push(reading.temperature ?? 0);
             group.humidity.push(reading.humidity ?? 0);
             group.pressure.push(reading.pressure ?? 0);
@@ -83,18 +84,19 @@ const SensorOverview = () => {
           const hourGroups = new Map();
           
           data.forEach((reading: any) => {
-            const date = new Date(reading.recorded_at);
-            const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-            const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+            // Convert UTC to Singapore (+8 hours) 
+            const utcDate = new Date(reading.recorded_at);
+            utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+            const singaporeHour = `${utcDate.getHours().toString().padStart(2, '0')}:00`;
             
-            if (!hourGroups.has(hourKey)) {
-              hourGroups.set(hourKey, {
+            if (!hourGroups.has(singaporeHour)) {
+              hourGroups.set(singaporeHour, {
                 temperature: [], humidity: [], pressure: [], pm25: [],
                 accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
               });
             }
             
-            const group = hourGroups.get(hourKey);
+            const group = hourGroups.get(singaporeHour);
             group.temperature.push(reading.temperature ?? 0);
             group.humidity.push(reading.humidity ?? 0);
             group.pressure.push(reading.pressure ?? 0);
@@ -124,8 +126,10 @@ const SensorOverview = () => {
           const dailyGroups: Record<string, any[]> = {};
           
           rawData.forEach(reading => {
-            const date = new Date(reading.recorded_at);
-            const dateStr = date.toISOString().split('T')[0];
+            // Convert UTC to Singapore (+8 hours)
+            const utcDate = new Date(reading.recorded_at);
+            utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+            const dateStr = utcDate.toISOString().split('T')[0];
             if (!dailyGroups[dateStr]) dailyGroups[dateStr] = [];
             dailyGroups[dateStr].push(reading);
           });
@@ -173,8 +177,7 @@ const SensorOverview = () => {
           const date = new Date(dateStr + 'T00:00:00');
           const label = date.toLocaleDateString('en-US', { 
             month: 'short', 
-            day: 'numeric',
-            timeZone: 'Asia/Singapore'
+            day: 'numeric'
           });
           
           return {
@@ -197,8 +200,10 @@ const SensorOverview = () => {
           const dailyGroups: Record<string, any[]> = {};
           
           rawData.forEach(reading => {
-            const date = new Date(reading.recorded_at);
-            const dateStr = date.toISOString().split('T')[0];
+            // Convert UTC to Singapore (+8 hours)
+            const utcDate = new Date(reading.recorded_at);
+            utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+            const dateStr = utcDate.toISOString().split('T')[0];
             if (!dailyGroups[dateStr]) dailyGroups[dateStr] = [];
             dailyGroups[dateStr].push(reading);
           });
@@ -295,7 +300,11 @@ const SensorOverview = () => {
       value: latestReading.temperature?.toFixed(2) || "N/A",
       unit: "°C",
       status: latestReading.temperature ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Thermometer
     },
     {
@@ -306,7 +315,11 @@ const SensorOverview = () => {
       value: latestReading.humidity?.toFixed(2) || "N/A",
       unit: "%",
       status: latestReading.humidity ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Droplets
     },
     {
@@ -317,7 +330,11 @@ const SensorOverview = () => {
       value: latestReading.pressure?.toFixed(2) || "N/A",
       unit: "hPa",
       status: latestReading.pressure ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Gauge
     },
     // Second row: Gas Quality, Acceleration, Rotation
@@ -329,7 +346,11 @@ const SensorOverview = () => {
       value: latestReading.gas_resistance?.toFixed(0) || "N/A",
       unit: "Ω",
       status: latestReading.gas_resistance ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Zap
     },
     {
@@ -341,7 +362,11 @@ const SensorOverview = () => {
       magnitude: latestReading.accel_magnitude?.toFixed(2) || "N/A",
       unit: "m/s²",
       status: latestReading.accel_magnitude !== null ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Activity
     },
     {
@@ -353,7 +378,11 @@ const SensorOverview = () => {
       magnitude: latestReading.gyro_magnitude?.toFixed(2) || "N/A",
       unit: "°/s",
       status: latestReading.gyro_magnitude !== null ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Waves
     },
     // Third row: Particulate Matter monitors
@@ -365,7 +394,11 @@ const SensorOverview = () => {
       value: latestReading.pm1_0?.toFixed(2) || "0.00",
       unit: "μg/m³",
       status: latestReading.pm1_0 !== null ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Eye
     },
     {
@@ -376,7 +409,11 @@ const SensorOverview = () => {
       value: latestReading.pm2_5?.toFixed(2) || "0.00",
       unit: "μg/m³",
       status: latestReading.pm2_5 !== null ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Cloud
     },
     {
@@ -387,7 +424,11 @@ const SensorOverview = () => {
       value: latestReading.pm10?.toFixed(2) || "0.00",
       unit: "μg/m³",
       status: latestReading.pm10 !== null ? "online" : "offline",
-      lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
+      lastUpdate: (() => {
+        const utcDate = new Date(latestReading.recorded_at);
+        utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+        return utcDate.toLocaleString();
+      })(),
       icon: Wind
     }
   ] : [];
@@ -439,7 +480,11 @@ const SensorOverview = () => {
           </CardHeader>
           <CardContent>
             <div className="text-lg font-semibold">
-              {new Date(latestReading.recorded_at).toLocaleString()}
+              {(() => {
+                const utcDate = new Date(latestReading.recorded_at);
+                utcDate.setHours(utcDate.getHours() + 8); // Convert to Singapore time
+                return utcDate.toLocaleString();
+              })()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Data from {latestReading.location || "Hangar 01"} • {sensorReadings.length} total readings
