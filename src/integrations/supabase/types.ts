@@ -557,6 +557,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sensor_readings_aggregated: {
+        Row: {
+          aggregation_level: string
+          avg_accel_magnitude: number | null
+          avg_gas_resistance: number | null
+          avg_gyro_magnitude: number | null
+          avg_humidity: number | null
+          avg_pm1_0: number | null
+          avg_pm10: number | null
+          avg_pm2_5: number | null
+          avg_pressure: number | null
+          avg_temperature: number | null
+          created_at: string | null
+          data_points_count: number | null
+          id: string
+          location: string | null
+          max_temperature: number | null
+          min_temperature: number | null
+          time_bucket: string
+        }
+        Insert: {
+          aggregation_level: string
+          avg_accel_magnitude?: number | null
+          avg_gas_resistance?: number | null
+          avg_gyro_magnitude?: number | null
+          avg_humidity?: number | null
+          avg_pm1_0?: number | null
+          avg_pm10?: number | null
+          avg_pm2_5?: number | null
+          avg_pressure?: number | null
+          avg_temperature?: number | null
+          created_at?: string | null
+          data_points_count?: number | null
+          id?: string
+          location?: string | null
+          max_temperature?: number | null
+          min_temperature?: number | null
+          time_bucket: string
+        }
+        Update: {
+          aggregation_level?: string
+          avg_accel_magnitude?: number | null
+          avg_gas_resistance?: number | null
+          avg_gyro_magnitude?: number | null
+          avg_humidity?: number | null
+          avg_pm1_0?: number | null
+          avg_pm10?: number | null
+          avg_pm2_5?: number | null
+          avg_pressure?: number | null
+          avg_temperature?: number | null
+          created_at?: string | null
+          data_points_count?: number | null
+          id?: string
+          location?: string | null
+          max_temperature?: number | null
+          min_temperature?: number | null
+          time_bucket?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -598,6 +658,14 @@ export type Database = {
       }
     }
     Functions: {
+      aggregate_sensor_data_daily: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      aggregate_sensor_data_hourly: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_rds_sensor_data_info: {
         Args: Record<PropertyKey, never>
         Returns: {
