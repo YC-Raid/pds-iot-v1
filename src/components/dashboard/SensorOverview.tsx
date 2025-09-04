@@ -32,44 +32,70 @@ const SensorOverview = () => {
       const hours = parseInt(timeRange);
       const data = await getSensorReadingsByTimeRange(hours);
       
-      // Determine sampling based on time range to avoid overwhelming data
-      let sampleSize;
-      if (hours <= 1) sampleSize = -30; // Last 30 readings for 1 hour
-      else if (hours <= 24) sampleSize = -50; // Last 50 readings for 24 hours  
-      else if (hours <= 168) sampleSize = -100; // Last 100 readings for 1 week
-      else sampleSize = -200; // Last 200 readings for longer periods
-      
-      const formattedData = data.map((reading, index) => {
-        const date = new Date(reading.recorded_at);
-        let timeLabel;
-        
-        // Format time/date based on time range
-        if (hours <= 24) {
-          // For 1 hour and 24 hours: show time only
-          timeLabel = date.toLocaleTimeString('en-US', { 
+      // Build chart data with smart sampling and day aggregation for longer ranges
+      let finalData: any[] = [];
+      const maxPoints = 200;
+
+      if (hours <= 24) {
+        const mapped = data.map((reading: any) => {
+          const date = new Date(reading.recorded_at);
+          const timeLabel = date.toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit',
             hour12: false 
           });
-        } else {
-          // For 1 week and 1 month: show date and time
-          timeLabel = date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric'
+          return {
+            time: timeLabel,
+            temperature: reading.temperature ?? 0,
+            humidity: reading.humidity ?? 0,
+            pressure: reading.pressure ?? 0,
+            pm25: reading.pm2_5 ?? 0,
+            accel_magnitude: reading.accel_magnitude ?? 0,
+            gyro_magnitude: reading.gyro_magnitude ?? 0,
+            _ts: date.getTime(),
+          };
+        });
+
+        const step = Math.max(1, Math.ceil(mapped.length / maxPoints));
+        finalData = mapped.filter((_, i) => i % step === 0 || i === mapped.length - 1);
+      } else {
+        const byDay: Record<string, any> = {};
+        data.forEach((reading: any) => {
+          const d = new Date(reading.recorded_at);
+          const key = d.toISOString().slice(0,10); // YYYY-MM-DD (UTC)
+          if (!byDay[key]) {
+            byDay[key] = {
+              count: 0,
+              sumTemp: 0, sumHum: 0, sumPress: 0, sumPM25: 0, sumAccel: 0, sumGyro: 0,
+              date: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+            };
+          }
+          byDay[key].count += 1;
+          byDay[key].sumTemp += reading.temperature ?? 0;
+          byDay[key].sumHum += reading.humidity ?? 0;
+          byDay[key].sumPress += reading.pressure ?? 0;
+          byDay[key].sumPM25 += reading.pm2_5 ?? 0;
+          byDay[key].sumAccel += reading.accel_magnitude ?? 0;
+          byDay[key].sumGyro += reading.gyro_magnitude ?? 0;
+        });
+
+        finalData = Object.values(byDay)
+          .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
+          .map((bucket: any) => {
+            const lbl = bucket.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return {
+              time: lbl,
+              temperature: bucket.count ? bucket.sumTemp / bucket.count : 0,
+              humidity: bucket.count ? bucket.sumHum / bucket.count : 0,
+              pressure: bucket.count ? bucket.sumPress / bucket.count : 0,
+              pm25: bucket.count ? bucket.sumPM25 / bucket.count : 0,
+              accel_magnitude: bucket.count ? bucket.sumAccel / bucket.count : 0,
+              gyro_magnitude: bucket.count ? bucket.sumGyro / bucket.count : 0,
+            };
           });
-        }
-        
-        return {
-          time: timeLabel,
-          temperature: reading.temperature || 0,
-          humidity: reading.humidity || 0,
-          pressure: reading.pressure || 0,
-          pm25: reading.pm2_5 || 0,
-          accel_magnitude: reading.accel_magnitude || 0,
-          gyro_magnitude: reading.gyro_magnitude || 0
-        };
-      }).slice(sampleSize); // Sample data based on time range
-      setTimeSeriesData(formattedData);
+      }
+
+      setTimeSeriesData(finalData);
     };
 
     if (!isLoading) {

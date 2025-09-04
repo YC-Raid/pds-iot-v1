@@ -666,6 +666,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      aggregate_sensor_data_monthly: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      aggregate_sensor_data_weekly: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_rds_sensor_data_info: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -696,6 +704,15 @@ export type Database = {
       postgres_fdw_handler: {
         Args: Record<PropertyKey, never>
         Returns: unknown
+      }
+      run_all_sensor_aggregations: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          daily_count: number
+          hourly_count: number
+          monthly_count: number
+          weekly_count: number
+        }[]
       }
       sync_sensor_data_from_rds: {
         Args: Record<PropertyKey, never>
