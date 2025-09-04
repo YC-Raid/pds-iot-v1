@@ -54,9 +54,10 @@ interface EnhancedSensorChartProps {
   title: string;
   timeRange: string;
   isLoading?: boolean;
+  timeRangeSelector?: React.ReactNode;
 }
 
-const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading }: EnhancedSensorChartProps) => {
+const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRangeSelector }: EnhancedSensorChartProps) => {
   // Calculate trend analysis
   const trendAnalysis = useMemo((): TrendAnalysis => {
     if (data.length < 2) return { direction: 'stable', percentage: 0, isAnomalous: false, prediction: 'Insufficient data' };
@@ -212,6 +213,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading }: Enha
             <CardTitle>{title}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            {timeRangeSelector}
             <Button variant="outline" size="sm" onClick={exportToExcel}>
               <FileText className="h-4 w-4 mr-1" />
               Excel
