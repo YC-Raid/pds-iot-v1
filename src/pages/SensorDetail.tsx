@@ -125,17 +125,16 @@ const SensorDetail = () => {
               const minuteGroups = new Map();
               
               data.forEach(reading => {
-                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
-                // For sensor_data, use local_time field directly
+                // For sensor_data, use local_time field directly (already Singapore time)
+                // For processed_sensor_readings, recorded_at is already Singapore time
                 let singaporeTime;
                 if (reading.local_time) {
                   // sensor_data table - already has Singapore local time
                   singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
                 } else {
-                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
-                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                  singaporeTime = `${utcDate.getHours().toString().padStart(2, '0')}:${utcDate.getMinutes().toString().padStart(2, '0')}`;
+                  // processed_sensor_readings table - already in Singapore time
+                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                  singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
                 }
                 
                 if (!minuteGroups.has(singaporeTime)) {
@@ -161,17 +160,16 @@ const SensorDetail = () => {
               const hourGroups = new Map();
               
               data.forEach(reading => {
-                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
-                // For sensor_data, use local_time field directly
+                // For sensor_data, use local_time field directly (already Singapore time)
+                // For processed_sensor_readings, recorded_at is already Singapore time
                 let singaporeHour;
                 if (reading.local_time) {
                   // sensor_data table - already has Singapore local time
                   singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
                 } else {
-                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
-                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                  singaporeHour = `${utcDate.getHours().toString().padStart(2, '0')}:00`;
+                  // processed_sensor_readings table - already in Singapore time
+                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                  singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
                 }
                 
                 if (!hourGroups.has(singaporeHour)) {
@@ -228,17 +226,16 @@ const SensorDetail = () => {
               const minuteGroups = new Map();
               
               data.forEach(reading => {
-                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
-                // For sensor_data, use local_time field directly
+                // For sensor_data, use local_time field directly (already Singapore time)
+                // For processed_sensor_readings, recorded_at is already Singapore time
                 let singaporeTime;
                 if (reading.local_time) {
                   // sensor_data table - already has Singapore local time
                   singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
                 } else {
-                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
-                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                  singaporeTime = `${utcDate.getHours().toString().padStart(2, '0')}:${utcDate.getMinutes().toString().padStart(2, '0')}`;
+                  // processed_sensor_readings table - already in Singapore time
+                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                  singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
                 }
                 
                 if (!minuteGroups.has(singaporeTime)) {
@@ -264,17 +261,16 @@ const SensorDetail = () => {
               const hourGroups = new Map();
               
               data.forEach(reading => {
-                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
-                // For sensor_data, use local_time field directly
+                // For sensor_data, use local_time field directly (already Singapore time)
+                // For processed_sensor_readings, recorded_at is already Singapore time
                 let singaporeHour;
                 if (reading.local_time) {
                   // sensor_data table - already has Singapore local time
                   singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
                 } else {
-                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
-                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                  singaporeHour = `${utcDate.getHours().toString().padStart(2, '0')}:00`;
+                  // processed_sensor_readings table - already in Singapore time
+                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                  singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
                 }
                 
                 if (!hourGroups.has(singaporeHour)) {
@@ -332,17 +328,16 @@ const SensorDetail = () => {
               const minuteGroups = new Map();
               
               data.forEach(reading => {
-                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
-                // For sensor_data, use local_time field directly
+                // For sensor_data, use local_time field directly (already Singapore time)
+                // For processed_sensor_readings, recorded_at is already Singapore time
                 let singaporeTime;
                 if (reading.local_time) {
                   // sensor_data table - already has Singapore local time
                   singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
                 } else {
-                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
-                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                  singaporeTime = `${utcDate.getHours().toString().padStart(2, '0')}:${utcDate.getMinutes().toString().padStart(2, '0')}`;
+                  // processed_sensor_readings table - already in Singapore time
+                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                  singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
                 }
                 
                 if (!minuteGroups.has(singaporeTime)) {
@@ -366,17 +361,16 @@ const SensorDetail = () => {
                data.forEach(reading => {
                  if (!reading[dataKey] && !reading[`avg_${dataKey}`]) return; // Skip null/undefined readings
                  
-                 // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
-                 // For sensor_data, use local_time field directly  
+                 // For sensor_data, use local_time field directly (already Singapore time)
+                 // For processed_sensor_readings, recorded_at is already Singapore time
                  let singaporeHour;
                  if (reading.local_time) {
                    // sensor_data table - already has Singapore local time
                    singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
                  } else {
-                   // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
-                   const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                   utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                   singaporeHour = `${utcDate.getHours().toString().padStart(2, '0')}:00`;
+                   // processed_sensor_readings table - already in Singapore time
+                   const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                   singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
                  }
                  
                  if (!hourGroups.has(singaporeHour)) {
@@ -414,10 +408,9 @@ const SensorDetail = () => {
                    const date = new Date(reading.local_date);
                    timeLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                  } else {
-                   // processed_sensor_readings table - convert UTC to Singapore date
-                   const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                   utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                   timeLabel = utcDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                   // processed_sensor_readings table - recorded_at is already Singapore time
+                   const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                   timeLabel = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                  }
                  
                  return {
