@@ -41,43 +41,79 @@ const SensorOverview = () => {
       if (hours <= 24) {
         // Use raw data for 1h/24h views
         const data = await getSensorReadingsByTimeRange(hours);
-        const maxPoints = hours === 1 ? 60 : 200; // Show more points for 1 hour view
         
-        const mapped = data.map((reading: any) => {
-          const date = new Date(reading.recorded_at);
-          let timeLabel = '';
+        if (hours === 1) {
+          // 1 hour: Group by minute and average
+          const minuteGroups = new Map();
           
-          if (hours === 1) {
-            // For 1 hour: show HH:MM format
-            timeLabel = date.toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false,
-              timeZone: 'Asia/Singapore'
-            });
-          } else {
-            // For 24 hours: show HH:00 format (hourly)
-            timeLabel = date.toLocaleTimeString('en-US', { 
-              hour: '2-digit',
-              hour12: false,
-              timeZone: 'Asia/Singapore'
-            }) + ':00';
-          }
+          data.forEach((reading: any) => {
+            const date = new Date(reading.recorded_at);
+            const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+            const minuteKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
+            
+            if (!minuteGroups.has(minuteKey)) {
+              minuteGroups.set(minuteKey, {
+                temperature: [], humidity: [], pressure: [], pm25: [],
+                accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
+              });
+            }
+            
+            const group = minuteGroups.get(minuteKey);
+            group.temperature.push(reading.temperature ?? 0);
+            group.humidity.push(reading.humidity ?? 0);
+            group.pressure.push(reading.pressure ?? 0);
+            group.pm25.push(reading.pm2_5 ?? 0);
+            group.accel_magnitude.push(reading.accel_magnitude ?? 0);
+            group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
+          });
           
-          return {
+          finalData = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
             time: timeLabel,
-            temperature: reading.temperature ?? 0,
-            humidity: reading.humidity ?? 0,
-            pressure: reading.pressure ?? 0,
-            pm25: reading.pm2_5 ?? 0,
-            accel_magnitude: reading.accel_magnitude ?? 0,
-            gyro_magnitude: reading.gyro_magnitude ?? 0,
-            _ts: date.getTime(),
-          };
-        });
-
-        const step = Math.max(1, Math.ceil(mapped.length / maxPoints));
-        finalData = mapped.filter((_, i) => i % step === 0 || i === mapped.length - 1);
+            temperature: group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length,
+            humidity: group.humidity.reduce((sum, val) => sum + val, 0) / group.humidity.length,
+            pressure: group.pressure.reduce((sum, val) => sum + val, 0) / group.pressure.length,
+            pm25: group.pm25.reduce((sum, val) => sum + val, 0) / group.pm25.length,
+            accel_magnitude: group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length,
+            gyro_magnitude: group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length,
+            _ts: new Date(group.timestamp).getTime(),
+          })).sort((a, b) => a.time.localeCompare(b.time));
+          
+        } else if (hours === 24) {
+          // 24 hours: Group by hour and average  
+          const hourGroups = new Map();
+          
+          data.forEach((reading: any) => {
+            const date = new Date(reading.recorded_at);
+            const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+            const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+            
+            if (!hourGroups.has(hourKey)) {
+              hourGroups.set(hourKey, {
+                temperature: [], humidity: [], pressure: [], pm25: [],
+                accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
+              });
+            }
+            
+            const group = hourGroups.get(hourKey);
+            group.temperature.push(reading.temperature ?? 0);
+            group.humidity.push(reading.humidity ?? 0);
+            group.pressure.push(reading.pressure ?? 0);
+            group.pm25.push(reading.pm2_5 ?? 0);
+            group.accel_magnitude.push(reading.accel_magnitude ?? 0);
+            group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
+          });
+          
+          finalData = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
+            time: timeLabel,
+            temperature: group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length,
+            humidity: group.humidity.reduce((sum, val) => sum + val, 0) / group.humidity.length,
+            pressure: group.pressure.reduce((sum, val) => sum + val, 0) / group.pressure.length,
+            pm25: group.pm25.reduce((sum, val) => sum + val, 0) / group.pm25.length,
+            accel_magnitude: group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length,
+            gyro_magnitude: group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length,
+            _ts: new Date(group.timestamp).getTime(),
+          })).sort((a, b) => a.time.localeCompare(b.time));
+        }
       } else if (hours === 168) {
         // 1 week: Try aggregated data first, fallback to raw data
         let data = await getAggregatedSensorData('day', 7);
@@ -256,7 +292,7 @@ const SensorOverview = () => {
       name: "Temperature Sensor",
       type: "Temperature",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.temperature?.toFixed(1) || "N/A",
+      value: latestReading.temperature?.toFixed(3) || "N/A",
       unit: "°C",
       status: latestReading.temperature ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
@@ -267,7 +303,7 @@ const SensorOverview = () => {
       name: "Humidity Sensor",
       type: "Humidity",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.humidity?.toFixed(1) || "N/A",
+      value: latestReading.humidity?.toFixed(3) || "N/A",
       unit: "%",
       status: latestReading.humidity ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
@@ -278,7 +314,7 @@ const SensorOverview = () => {
       name: "Pressure Sensor",
       type: "Pressure",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pressure?.toFixed(1) || "N/A",
+      value: latestReading.pressure?.toFixed(3) || "N/A",
       unit: "hPa",
       status: latestReading.pressure ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
@@ -326,7 +362,7 @@ const SensorOverview = () => {
       name: "PM1.0 Monitor",
       type: "PM1.0",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pm1_0 || "0",
+      value: latestReading.pm1_0?.toFixed(3) || "0.000",
       unit: "μg/m³",
       status: latestReading.pm1_0 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
@@ -337,7 +373,7 @@ const SensorOverview = () => {
       name: "PM2.5 Monitor",
       type: "PM2.5",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pm2_5 || "0",
+      value: latestReading.pm2_5?.toFixed(3) || "0.000",
       unit: "μg/m³",
       status: latestReading.pm2_5 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
@@ -348,7 +384,7 @@ const SensorOverview = () => {
       name: "PM10 Monitor",
       type: "PM10",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pm10 !== null ? latestReading.pm10 : "0",
+      value: latestReading.pm10?.toFixed(3) || "0.000",
       unit: "μg/m³",
       status: latestReading.pm10 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),

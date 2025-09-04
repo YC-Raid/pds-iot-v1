@@ -302,7 +302,7 @@ const AnalyticsPanel = () => {
             <p className="text-xs text-muted-foreground">
               {costChangePct != null ? (
                 <span className={costChangePct >= 0 ? 'text-yellow-600' : 'text-green-600'}>
-                  {`${costChangePct >= 0 ? '+' : ''}${Math.abs(costChangePct).toFixed(1)}%`}
+                  {`${costChangePct >= 0 ? '+' : ''}${Math.abs(costChangePct).toFixed(3)}%`}
                 </span>
               ) : (
                 <span className="text-muted-foreground">n/a</span>

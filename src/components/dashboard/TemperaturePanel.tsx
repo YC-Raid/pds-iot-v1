@@ -32,7 +32,7 @@ const TemperaturePanel = () => {
     name: "Temperature",
     unit: "°C", 
     icon: Thermometer,
-    description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(1)}°C, Std: ${dynamicConfig.statistics.std.toFixed(1)}°C`,
+    description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(3)}°C, Std: ${dynamicConfig.statistics.std.toFixed(3)}°C`,
     optimalRange: dynamicConfig.optimalRange,
     thresholds: dynamicConfig.thresholds,
     yAxisRange: dynamicConfig.yAxisRange
@@ -46,41 +46,51 @@ const TemperaturePanel = () => {
       if (hours <= 24) {
         // Use raw data for 1h/24h views
         const data = await getSensorReadingsByTimeRange(hours);
-        const maxPoints = hours === 1 ? 60 : 200; // Show more points for 1 hour view
         
-        const mapped = data
-          .filter(reading => reading.temperature !== null)
-          .map(reading => {
+        if (hours === 1) {
+          // 1 hour: Group by minute and average
+          const minuteGroups = new Map();
+          
+          data.filter(reading => reading.temperature !== null).forEach(reading => {
             const date = new Date(reading.recorded_at);
-            let timeLabel = '';
+            const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+            const minuteKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
             
-            if (hours === 1) {
-              // For 1 hour: show HH:MM format
-              timeLabel = date.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false,
-                timeZone: 'Asia/Singapore'
-              });
-            } else {
-              // For 24 hours: show HH:00 format (hourly)
-              timeLabel = date.toLocaleTimeString('en-US', { 
-                hour: '2-digit',
-                hour12: false,
-                timeZone: 'Asia/Singapore'
-              }) + ':00';
+            if (!minuteGroups.has(minuteKey)) {
+              minuteGroups.set(minuteKey, { values: [], timestamp: reading.recorded_at });
             }
-            
-            return {
-              time: timeLabel,
-              value: reading.temperature || 0,
-              timestamp: reading.recorded_at,
-              _ts: date.getTime(),
-            };
+            minuteGroups.get(minuteKey).values.push(reading.temperature || 0);
           });
-
-        const step = Math.max(1, Math.ceil(mapped.length / maxPoints));
-        processedData = mapped.filter((_, i) => i % step === 0 || i === mapped.length - 1);
+          
+          processedData = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
+            time: timeLabel,
+            value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
+            timestamp: group.timestamp,
+            _ts: new Date(group.timestamp).getTime(),
+          })).sort((a, b) => a.time.localeCompare(b.time));
+          
+        } else if (hours === 24) {
+          // 24 hours: Group by hour and average
+          const hourGroups = new Map();
+          
+          data.filter(reading => reading.temperature !== null).forEach(reading => {
+            const date = new Date(reading.recorded_at);
+            const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+            const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+            
+            if (!hourGroups.has(hourKey)) {
+              hourGroups.set(hourKey, { values: [], timestamp: reading.recorded_at });
+            }
+            hourGroups.get(hourKey).values.push(reading.temperature || 0);
+          });
+          
+          processedData = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
+            time: timeLabel,
+            value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
+            timestamp: group.timestamp,
+            _ts: new Date(group.timestamp).getTime(),
+          })).sort((a, b) => a.time.localeCompare(b.time));
+        }
       } else if (hours === 168) {
         // 1 week: Try aggregated data first, fallback to raw data
         let data = await getAggregatedSensorData('day', 7);

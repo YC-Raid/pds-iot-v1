@@ -116,11 +116,11 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-mono">{anomaly.time}</span>
                     <Badge variant="outline" className="text-xs">
-                      Score: {anomaly.anomalyScore.toFixed(2)}
+                      Score: {anomaly.anomalyScore.toFixed(3)}
                     </Badge>
                   </div>
                   <p className="text-sm font-medium">
-                    Value: {anomaly.value.toFixed(2)}
+                    Value: {anomaly.value.toFixed(3)}
                   </p>
                   <p className="text-xs mt-1">
                     {anomaly.recommendation}
@@ -134,7 +134,7 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
           <div className="text-center">
             <div className="text-2xl font-bold text-primary">
-              {((1 - anomalies.length / Math.max(data.length, 1)) * 100).toFixed(1)}%
+              {((1 - anomalies.length / Math.max(data.length, 1)) * 100).toFixed(3)}%
             </div>
             <div className="text-xs text-muted-foreground">Normal Readings</div>
           </div>

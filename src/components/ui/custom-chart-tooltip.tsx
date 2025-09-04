@@ -17,15 +17,15 @@ export const CustomTooltip = ({ active, payload, label, sensorType }: CustomTool
       return value.toFixed(3);
     }
     if (dataKey === 'temperature') {
-      return value.toFixed(2);
+      return value.toFixed(3);
     }
     if (dataKey === 'humidity') {
-      return value.toFixed(1);
+      return value.toFixed(3);
     }
     if (dataKey === 'pressure') {
-      return value.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      return value.toFixed(3);
     }
-    return value.toString();
+    return value.toFixed(3);
   };
 
   const getUnit = (dataKey: string) => {

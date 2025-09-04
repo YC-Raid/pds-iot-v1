@@ -134,7 +134,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
     doc.setFontSize(14);
     doc.text('Trend Analysis', 14, 58);
     doc.setFontSize(10);
-    doc.text(`Direction: ${trendAnalysis.direction.toUpperCase()} (${trendAnalysis.percentage.toFixed(1)}%)`, 14, 68);
+    doc.text(`Direction: ${trendAnalysis.direction.toUpperCase()} (${trendAnalysis.percentage.toFixed(3)}%)`, 14, 68);
     doc.text(`Prediction: ${trendAnalysis.prediction}`, 14, 76);
     doc.text(`Recommendation: ${trendAnalysis.recommendation || 'None'}`, 14, 84);
     
@@ -237,7 +237,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
             </div>
             <p className="text-sm text-muted-foreground">
               {trendAnalysis.prediction} 
-              {trendAnalysis.percentage > 0 && ` (${trendAnalysis.percentage.toFixed(1)}% change)`}
+              {trendAnalysis.percentage > 0 && ` (${trendAnalysis.percentage.toFixed(3)}% change)`}
             </p>
             {trendAnalysis.recommendation && (
               <p className={`text-xs mt-1 ${trendAnalysis.isAnomalous ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
@@ -252,7 +252,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
               <h4 className="font-medium">Current Reading</h4>
             </div>
             <div className="text-2xl font-bold text-primary">
-              {data[data.length - 1]?.value.toFixed(1) || 0}{config.unit}
+              {data[data.length - 1]?.value.toFixed(3) || 0}{config.unit}
             </div>
             <Badge 
               variant={trendAnalysis.isAnomalous ? "destructive" : "default"}

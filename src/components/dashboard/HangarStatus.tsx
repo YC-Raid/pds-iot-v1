@@ -25,13 +25,13 @@ const HangarStatus = () => {
   
   const currentReadings = {
     temperature: { 
-      value: latestReading?.temperature?.toFixed(1) || "N/A", 
+      value: latestReading?.temperature?.toFixed(3) || "N/A", 
       unit: "°C", 
       status: latestReading?.temperature && latestReading.temperature >= 18 && latestReading.temperature <= 25 ? "normal" : "warning", 
       threshold: "18-25°C" 
     },
     humidity: { 
-      value: latestReading?.humidity?.toFixed(1) || "N/A", 
+      value: latestReading?.humidity?.toFixed(3) || "N/A", 
       unit: "%", 
       status: latestReading?.humidity && latestReading.humidity < 70 ? "normal" : "warning", 
       threshold: "<70%" 
@@ -43,7 +43,7 @@ const HangarStatus = () => {
       threshold: "<35 μg/m³" 
     },
     pressure: { 
-      value: latestReading?.pressure?.toFixed(1) || "N/A", 
+      value: latestReading?.pressure?.toFixed(3) || "N/A", 
       unit: "hPa", 
       status: latestReading?.pressure && latestReading.pressure >= 1010 && latestReading.pressure <= 1020 ? "normal" : "warning", 
       threshold: "1010-1020" 
