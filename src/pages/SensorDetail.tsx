@@ -69,8 +69,10 @@ const SensorDetail = () => {
 
     const dataPoints = chartData.map(d => ({
       value: d.value,
-      timestamp: d.time
+      timestamp: d.timestamp || d.time
     }));
+    
+    console.log(`🔧 Data points for threshold calculation:`, dataPoints.slice(0, 3));
     
     const thresholdResult = calculateDynamicThresholds(dataPoints, 'temperature', 3);
     

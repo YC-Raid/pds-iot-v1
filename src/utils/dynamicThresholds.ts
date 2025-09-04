@@ -29,8 +29,8 @@ export const calculateDynamicThresholds = (
   sensorType: string,
   zScoreThreshold: number = 3
 ): ThresholdCalculationResult => {
-  if (!data || data.length < 10) {
-    // Fallback for insufficient data
+  if (!data || data.length < 2) {
+    // Fallback for insufficient data (need at least 2 points)
     return {
       thresholds: [],
       optimalRange: { min: 0, max: 100 },
@@ -71,9 +71,16 @@ export const calculateDynamicThresholds = (
   const min = Math.min(...values);
   const max = Math.max(...values);
 
-  // Calculate thresholds using z-score method
-  const highCritical = mean + (zScoreThreshold * std);
-  const lowCritical = mean - (zScoreThreshold * std);
+  // For small datasets, use a more conservative approach
+  let adjustedZScore = zScoreThreshold;
+  if (values.length < 10) {
+    // Use a smaller multiplier for small datasets to ensure meaningful thresholds
+    adjustedZScore = Math.max(1.5, zScoreThreshold * 0.7);
+  }
+
+  // Calculate thresholds using adjusted z-score method
+  const highCritical = mean + (adjustedZScore * std);
+  const lowCritical = mean - (adjustedZScore * std);
 
   // Calculate optimal range (1 std deviation from mean)
   const optimalMin = mean - std;
