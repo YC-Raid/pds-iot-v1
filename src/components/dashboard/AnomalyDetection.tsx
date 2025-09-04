@@ -63,17 +63,13 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
         severity
       };
 
-      if (isAnomalous && onAnomalyDetected) {
-        onAnomalyDetected(anomaly);
-      }
-
       return {
         ...point,
         ...anomaly,
         index
       };
     }).filter(p => p.isAnomalous);
-  }, [data, sensorName, onAnomalyDetected]);
+  }, [data, sensorName]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

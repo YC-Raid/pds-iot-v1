@@ -356,9 +356,6 @@ const SensorDetail = () => {
             <AnomalyDetection 
               data={chartData}
               sensorName="Temperature"
-              onAnomalyDetected={(anomaly) => {
-                console.log('Temperature anomaly detected:', anomaly);
-              }}
             />
             
             <PredictiveAnalytics
