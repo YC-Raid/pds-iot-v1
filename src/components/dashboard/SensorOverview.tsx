@@ -39,18 +39,31 @@ const SensorOverview = () => {
       let finalData: any[] = [];
 
       if (hours <= 24) {
-        // Use raw data for hour/24h views
+        // Use raw data for 1h/24h views
         const data = await getSensorReadingsByTimeRange(hours);
-        const maxPoints = 200;
+        const maxPoints = hours === 1 ? 60 : 200; // Show more points for 1 hour view
         
         const mapped = data.map((reading: any) => {
-          const date = new Date(reading.recorded_at + 'Z'); // Force UTC interpretation
-          const timeLabel = date.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false,
-            timeZone: 'Asia/Singapore'
-          });
+          const date = new Date(reading.recorded_at);
+          let timeLabel = '';
+          
+          if (hours === 1) {
+            // For 1 hour: show HH:MM format
+            timeLabel = date.toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false,
+              timeZone: 'Asia/Singapore'
+            });
+          } else {
+            // For 24 hours: show HH:00 format (hourly)
+            timeLabel = date.toLocaleTimeString('en-US', { 
+              hour: '2-digit',
+              hour12: false,
+              timeZone: 'Asia/Singapore'
+            }) + ':00';
+          }
+          
           return {
             time: timeLabel,
             temperature: reading.temperature ?? 0,
@@ -65,23 +78,16 @@ const SensorOverview = () => {
 
         const step = Math.max(1, Math.ceil(mapped.length / maxPoints));
         finalData = mapped.filter((_, i) => i % step === 0 || i === mapped.length - 1);
-      } else {
-        // Use aggregated data for week/month views
-        const aggregationLevel = hours === 168 ? 'day' : hours === 720 ? 'day' : 'day';
-        const data = await getAggregatedSensorData(aggregationLevel, Math.ceil(hours / 24));
+      } else if (hours === 168) {
+        // 1 week: Use daily aggregated data
+        const data = await getAggregatedSensorData('day', 7);
         
-        // Create date range for backfilling
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setHours(startDate.getHours() - hours);
-        
-        // Generate all dates in range (in Asia/Singapore timezone)
+        // Generate all dates for the past 7 days
         const allDates = [];
-        const current = new Date(startDate);
-        while (current <= endDate) {
-          const dateStr = current.toISOString().split('T')[0]; // YYYY-MM-DD
-          allDates.push(dateStr);
-          current.setDate(current.getDate() + 1);
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          allDates.push(date.toISOString().split('T')[0]);
         }
         
         // Create map of existing data
@@ -95,26 +101,65 @@ const SensorOverview = () => {
         // Backfill missing dates with 0 values
         finalData = allDates.map(dateStr => {
           const existing = dataMap[dateStr];
-          const date = new Date(dateStr + 'T00:00:00Z');
+          const date = new Date(dateStr + 'T00:00:00');
           const label = date.toLocaleDateString('en-US', { 
             month: 'short', 
             day: 'numeric',
             timeZone: 'Asia/Singapore'
           });
           
-          if (existing) {
+          return {
+            time: label,
+            temperature: existing?.avg_temperature ?? 0,
+            humidity: existing?.avg_humidity ?? 0,
+            pressure: existing?.avg_pressure ?? 0,
+            pm25: existing?.avg_pm2_5 ?? 0,
+            accel_magnitude: existing?.avg_accel_magnitude ?? 0,
+            gyro_magnitude: existing?.avg_gyro_magnitude ?? 0,
+          };
+        });
+      } else if (hours === 720) {
+        // 1 month: Use weekly aggregated data or create weekly averages from daily data
+        const data = await getAggregatedSensorData('day', 30);
+        
+        // Group daily data into weeks
+        const weeklyData: Record<string, any[]> = {};
+        const currentDate = new Date();
+        
+        // Generate 4 weeks of data
+        for (let week = 0; week < 4; week++) {
+          const weekStart = new Date(currentDate);
+          weekStart.setDate(weekStart.getDate() - (week * 7) - 6);
+          const weekEnd = new Date(currentDate);
+          weekEnd.setDate(weekEnd.getDate() - (week * 7));
+          
+          const weekKey = `Week ${4 - week}`;
+          weeklyData[weekKey] = [];
+          
+          // Find data for this week
+          data.forEach(row => {
+            const rowDate = new Date(row.time_bucket);
+            if (rowDate >= weekStart && rowDate <= weekEnd) {
+              weeklyData[weekKey].push(row);
+            }
+          });
+        }
+        
+        // Calculate averages for each week
+        finalData = Object.entries(weeklyData).map(([weekLabel, weekData]) => {
+          if (weekData.length > 0) {
             return {
-              time: label,
-              temperature: existing.avg_temperature ?? 0,
-              humidity: existing.avg_humidity ?? 0,
-              pressure: existing.avg_pressure ?? 0,
-              pm25: existing.avg_pm2_5 ?? 0,
-              accel_magnitude: existing.avg_accel_magnitude ?? 0,
-              gyro_magnitude: existing.avg_gyro_magnitude ?? 0,
+              time: weekLabel,
+              temperature: weekData.reduce((sum, d) => sum + (d.avg_temperature || 0), 0) / weekData.length,
+              humidity: weekData.reduce((sum, d) => sum + (d.avg_humidity || 0), 0) / weekData.length,
+              pressure: weekData.reduce((sum, d) => sum + (d.avg_pressure || 0), 0) / weekData.length,
+              pm25: weekData.reduce((sum, d) => sum + (d.avg_pm2_5 || 0), 0) / weekData.length,
+              accel_magnitude: weekData.reduce((sum, d) => sum + (d.avg_accel_magnitude || 0), 0) / weekData.length,
+              gyro_magnitude: weekData.reduce((sum, d) => sum + (d.avg_gyro_magnitude || 0), 0) / weekData.length,
             };
           } else {
             return {
-              time: label,
+              time: weekLabel,
               temperature: 0,
               humidity: 0,
               pressure: 0,
