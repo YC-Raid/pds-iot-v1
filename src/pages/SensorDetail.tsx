@@ -108,6 +108,8 @@ const SensorDetail = () => {
         if (data.length > 0) {
           let formatted = [];
           
+          console.log(`🔧 Processing ${sensorType} sensor data: ${data.length} records for ${hours}h timeframe`);
+          
           if (sensorType === 'acceleration') {
             const maxPoints = hours === 1 ? 60 : 200;
             const step = Math.max(1, Math.ceil(data.length / maxPoints));
@@ -288,25 +290,33 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-              // 24 hours: Group by hour and average
-              const hourGroups = new Map();
-              
-              data.forEach(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-                const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
-                
-                if (!hourGroups.has(hourKey)) {
-                  hourGroups.set(hourKey, { values: [], timestamp: reading.recorded_at });
-                }
-                hourGroups.get(hourKey).values.push(Number(reading[dataKey]) || 0);
-              });
-              
-              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
-                time: timeLabel,
-                value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
-                timestamp: group.timestamp
-              })).sort((a, b) => a.time.localeCompare(b.time));
+               // 24 hours: Group by hour and average
+               const hourGroups = new Map();
+               
+               console.log(`📊 Processing 24h data: ${data.length} records for temperature sensor`);
+               
+               data.forEach(reading => {
+                 const date = new Date(reading.recorded_at || reading.time_bucket);
+                 const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+                 const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+                 
+                 if (!hourGroups.has(hourKey)) {
+                   hourGroups.set(hourKey, { values: [], timestamp: reading.recorded_at });
+                 }
+                 const value = Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0;
+                 hourGroups.get(hourKey).values.push(value);
+               });
+               
+               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => {
+                 const avgValue = group.values.reduce((sum, val) => sum + val, 0) / group.values.length;
+                 return {
+                   time: timeLabel,
+                   value: avgValue,
+                   timestamp: group.timestamp
+                 };
+               }).sort((a, b) => a.time.localeCompare(b.time));
+               
+               console.log(`📊 Formatted 24h data: ${formatted.length} hourly points`, formatted.slice(0, 3));
               
             } else {
               // Longer periods: use existing logic with downsampling
@@ -327,8 +337,9 @@ const SensorDetail = () => {
               });
             }
           }
-          
-          console.log(`✅ Formatted ${formatted.length} data points`);
+        
+          console.log(`✅ Final formatted data for ${sensorType}: ${formatted.length} points`);
+          console.log(`🎯 Sample data points:`, formatted.slice(0, 3));
           setChartData(formatted);
         } else {
           console.warn('⚠️ No data available, using test data');
