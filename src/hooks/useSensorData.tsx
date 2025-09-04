@@ -143,6 +143,26 @@ export function useSensorData() {
     }
   };
 
+  const getAggregatedSensorData = async (aggregationLevel: 'day' | 'week' | 'month', days: number) => {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      
+      const { data, error } = await supabase
+        .from('sensor_readings_aggregated')
+        .select('*')
+        .eq('aggregation_level', aggregationLevel)
+        .gte('time_bucket', startDate.toISOString())
+        .order('time_bucket', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('Failed to fetch aggregated sensor data:', err);
+      return [];
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -244,5 +264,6 @@ export function useSensorData() {
     syncRDSData,
     getSensorReadingsByTimeRange,
     getAnomalousSensorReadings,
+    getAggregatedSensorData,
   };
 }

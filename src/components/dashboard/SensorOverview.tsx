@@ -22,7 +22,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const SensorOverview = () => {
-  const { sensorReadings, dashboardData, isLoading, getSensorReadingsByTimeRange } = useSensorData();
+  const { 
+    sensorReadings, 
+    dashboardData, 
+    isLoading, 
+    getSensorReadingsByTimeRange,
+    getAggregatedSensorData 
+  } = useSensorData();
   const [timeSeriesData, setTimeSeriesData] = useState([]);
   const [timeRange, setTimeRange] = useState('24');
   const navigate = useNavigate();
@@ -30,19 +36,20 @@ const SensorOverview = () => {
   useEffect(() => {
     const loadTimeSeriesData = async () => {
       const hours = parseInt(timeRange);
-      const data = await getSensorReadingsByTimeRange(hours);
-      
-      // Build chart data with smart sampling and day aggregation for longer ranges
       let finalData: any[] = [];
-      const maxPoints = 200;
 
       if (hours <= 24) {
+        // Use raw data for hour/24h views
+        const data = await getSensorReadingsByTimeRange(hours);
+        const maxPoints = 200;
+        
         const mapped = data.map((reading: any) => {
-          const date = new Date(reading.recorded_at);
+          const date = new Date(reading.recorded_at + 'Z'); // Force UTC interpretation
           const timeLabel = date.toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit',
-            hour12: false 
+            hour12: false,
+            timeZone: 'Asia/Singapore'
           });
           return {
             time: timeLabel,
@@ -59,40 +66,64 @@ const SensorOverview = () => {
         const step = Math.max(1, Math.ceil(mapped.length / maxPoints));
         finalData = mapped.filter((_, i) => i % step === 0 || i === mapped.length - 1);
       } else {
-        const byDay: Record<string, any> = {};
-        data.forEach((reading: any) => {
-          const d = new Date(reading.recorded_at);
-          const key = d.toISOString().slice(0,10); // YYYY-MM-DD (UTC)
-          if (!byDay[key]) {
-            byDay[key] = {
-              count: 0,
-              sumTemp: 0, sumHum: 0, sumPress: 0, sumPM25: 0, sumAccel: 0, sumGyro: 0,
-              date: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+        // Use aggregated data for week/month views
+        const aggregationLevel = hours === 168 ? 'day' : hours === 720 ? 'day' : 'day';
+        const data = await getAggregatedSensorData(aggregationLevel, Math.ceil(hours / 24));
+        
+        // Create date range for backfilling
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setHours(startDate.getHours() - hours);
+        
+        // Generate all dates in range (in Asia/Singapore timezone)
+        const allDates = [];
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          const dateStr = current.toISOString().split('T')[0]; // YYYY-MM-DD
+          allDates.push(dateStr);
+          current.setDate(current.getDate() + 1);
+        }
+        
+        // Create map of existing data
+        const dataMap: Record<string, any> = {};
+        data.forEach((row: any) => {
+          const date = new Date(row.time_bucket);
+          const dateStr = date.toISOString().split('T')[0];
+          dataMap[dateStr] = row;
+        });
+        
+        // Backfill missing dates with 0 values
+        finalData = allDates.map(dateStr => {
+          const existing = dataMap[dateStr];
+          const date = new Date(dateStr + 'T00:00:00Z');
+          const label = date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            timeZone: 'Asia/Singapore'
+          });
+          
+          if (existing) {
+            return {
+              time: label,
+              temperature: existing.avg_temperature ?? 0,
+              humidity: existing.avg_humidity ?? 0,
+              pressure: existing.avg_pressure ?? 0,
+              pm25: existing.avg_pm2_5 ?? 0,
+              accel_magnitude: existing.avg_accel_magnitude ?? 0,
+              gyro_magnitude: existing.avg_gyro_magnitude ?? 0,
+            };
+          } else {
+            return {
+              time: label,
+              temperature: 0,
+              humidity: 0,
+              pressure: 0,
+              pm25: 0,
+              accel_magnitude: 0,
+              gyro_magnitude: 0,
             };
           }
-          byDay[key].count += 1;
-          byDay[key].sumTemp += reading.temperature ?? 0;
-          byDay[key].sumHum += reading.humidity ?? 0;
-          byDay[key].sumPress += reading.pressure ?? 0;
-          byDay[key].sumPM25 += reading.pm2_5 ?? 0;
-          byDay[key].sumAccel += reading.accel_magnitude ?? 0;
-          byDay[key].sumGyro += reading.gyro_magnitude ?? 0;
         });
-
-        finalData = Object.values(byDay)
-          .sort((a: any, b: any) => a.date.getTime() - b.date.getTime())
-          .map((bucket: any) => {
-            const lbl = bucket.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            return {
-              time: lbl,
-              temperature: bucket.count ? bucket.sumTemp / bucket.count : 0,
-              humidity: bucket.count ? bucket.sumHum / bucket.count : 0,
-              pressure: bucket.count ? bucket.sumPress / bucket.count : 0,
-              pm25: bucket.count ? bucket.sumPM25 / bucket.count : 0,
-              accel_magnitude: bucket.count ? bucket.sumAccel / bucket.count : 0,
-              gyro_magnitude: bucket.count ? bucket.sumGyro / bucket.count : 0,
-            };
-          });
       }
 
       setTimeSeriesData(finalData);
@@ -101,7 +132,7 @@ const SensorOverview = () => {
     if (!isLoading) {
       loadTimeSeriesData();
     }
-  }, [getSensorReadingsByTimeRange, isLoading, timeRange]);
+  }, [getSensorReadingsByTimeRange, getAggregatedSensorData, isLoading, timeRange]);
 
   // Get latest sensor readings
   const latestReading = sensorReadings[0];
