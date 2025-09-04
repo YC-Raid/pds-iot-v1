@@ -39,19 +39,39 @@ const SensorOverview = () => {
       else if (hours <= 168) sampleSize = -100; // Last 100 readings for 1 week
       else sampleSize = -200; // Last 200 readings for longer periods
       
-      const formattedData = data.map((reading, index) => ({
-        time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false 
-        }),
-        temperature: reading.temperature || 0,
-        humidity: reading.humidity || 0,
-        pressure: reading.pressure || 0,
-        pm25: reading.pm2_5 || 0,
-        accel_magnitude: reading.accel_magnitude || 0,
-        gyro_magnitude: reading.gyro_magnitude || 0
-      })).slice(sampleSize); // Sample data based on time range
+      const formattedData = data.map((reading, index) => {
+        const date = new Date(reading.recorded_at);
+        let timeLabel;
+        
+        // Format time/date based on time range
+        if (hours <= 24) {
+          // For 1 hour and 24 hours: show time only
+          timeLabel = date.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          });
+        } else {
+          // For 1 week and 1 month: show date and time
+          timeLabel = date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
+        }
+        
+        return {
+          time: timeLabel,
+          temperature: reading.temperature || 0,
+          humidity: reading.humidity || 0,
+          pressure: reading.pressure || 0,
+          pm25: reading.pm2_5 || 0,
+          accel_magnitude: reading.accel_magnitude || 0,
+          gyro_magnitude: reading.gyro_magnitude || 0
+        };
+      }).slice(sampleSize); // Sample data based on time range
       setTimeSeriesData(formattedData);
     };
 
