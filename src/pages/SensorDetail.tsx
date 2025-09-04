@@ -1,20 +1,23 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowLeft, Activity, Thermometer, Droplets, Gauge, Zap, Eye, Cloud, Wind, Waves } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CustomTooltip } from "@/components/ui/custom-chart-tooltip";
 import { EnhancedSensorChart, SensorConfig, DataPoint } from "@/components/dashboard/EnhancedSensorChart";
 import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
 import PredictiveAnalytics from "@/components/dashboard/PredictiveAnalytics";
+import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 
 const SensorDetail = () => {
   const { sensorType } = useParams();
   const navigate = useNavigate();
-  const { getSensorReadingsByTimeRange } = useSensorData();
+  const { getSensorReadingsByTimeRange, getAggregatedSensorData } = useSensorData();
   const [chartData, setChartData] = useState([]);
+  const [timeRange, setTimeRange] = useState('24');
   const [isLoading, setIsLoading] = useState(true);
 
   // Static test data as fallback
@@ -41,6 +44,32 @@ const SensorDetail = () => {
   const currentSensor = sensorConfig[sensorType] || sensorConfig.temperature;
   const IconComponent = currentSensor.icon;
 
+  // Dynamic thresholds for temperature sensor
+  const dynamicConfig = useMemo(() => {
+    if (sensorType !== 'temperature' || chartData.length === 0) {
+      return {
+        thresholds: [],
+        optimalRange: { min: 18, max: 25 },
+        yAxisRange: { min: 0, max: 50 },
+        statistics: { mean: 0, std: 0, min: 0, max: 0 }
+      };
+    }
+
+    const dataPoints = chartData.map(d => ({
+      value: d.value,
+      timestamp: d.time
+    }));
+    
+    const thresholdResult = calculateDynamicThresholds(dataPoints, 'temperature', 3);
+    
+    return {
+      thresholds: thresholdResult.thresholds,
+      optimalRange: thresholdResult.optimalRange,
+      yAxisRange: thresholdResult.yAxisRange,
+      statistics: thresholdResult.statistics
+    };
+  }, [chartData, sensorType]);
+
   useEffect(() => {
     console.log(`🔥 SensorDetail page loaded for: ${sensorType}`);
     
@@ -48,42 +77,94 @@ const SensorDetail = () => {
       setIsLoading(true);
       
       try {
-        // Load real sensor data
-        const data = await getSensorReadingsByTimeRange(24);
-        console.log(`📊 Fetched ${data.length} records for ${sensorType}`);
+        const hours = parseInt(timeRange);
+        let data: any[] = [];
+
+        if (hours <= 24) {
+          // Use raw data for 1h/24h views
+          data = await getSensorReadingsByTimeRange(hours);
+          console.log(`📊 Fetched ${data.length} records for ${sensorType}`);
+        } else if (hours === 168) {
+          // 1 week: Try aggregated data first, fallback to raw data
+          data = await getAggregatedSensorData('day', 7);
+          if (data.length === 0) {
+            data = await getSensorReadingsByTimeRange(168);
+          }
+        } else if (hours === 720) {
+          // 1 month: Try aggregated data first, fallback to raw data
+          data = await getAggregatedSensorData('day', 30);
+          if (data.length === 0) {
+            data = await getSensorReadingsByTimeRange(720);
+          }
+        }
         
         if (data.length > 0) {
           let formatted = [];
           
           if (sensorType === 'acceleration') {
-            formatted = data.slice(-50).map(reading => ({
-              time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-                hour: '2-digit', minute: '2-digit', hour12: false 
-              }),
-              x_axis: Number(reading.accel_x) || 0,
-              y_axis: Number(reading.accel_y) || 0, 
-              z_axis: Number(reading.accel_z) || 0,
-              magnitude: Number(reading.accel_magnitude) || 0
-            }));
+            const maxPoints = hours === 1 ? 60 : 200;
+            const step = Math.max(1, Math.ceil(data.length / maxPoints));
+            formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
+              const date = new Date(reading.recorded_at || reading.time_bucket);
+              const timeLabel = hours === 1 
+                ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Singapore' })
+                : hours <= 24 
+                ? date.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Singapore' }) + ':00'
+                : hours === 168
+                ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Singapore' })
+                : `Week ${Math.ceil((new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 7))}`;
+              
+              return {
+                time: timeLabel,
+                x_axis: Number(reading.accel_x || reading.avg_accel_x) || 0,
+                y_axis: Number(reading.accel_y || reading.avg_accel_y) || 0, 
+                z_axis: Number(reading.accel_z || reading.avg_accel_z) || 0,
+                magnitude: Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0
+              };
+            });
           } else if (sensorType === 'rotation') {
-            formatted = data.slice(-50).map(reading => ({
-              time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-                hour: '2-digit', minute: '2-digit', hour12: false 
-              }),
-              x_axis: Number(reading.gyro_x) || 0,
-              y_axis: Number(reading.gyro_y) || 0,
-              z_axis: Number(reading.gyro_z) || 0, 
-              magnitude: Number(reading.gyro_magnitude) || 0
-            }));
+            const maxPoints = hours === 1 ? 60 : 200;
+            const step = Math.max(1, Math.ceil(data.length / maxPoints));
+            formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
+              const date = new Date(reading.recorded_at || reading.time_bucket);
+              const timeLabel = hours === 1 
+                ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Singapore' })
+                : hours <= 24 
+                ? date.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Singapore' }) + ':00'
+                : hours === 168
+                ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Singapore' })
+                : `Week ${Math.ceil((new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 7))}`;
+              
+              return {
+                time: timeLabel,
+                x_axis: Number(reading.gyro_x || reading.avg_gyro_x) || 0,
+                y_axis: Number(reading.gyro_y || reading.avg_gyro_y) || 0,
+                z_axis: Number(reading.gyro_z || reading.avg_gyro_z) || 0, 
+                magnitude: Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0
+              };
+            });
           } else {
-            // Single value sensors
+            // Single value sensors with time range filtering
             const dataKey = currentSensor.dataKey;
-            formatted = data.slice(-50).map(reading => ({
-              time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-                hour: '2-digit', minute: '2-digit', hour12: false 
-              }),
-              value: Number(reading[dataKey]) || 0
-            }));
+            const maxPoints = hours === 1 ? 60 : 200;
+            const step = Math.max(1, Math.ceil(data.length / maxPoints));
+            
+            formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
+              const date = new Date(reading.recorded_at || reading.time_bucket);
+              const timeLabel = hours === 1 
+                ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Singapore' })
+                : hours <= 24 
+                ? date.toLocaleTimeString('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Singapore' }) + ':00'
+                : hours === 168
+                ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Singapore' })
+                : `Week ${Math.ceil((new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 7))}`;
+              
+              return {
+                time: timeLabel,
+                value: Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0,
+                timestamp: reading.recorded_at || reading.time_bucket
+              };
+            });
           }
           
           console.log(`✅ Formatted ${formatted.length} data points`);
@@ -101,7 +182,17 @@ const SensorDetail = () => {
     };
 
     loadData();
-  }, [sensorType]); // Fixed: Only depend on sensorType to prevent infinite loop
+  }, [sensorType, timeRange, getSensorReadingsByTimeRange, getAggregatedSensorData]);
+
+  const getTimeRangeLabel = () => {
+    switch (timeRange) {
+      case '1': return '1 Hour';
+      case '24': return '24 Hours';
+      case '168': return '1 Week';
+      case '720': return '1 Month';
+      default: return '24 Hours';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background p-6 animate-fade-in">
@@ -135,18 +226,27 @@ const SensorDetail = () => {
                   name: "Temperature",
                   unit: "°C", 
                   icon: Thermometer,
-                  description: "Environmental temperature monitoring for optimal storage conditions",
-                  optimalRange: { min: 18, max: 25 },
-                  thresholds: [
-                    { value: 15, label: "Low Critical", color: "#3b82f6", type: 'critical' },
-                    { value: 16, label: "Low Warning", color: "#06b6d4", type: 'warning' },
-                    { value: 28, label: "High Warning", color: "#f59e0b", type: 'warning' },
-                    { value: 30, label: "High Critical", color: "#ef4444", type: 'critical' }
-                  ]
+                  description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(1)}°C, Std: ${dynamicConfig.statistics.std.toFixed(1)}°C`,
+                  optimalRange: dynamicConfig.optimalRange,
+                  thresholds: dynamicConfig.thresholds,
+                  yAxisRange: dynamicConfig.yAxisRange
                 }}
-                title="Temperature Monitoring - Advanced Analysis"
-                timeRange="24 hours"
+                title={`Temperature Monitoring - ${getTimeRangeLabel()} Analysis`}
+                timeRange={getTimeRangeLabel()}
                 isLoading={isLoading}
+                timeRangeSelector={
+                  <Select value={timeRange} onValueChange={setTimeRange}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 Hour</SelectItem>
+                      <SelectItem value="24">24 Hours</SelectItem>
+                      <SelectItem value="168">1 Week</SelectItem>
+                      <SelectItem value="720">1 Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                }
               />
             </div>
           </div>
