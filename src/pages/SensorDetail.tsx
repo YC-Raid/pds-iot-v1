@@ -72,6 +72,9 @@ const SensorDetail = () => {
 
   useEffect(() => {
     console.log(`🔥 SensorDetail page loaded for: ${sensorType}`);
+    console.log('🔥 Temperature chart data:', chartData.length, 'points');
+    console.log('🔥 Dynamic config:', dynamicConfig);
+    console.log('🔥 Is loading:', isLoading);
     
     const loadData = async () => {
       setIsLoading(true);
