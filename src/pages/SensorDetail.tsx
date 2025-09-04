@@ -11,7 +11,6 @@ import { EnhancedSensorChart, SensorConfig, DataPoint } from "@/components/dashb
 import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
 import PredictiveAnalytics from "@/components/dashboard/PredictiveAnalytics";
 import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
-import { formatInTimeZone } from 'date-fns-tz';
 
 const SensorDetail = () => {
   const { sensorType } = useParams();
@@ -125,19 +124,29 @@ const SensorDetail = () => {
               // 1 hour: Group by minute and average accelerometer data
               const minuteGroups = new Map();
               
-               data.forEach(reading => {
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const singaporeTime = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:mm');
-                 
-                 if (!minuteGroups.has(singaporeTime)) {
-                   minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                 }
-                 const group = minuteGroups.get(singaporeTime);
-                 group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
-                 group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
-                 group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                 group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
-               });
+              data.forEach(reading => {
+                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
+                // For sensor_data, use local_time field directly
+                let singaporeTime;
+                if (reading.local_time) {
+                  // sensor_data table - already has Singapore local time
+                  singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
+                } else {
+                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
+                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                  singaporeTime = `${utcDate.getHours().toString().padStart(2, '0')}:${utcDate.getMinutes().toString().padStart(2, '0')}`;
+                }
+                
+                if (!minuteGroups.has(singaporeTime)) {
+                  minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                }
+                const group = minuteGroups.get(singaporeTime);
+                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
+                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
+                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
+                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+              });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -151,19 +160,29 @@ const SensorDetail = () => {
               // 24 hours: Group by hour and average accelerometer data
               const hourGroups = new Map();
               
-               data.forEach(reading => {
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const singaporeHour = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:00');
-                 
-                 if (!hourGroups.has(singaporeHour)) {
-                   hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                 }
-                 const group = hourGroups.get(singaporeHour);
-                 group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
-                 group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
-                 group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                 group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
-               });
+              data.forEach(reading => {
+                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
+                // For sensor_data, use local_time field directly
+                let singaporeHour;
+                if (reading.local_time) {
+                  // sensor_data table - already has Singapore local time
+                  singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
+                } else {
+                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
+                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                  singaporeHour = `${utcDate.getHours().toString().padStart(2, '0')}:00`;
+                }
+                
+                if (!hourGroups.has(singaporeHour)) {
+                  hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                }
+                const group = hourGroups.get(singaporeHour);
+                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
+                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
+                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
+                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+              });
               
               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -179,10 +198,18 @@ const SensorDetail = () => {
               const step = Math.max(1, Math.ceil(data.length / maxPoints));
               
                formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const timeLabel = hours === 168
-                   ? formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd')
-                   : formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd');
+                 // For longer periods, show date instead of time
+                 let timeLabel;
+                 if (reading.local_date) {
+                   // sensor_data table - use local_date which is already Singapore date
+                   const date = new Date(reading.local_date);
+                   timeLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                 } else {
+                   // processed_sensor_readings table - convert UTC to Singapore date
+                   const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                   utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                   timeLabel = utcDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                 }
                  
                  return {
                    time: timeLabel,
@@ -200,19 +227,29 @@ const SensorDetail = () => {
               // 1 hour: Group by minute and average gyroscope data
               const minuteGroups = new Map();
               
-               data.forEach(reading => {
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const singaporeTime = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:mm');
-                 
-                 if (!minuteGroups.has(singaporeTime)) {
-                   minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                 }
-                 const group = minuteGroups.get(singaporeTime);
-                 group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                 group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                 group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
-                 group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
-               });
+              data.forEach(reading => {
+                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
+                // For sensor_data, use local_time field directly
+                let singaporeTime;
+                if (reading.local_time) {
+                  // sensor_data table - already has Singapore local time
+                  singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
+                } else {
+                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
+                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                  singaporeTime = `${utcDate.getHours().toString().padStart(2, '0')}:${utcDate.getMinutes().toString().padStart(2, '0')}`;
+                }
+                
+                if (!minuteGroups.has(singaporeTime)) {
+                  minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                }
+                const group = minuteGroups.get(singaporeTime);
+                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
+                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
+                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+              });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -226,19 +263,29 @@ const SensorDetail = () => {
               // 24 hours: Group by hour and average gyroscope data
               const hourGroups = new Map();
               
-               data.forEach(reading => {
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const singaporeHour = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:00');
-                 
-                 if (!hourGroups.has(singaporeHour)) {
-                   hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                 }
-                 const group = hourGroups.get(singaporeHour);
-                 group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                 group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                 group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
-                 group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
-               });
+              data.forEach(reading => {
+                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
+                // For sensor_data, use local_time field directly
+                let singaporeHour;
+                if (reading.local_time) {
+                  // sensor_data table - already has Singapore local time
+                  singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
+                } else {
+                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
+                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                  singaporeHour = `${utcDate.getHours().toString().padStart(2, '0')}:00`;
+                }
+                
+                if (!hourGroups.has(singaporeHour)) {
+                  hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                }
+                const group = hourGroups.get(singaporeHour);
+                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
+                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
+                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+              });
               
               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -254,10 +301,18 @@ const SensorDetail = () => {
               const step = Math.max(1, Math.ceil(data.length / maxPoints));
               
                formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const timeLabel = hours === 168
-                   ? formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd')
-                   : formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd');
+                 // For longer periods, show date instead of time
+                 let timeLabel;
+                 if (reading.local_date) {
+                   // sensor_data table - use local_date which is already Singapore date
+                   const date = new Date(reading.local_date);
+                   timeLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                 } else {
+                   // processed_sensor_readings table - convert UTC to Singapore date
+                   const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                   utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                   timeLabel = utcDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                 }
                  
                  return {
                    time: timeLabel,
@@ -276,15 +331,25 @@ const SensorDetail = () => {
               // 1 hour: Group by minute and average
               const minuteGroups = new Map();
               
-               data.forEach(reading => {
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const singaporeTime = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:mm');
-                 
-                 if (!minuteGroups.has(singaporeTime)) {
-                   minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at });
-                 }
-                 minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
-               });
+              data.forEach(reading => {
+                // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
+                // For sensor_data, use local_time field directly
+                let singaporeTime;
+                if (reading.local_time) {
+                  // sensor_data table - already has Singapore local time
+                  singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
+                } else {
+                  // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
+                  const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                  utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                  singaporeTime = `${utcDate.getHours().toString().padStart(2, '0')}:${utcDate.getMinutes().toString().padStart(2, '0')}`;
+                }
+                
+                if (!minuteGroups.has(singaporeTime)) {
+                  minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                }
+                minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
+              });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -293,22 +358,32 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-               // 24 hours: Group by hour and average
+               // 24 hours: Group by hour using Singapore local time
                const hourGroups = new Map();
                
                console.log(`📊 Processing 24h data: ${data.length} records for temperature sensor`);
                
                data.forEach(reading => {
-                 if (!reading.temperature) return; // Skip null/undefined temperature readings
+                 if (!reading[dataKey] && !reading[`avg_${dataKey}`]) return; // Skip null/undefined readings
                  
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const singaporeHour = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:00');
+                 // For processed_sensor_readings, convert UTC to Singapore (+8 hours)
+                 // For sensor_data, use local_time field directly  
+                 let singaporeHour;
+                 if (reading.local_time) {
+                   // sensor_data table - already has Singapore local time
+                   singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
+                 } else {
+                   // processed_sensor_readings table - convert UTC to Singapore (+8 hours)
+                   const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                   utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                   singaporeHour = `${utcDate.getHours().toString().padStart(2, '0')}:00`;
+                 }
                  
                  if (!hourGroups.has(singaporeHour)) {
-                   hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at });
+                   hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
                  }
                  const value = Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0;
-                 if (value > 0) { // Only include valid temperature readings
+                 if (value > 0) { // Only include valid readings
                    hourGroups.get(singaporeHour).values.push(value);
                  }
                });
@@ -327,20 +402,28 @@ const SensorDetail = () => {
                console.log(`📊 Formatted 24h data: ${formatted.length} hourly points`, formatted.slice(0, 3));
               
              } else {
-               // Longer periods: use existing logic with downsampling
+               // Longer periods: use existing logic with downsampling  
                const maxPoints = 200;
                const step = Math.max(1, Math.ceil(data.length / maxPoints));
                
                formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                 const timeLabel = hours === 168
-                   ? formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd')
-                   : formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd');
+                 // For longer periods, show date instead of time
+                 let timeLabel;
+                 if (reading.local_date) {
+                   // sensor_data table - use local_date which is already Singapore date
+                   const date = new Date(reading.local_date);
+                   timeLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                 } else {
+                   // processed_sensor_readings table - convert UTC to Singapore date
+                   const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                   utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
+                   timeLabel = utcDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                 }
                  
                  return {
                    time: timeLabel,
                    value: Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0,
-                   timestamp: reading.recorded_at || reading.time_bucket
+                   timestamp: reading.recorded_at || reading.utc_timestamp
                  };
                });
              }
