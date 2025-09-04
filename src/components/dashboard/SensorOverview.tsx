@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { 
@@ -23,11 +24,21 @@ import { useNavigate } from "react-router-dom";
 const SensorOverview = () => {
   const { sensorReadings, dashboardData, isLoading, getSensorReadingsByTimeRange } = useSensorData();
   const [timeSeriesData, setTimeSeriesData] = useState([]);
+  const [timeRange, setTimeRange] = useState('24');
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadTimeSeriesData = async () => {
-      const data = await getSensorReadingsByTimeRange(24);
+      const hours = parseInt(timeRange);
+      const data = await getSensorReadingsByTimeRange(hours);
+      
+      // Determine sampling based on time range to avoid overwhelming data
+      let sampleSize;
+      if (hours <= 1) sampleSize = -30; // Last 30 readings for 1 hour
+      else if (hours <= 24) sampleSize = -50; // Last 50 readings for 24 hours  
+      else if (hours <= 168) sampleSize = -100; // Last 100 readings for 1 week
+      else sampleSize = -200; // Last 200 readings for longer periods
+      
       const formattedData = data.map((reading, index) => ({
         time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
@@ -40,14 +51,14 @@ const SensorOverview = () => {
         pm25: reading.pm2_5 || 0,
         accel_magnitude: reading.accel_magnitude || 0,
         gyro_magnitude: reading.gyro_magnitude || 0
-      })).slice(-20); // Show last 20 readings for performance
+      })).slice(sampleSize); // Sample data based on time range
       setTimeSeriesData(formattedData);
     };
 
     if (!isLoading) {
       loadTimeSeriesData();
     }
-  }, [getSensorReadingsByTimeRange, isLoading]);
+  }, [getSensorReadingsByTimeRange, isLoading, timeRange]);
 
   // Get latest sensor readings
   const latestReading = sensorReadings[0];
@@ -152,7 +163,7 @@ const SensorOverview = () => {
       name: "PM10 Monitor",
       type: "PM10",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pm10 || "N/A",
+      value: latestReading.pm10 !== null ? latestReading.pm10 : "N/A",
       unit: "μg/m³",
       status: latestReading.pm10 !== null ? "online" : "offline",
       lastUpdate: new Date(latestReading.recorded_at).toLocaleString(),
@@ -299,10 +310,25 @@ const SensorOverview = () => {
       {/* Time Series Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Sensor Trends - Last 24 Hours</CardTitle>
-          <CardDescription>
-            Real-time data from your AWS RDS sensor network ({timeSeriesData.length} readings)
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Sensor Trends - Last {timeRange === '1' ? '1 Hour' : timeRange === '24' ? '24 Hours' : timeRange === '168' ? '1 Week' : '1 Month'}</CardTitle>
+              <CardDescription>
+                Real-time data from your AWS RDS sensor network ({timeSeriesData.length} readings)
+              </CardDescription>
+            </div>
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 Hour</SelectItem>
+                <SelectItem value="24">24 Hours</SelectItem>
+                <SelectItem value="168">1 Week</SelectItem>
+                <SelectItem value="720">1 Month</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[400px]">

@@ -127,25 +127,27 @@ const SensorDetail = () => {
 
         {/* Enhanced Chart for Temperature */}
         {sensorType === 'temperature' ? (
-          <EnhancedSensorChart
-            data={chartData}
-            config={{
-              name: "Temperature",
-              unit: "°C", 
-              icon: Thermometer,
-              description: "Environmental temperature monitoring for optimal storage conditions",
-              optimalRange: { min: 18, max: 25 },
-              thresholds: [
-                { value: 15, label: "Low Critical", color: "#3b82f6", type: 'critical' },
-                { value: 16, label: "Low Warning", color: "#06b6d4", type: 'warning' },
-                { value: 28, label: "High Warning", color: "#f59e0b", type: 'warning' },
-                { value: 30, label: "High Critical", color: "#ef4444", type: 'critical' }
-              ]
-            }}
-            title="Temperature Monitoring - Advanced Analysis"
-            timeRange="24 hours"
-            isLoading={isLoading}
-          />
+          <div className="w-full">
+            <EnhancedSensorChart
+              data={chartData}
+              config={{
+                name: "Temperature",
+                unit: "°C", 
+                icon: Thermometer,
+                description: "Environmental temperature monitoring for optimal storage conditions",
+                optimalRange: { min: 18, max: 25 },
+                thresholds: [
+                  { value: 15, label: "Low Critical", color: "#3b82f6", type: 'critical' },
+                  { value: 16, label: "Low Warning", color: "#06b6d4", type: 'warning' },
+                  { value: 28, label: "High Warning", color: "#f59e0b", type: 'warning' },
+                  { value: 30, label: "High Critical", color: "#ef4444", type: 'critical' }
+                ]
+              }}
+              title="Temperature Monitoring - Advanced Analysis"
+              timeRange="24 hours"
+              isLoading={isLoading}
+            />
+          </div>
         ) : (
           <Card>
             <CardHeader>
@@ -153,7 +155,7 @@ const SensorDetail = () => {
               <CardDescription>Historical readings and trends ({chartData.length} data points)</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[500px] w-full">
+              <div className="h-[400px] w-full">
                 {isLoading ? (
                   <div className="h-full flex items-center justify-center">
                     <div className="text-center">
@@ -163,12 +165,15 @@ const SensorDetail = () => {
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" opacity={0.3} />
                       <XAxis 
                         dataKey="time" 
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={12}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
                       />
                       <YAxis 
                         stroke="hsl(var(--muted-foreground))"
