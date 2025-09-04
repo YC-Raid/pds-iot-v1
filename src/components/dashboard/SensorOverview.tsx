@@ -79,8 +79,41 @@ const SensorOverview = () => {
         const step = Math.max(1, Math.ceil(mapped.length / maxPoints));
         finalData = mapped.filter((_, i) => i % step === 0 || i === mapped.length - 1);
       } else if (hours === 168) {
-        // 1 week: Use daily aggregated data
-        const data = await getAggregatedSensorData('day', 7);
+        // 1 week: Try aggregated data first, fallback to raw data
+        let data = await getAggregatedSensorData('day', 7);
+        
+        if (data.length === 0) {
+          // Fallback: use raw data and aggregate manually
+          const rawData = await getSensorReadingsByTimeRange(168);
+          const dailyGroups: Record<string, any[]> = {};
+          
+          rawData.forEach(reading => {
+            const date = new Date(reading.recorded_at);
+            const dateStr = date.toISOString().split('T')[0];
+            if (!dailyGroups[dateStr]) dailyGroups[dateStr] = [];
+            dailyGroups[dateStr].push(reading);
+          });
+          
+          data = Object.entries(dailyGroups).map(([dateStr, readings]) => ({
+            time_bucket: dateStr + 'T00:00:00Z',
+            aggregation_level: 'day',
+            location: 'hangar_01',
+            avg_temperature: readings.reduce((sum, r) => sum + (r.temperature || 0), 0) / readings.length,
+            avg_humidity: readings.reduce((sum, r) => sum + (r.humidity || 0), 0) / readings.length,
+            avg_pressure: readings.reduce((sum, r) => sum + (r.pressure || 0), 0) / readings.length,
+            avg_gas_resistance: readings.reduce((sum, r) => sum + (r.gas_resistance || 0), 0) / readings.length,
+            avg_pm1_0: readings.reduce((sum, r) => sum + (r.pm1_0 || 0), 0) / readings.length,
+            avg_pm2_5: readings.reduce((sum, r) => sum + (r.pm2_5 || 0), 0) / readings.length,
+            avg_pm10: readings.reduce((sum, r) => sum + (r.pm10 || 0), 0) / readings.length,
+            avg_accel_magnitude: readings.reduce((sum, r) => sum + (r.accel_magnitude || 0), 0) / readings.length,
+            avg_gyro_magnitude: readings.reduce((sum, r) => sum + (r.gyro_magnitude || 0), 0) / readings.length,
+            min_temperature: Math.min(...readings.map(r => r.temperature || 0)),
+            max_temperature: Math.max(...readings.map(r => r.temperature || 0)),
+            data_points_count: readings.length,
+            id: '',
+            created_at: null
+          }));
+        }
         
         // Generate all dates for the past 7 days
         const allDates = [];
@@ -119,8 +152,41 @@ const SensorOverview = () => {
           };
         });
       } else if (hours === 720) {
-        // 1 month: Use weekly aggregated data or create weekly averages from daily data
-        const data = await getAggregatedSensorData('day', 30);
+        // 1 month: Try aggregated data first, fallback to raw data
+        let data = await getAggregatedSensorData('day', 30);
+        
+        if (data.length === 0) {
+          // Fallback: use raw data and aggregate manually
+          const rawData = await getSensorReadingsByTimeRange(720);
+          const dailyGroups: Record<string, any[]> = {};
+          
+          rawData.forEach(reading => {
+            const date = new Date(reading.recorded_at);
+            const dateStr = date.toISOString().split('T')[0];
+            if (!dailyGroups[dateStr]) dailyGroups[dateStr] = [];
+            dailyGroups[dateStr].push(reading);
+          });
+          
+          data = Object.entries(dailyGroups).map(([dateStr, readings]) => ({
+            time_bucket: dateStr + 'T00:00:00Z',
+            aggregation_level: 'day',
+            location: 'hangar_01',
+            avg_temperature: readings.reduce((sum, r) => sum + (r.temperature || 0), 0) / readings.length,
+            avg_humidity: readings.reduce((sum, r) => sum + (r.humidity || 0), 0) / readings.length,
+            avg_pressure: readings.reduce((sum, r) => sum + (r.pressure || 0), 0) / readings.length,
+            avg_gas_resistance: readings.reduce((sum, r) => sum + (r.gas_resistance || 0), 0) / readings.length,
+            avg_pm1_0: readings.reduce((sum, r) => sum + (r.pm1_0 || 0), 0) / readings.length,
+            avg_pm2_5: readings.reduce((sum, r) => sum + (r.pm2_5 || 0), 0) / readings.length,
+            avg_pm10: readings.reduce((sum, r) => sum + (r.pm10 || 0), 0) / readings.length,
+            avg_accel_magnitude: readings.reduce((sum, r) => sum + (r.accel_magnitude || 0), 0) / readings.length,
+            avg_gyro_magnitude: readings.reduce((sum, r) => sum + (r.gyro_magnitude || 0), 0) / readings.length,
+            min_temperature: Math.min(...readings.map(r => r.temperature || 0)),
+            max_temperature: Math.max(...readings.map(r => r.temperature || 0)),
+            data_points_count: readings.length,
+            id: '',
+            created_at: null
+          }));
+        }
         
         // Group daily data into weeks
         const weeklyData: Record<string, any[]> = {};
