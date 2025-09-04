@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -98,7 +98,7 @@ export function useSensorData() {
     }
   };
 
-  const getSensorReadingsByTimeRange = async (hours: number = 24) => {
+  const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
       const startTime = new Date();
       startTime.setHours(startTime.getHours() - hours);
@@ -124,7 +124,7 @@ export function useSensorData() {
       // Return empty array but don't throw to prevent UI breaking
       return [];
     }
-  };
+  }, []);
 
   const getAnomalousSensorReadings = async (threshold = 0.7) => {
     try {
@@ -143,7 +143,7 @@ export function useSensorData() {
     }
   };
 
-  const getAggregatedSensorData = async (aggregationLevel: 'day' | 'week' | 'month', days: number) => {
+  const getAggregatedSensorData = useCallback(async (aggregationLevel: 'day' | 'week' | 'month', days: number) => {
     try {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
@@ -161,7 +161,7 @@ export function useSensorData() {
       console.error('Failed to fetch aggregated sensor data:', err);
       return [];
     }
-  };
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
