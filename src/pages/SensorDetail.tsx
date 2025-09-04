@@ -11,6 +11,7 @@ import { EnhancedSensorChart, SensorConfig, DataPoint } from "@/components/dashb
 import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
 import PredictiveAnalytics from "@/components/dashboard/PredictiveAnalytics";
 import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
+import { formatInTimeZone } from 'date-fns-tz';
 
 const SensorDetail = () => {
   const { sensorType } = useParams();
@@ -124,20 +125,19 @@ const SensorDetail = () => {
               // 1 hour: Group by minute and average accelerometer data
               const minuteGroups = new Map();
               
-              data.forEach(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-                const minuteKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                
-                if (!minuteGroups.has(minuteKey)) {
-                  minuteGroups.set(minuteKey, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                }
-                const group = minuteGroups.get(minuteKey);
-                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
-                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
-                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
-              });
+               data.forEach(reading => {
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const singaporeTime = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:mm');
+                 
+                 if (!minuteGroups.has(singaporeTime)) {
+                   minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                 }
+                 const group = minuteGroups.get(singaporeTime);
+                 group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
+                 group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
+                 group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
+                 group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -151,20 +151,19 @@ const SensorDetail = () => {
               // 24 hours: Group by hour and average accelerometer data
               const hourGroups = new Map();
               
-              data.forEach(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-                const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
-                
-                if (!hourGroups.has(hourKey)) {
-                  hourGroups.set(hourKey, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                }
-                const group = hourGroups.get(hourKey);
-                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
-                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
-                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
-              });
+               data.forEach(reading => {
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const singaporeHour = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:00');
+                 
+                 if (!hourGroups.has(singaporeHour)) {
+                   hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                 }
+                 const group = hourGroups.get(singaporeHour);
+                 group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
+                 group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
+                 group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
+                 group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+               });
               
               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -179,20 +178,20 @@ const SensorDetail = () => {
               const maxPoints = 200;
               const step = Math.max(1, Math.ceil(data.length / maxPoints));
               
-              formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const timeLabel = hours === 168
-                  ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Singapore' })
-                  : `Week ${Math.ceil((new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 7))}`;
-                
-                return {
-                  time: timeLabel,
-                  x_axis: Number(reading.accel_x || reading.avg_accel_x) || 0,
-                  y_axis: Number(reading.accel_y || reading.avg_accel_y) || 0,
-                  z_axis: Number(reading.accel_z || reading.avg_accel_z) || 0,
-                  magnitude: Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0
-                };
-              });
+               formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const timeLabel = hours === 168
+                   ? formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd')
+                   : formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd');
+                 
+                 return {
+                   time: timeLabel,
+                   x_axis: Number(reading.accel_x || reading.avg_accel_x) || 0,
+                   y_axis: Number(reading.accel_y || reading.avg_accel_y) || 0,
+                   z_axis: Number(reading.accel_z || reading.avg_accel_z) || 0,
+                   magnitude: Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0
+                 };
+               });
             }
           } else if (sensorType === 'rotation') {
             const maxPoints = hours === 1 ? 60 : 200;
@@ -201,20 +200,19 @@ const SensorDetail = () => {
               // 1 hour: Group by minute and average gyroscope data
               const minuteGroups = new Map();
               
-              data.forEach(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-                const minuteKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                
-                if (!minuteGroups.has(minuteKey)) {
-                  minuteGroups.set(minuteKey, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                }
-                const group = minuteGroups.get(minuteKey);
-                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
-                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
-              });
+               data.forEach(reading => {
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const singaporeTime = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:mm');
+                 
+                 if (!minuteGroups.has(singaporeTime)) {
+                   minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                 }
+                 const group = minuteGroups.get(singaporeTime);
+                 group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
+                 group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
+                 group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                 group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -228,20 +226,19 @@ const SensorDetail = () => {
               // 24 hours: Group by hour and average gyroscope data
               const hourGroups = new Map();
               
-              data.forEach(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-                const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
-                
-                if (!hourGroups.has(hourKey)) {
-                  hourGroups.set(hourKey, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                }
-                const group = hourGroups.get(hourKey);
-                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
-                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
-              });
+               data.forEach(reading => {
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const singaporeHour = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:00');
+                 
+                 if (!hourGroups.has(singaporeHour)) {
+                   hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                 }
+                 const group = hourGroups.get(singaporeHour);
+                 group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
+                 group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
+                 group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                 group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+               });
               
               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -256,20 +253,20 @@ const SensorDetail = () => {
               const maxPoints = 200;
               const step = Math.max(1, Math.ceil(data.length / maxPoints));
               
-              formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const timeLabel = hours === 168
-                  ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Singapore' })
-                  : `Week ${Math.ceil((new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 7))}`;
-                
-                return {
-                  time: timeLabel,
-                  x_axis: Number(reading.gyro_x || reading.avg_gyro_x) || 0,
-                  y_axis: Number(reading.gyro_y || reading.avg_gyro_y) || 0,
-                  z_axis: Number(reading.gyro_z || reading.avg_gyro_z) || 0,
-                  magnitude: Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0
-                };
-              });
+               formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const timeLabel = hours === 168
+                   ? formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd')
+                   : formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd');
+                 
+                 return {
+                   time: timeLabel,
+                   x_axis: Number(reading.gyro_x || reading.avg_gyro_x) || 0,
+                   y_axis: Number(reading.gyro_y || reading.avg_gyro_y) || 0,
+                   z_axis: Number(reading.gyro_z || reading.avg_gyro_z) || 0,
+                   magnitude: Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0
+                 };
+               });
             }
           } else {
             // Single value sensors with time range filtering and aggregation
@@ -279,16 +276,15 @@ const SensorDetail = () => {
               // 1 hour: Group by minute and average
               const minuteGroups = new Map();
               
-              data.forEach(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-                const minuteKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                
-                if (!minuteGroups.has(minuteKey)) {
-                  minuteGroups.set(minuteKey, { values: [], timestamp: reading.recorded_at });
-                }
-                minuteGroups.get(minuteKey).values.push(Number(reading[dataKey]) || 0);
-              });
+               data.forEach(reading => {
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const singaporeTime = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:mm');
+                 
+                 if (!minuteGroups.has(singaporeTime)) {
+                   minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at });
+                 }
+                 minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
+               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
@@ -305,16 +301,15 @@ const SensorDetail = () => {
                data.forEach(reading => {
                  if (!reading.temperature) return; // Skip null/undefined temperature readings
                  
-                 const date = new Date(reading.recorded_at || reading.time_bucket);
-                 const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-                 const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const singaporeHour = formatInTimeZone(utcDate, 'Asia/Singapore', 'HH:00');
                  
-                 if (!hourGroups.has(hourKey)) {
-                   hourGroups.set(hourKey, { values: [], timestamp: reading.recorded_at });
+                 if (!hourGroups.has(singaporeHour)) {
+                   hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at });
                  }
                  const value = Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0;
                  if (value > 0) { // Only include valid temperature readings
-                   hourGroups.get(hourKey).values.push(value);
+                   hourGroups.get(singaporeHour).values.push(value);
                  }
                });
                
@@ -331,24 +326,24 @@ const SensorDetail = () => {
                
                console.log(`📊 Formatted 24h data: ${formatted.length} hourly points`, formatted.slice(0, 3));
               
-            } else {
-              // Longer periods: use existing logic with downsampling
-              const maxPoints = 200;
-              const step = Math.max(1, Math.ceil(data.length / maxPoints));
-              
-              formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                const date = new Date(reading.recorded_at || reading.time_bucket);
-                const timeLabel = hours === 168
-                  ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Singapore' })
-                  : `Week ${Math.ceil((new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 7))}`;
-                
-                return {
-                  time: timeLabel,
-                  value: Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0,
-                  timestamp: reading.recorded_at || reading.time_bucket
-                };
-              });
-            }
+             } else {
+               // Longer periods: use existing logic with downsampling
+               const maxPoints = 200;
+               const step = Math.max(1, Math.ceil(data.length / maxPoints));
+               
+               formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
+                 const utcDate = new Date(reading.recorded_at || reading.time_bucket);
+                 const timeLabel = hours === 168
+                   ? formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd')
+                   : formatInTimeZone(utcDate, 'Asia/Singapore', 'MMM dd');
+                 
+                 return {
+                   time: timeLabel,
+                   value: Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0,
+                   timestamp: reading.recorded_at || reading.time_bucket
+                 };
+               });
+             }
           }
         
           console.log(`✅ Final formatted data for ${sensorType}: ${formatted.length} points`);
