@@ -55,6 +55,7 @@ const SensorDetail = () => {
       };
     }
 
+    // Always try to calculate thresholds if we have any chart data
     if (chartData.length === 0) {
       return {
         thresholds: [],
@@ -64,12 +65,16 @@ const SensorDetail = () => {
       };
     }
 
+    console.log(`🔧 Calculating dynamic thresholds for ${chartData.length} data points`);
+
     const dataPoints = chartData.map(d => ({
       value: d.value,
       timestamp: d.time
     }));
     
     const thresholdResult = calculateDynamicThresholds(dataPoints, 'temperature', 3);
+    
+    console.log(`🎯 Calculated thresholds:`, thresholdResult);
     
     return {
       thresholds: thresholdResult.thresholds,
@@ -296,6 +301,8 @@ const SensorDetail = () => {
                console.log(`📊 Processing 24h data: ${data.length} records for temperature sensor`);
                
                data.forEach(reading => {
+                 if (!reading.temperature) return; // Skip null/undefined temperature readings
+                 
                  const date = new Date(reading.recorded_at || reading.time_bucket);
                  const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
                  const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
@@ -304,17 +311,21 @@ const SensorDetail = () => {
                    hourGroups.set(hourKey, { values: [], timestamp: reading.recorded_at });
                  }
                  const value = Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0;
-                 hourGroups.get(hourKey).values.push(value);
+                 if (value > 0) { // Only include valid temperature readings
+                   hourGroups.get(hourKey).values.push(value);
+                 }
                });
                
-               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => {
-                 const avgValue = group.values.reduce((sum, val) => sum + val, 0) / group.values.length;
-                 return {
-                   time: timeLabel,
-                   value: avgValue,
-                   timestamp: group.timestamp
-                 };
-               }).sort((a, b) => a.time.localeCompare(b.time));
+               formatted = Array.from(hourGroups.entries())
+                 .filter(([_, group]) => group.values.length > 0) // Only include hours with valid data
+                 .map(([timeLabel, group]) => {
+                   const avgValue = group.values.reduce((sum, val) => sum + val, 0) / group.values.length;
+                   return {
+                     time: timeLabel,
+                     value: avgValue,
+                     timestamp: group.timestamp
+                   };
+                 }).sort((a, b) => a.time.localeCompare(b.time));
                
                console.log(`📊 Formatted 24h data: ${formatted.length} hourly points`, formatted.slice(0, 3));
               

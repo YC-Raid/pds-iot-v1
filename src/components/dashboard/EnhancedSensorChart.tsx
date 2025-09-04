@@ -295,7 +295,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                     strokeDasharray="5 5"
                     label={{
                       value: `${threshold.label}: ${threshold.value.toFixed(2)}${config.unit}`,
-                      position: "top"
+                      position: threshold.type === 'critical' && threshold.label.includes('High') ? "left" : "right"
                     }}
                   />
                 ))}
