@@ -1,45 +1,39 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Thermometer } from "lucide-react";
 import { EnhancedSensorChart, SensorConfig, DataPoint } from "./EnhancedSensorChart";
 import { useSensorData } from "@/hooks/useSensorData";
+import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 
 const TemperaturePanel = () => {
   const { getSensorReadingsByTimeRange, isLoading } = useSensorData();
   const [temperatureData, setTemperatureData] = useState<DataPoint[]>([]);
 
-  // Temperature sensor configuration with thresholds and optimal ranges
+  // Calculate dynamic thresholds based on collected data
+  const dynamicConfig = useMemo(() => {
+    const dataPoints = temperatureData.map(d => ({
+      value: d.value,
+      timestamp: d.timestamp
+    }));
+    
+    const thresholdResult = calculateDynamicThresholds(dataPoints, 'temperature', 3);
+    
+    return {
+      thresholds: thresholdResult.thresholds,
+      optimalRange: thresholdResult.optimalRange,
+      yAxisRange: thresholdResult.yAxisRange,
+      statistics: thresholdResult.statistics
+    };
+  }, [temperatureData]);
+
+  // Temperature sensor configuration with dynamic thresholds
   const temperatureConfig: SensorConfig = {
     name: "Temperature",
     unit: "°C", 
     icon: Thermometer,
-    description: "Environmental temperature monitoring for optimal storage conditions",
-    optimalRange: { min: 18, max: 25 }, // Optimal storage temperature range
-    thresholds: [
-      {
-        value: 15,
-        label: "Low Critical",
-        color: "#3b82f6", // Blue for cold
-        type: 'critical'
-      },
-      {
-        value: 16,
-        label: "Low Warning", 
-        color: "#06b6d4", // Light blue
-        type: 'warning'
-      },
-      {
-        value: 28,
-        label: "High Warning",
-        color: "#f59e0b", // Orange
-        type: 'warning'
-      },
-      {
-        value: 30,
-        label: "High Critical",
-        color: "#ef4444", // Red for hot
-        type: 'critical'
-      }
-    ]
+    description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(1)}°C, Std: ${dynamicConfig.statistics.std.toFixed(1)}°C`,
+    optimalRange: dynamicConfig.optimalRange,
+    thresholds: dynamicConfig.thresholds,
+    yAxisRange: dynamicConfig.yAxisRange
   };
 
   useEffect(() => {

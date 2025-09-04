@@ -30,6 +30,7 @@ interface SensorConfig {
   icon: React.ElementType;
   thresholds: ThresholdConfig[];
   optimalRange?: { min: number; max: number };
+  yAxisRange?: { min: number; max: number };
   description?: string;
 }
 
@@ -275,6 +276,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading }: Enha
                 />
                 <YAxis 
                   label={{ value: config.unit, angle: -90, position: 'insideLeft' }}
+                  domain={config.yAxisRange ? [config.yAxisRange.min, config.yAxisRange.max] : ['auto', 'auto']}
                 />
                 <ChartTooltip 
                   content={<ChartTooltipContent />}
