@@ -14,18 +14,9 @@ serve(async (req) => {
   try {
     console.log('Starting Singapore AQI fetch from waqi.info API...')
 
-    // Read station id from query param or body; defaults to '@1666' (Singapore East station)
+    // Read station id from query param; defaults to '@1666' (Singapore - Central)
     const url = new URL(req.url);
-    let station = url.searchParams.get('station') || '';
-    try {
-      const body = await req.json();
-      if (body && typeof body.station === 'string' && body.station.trim()) {
-        station = body.station.trim();
-      }
-    } catch (_) {
-      // no JSON body provided
-    }
-    if (!station) station = '@1666';
+    let station = url.searchParams.get('station') || '@1666';
 
     // Get API token from environment variables
     const apiToken = Deno.env.get('WAQI_API_TOKEN');
