@@ -217,7 +217,7 @@ export default function CriticalAlert() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Exceeded By:</span>
                     <span className="font-bold text-destructive">
-                      +{(alertData.value - alertData.threshold).toFixed(3)} {alertData.unit}
+                      +{(alertData.value - alertData.threshold).toFixed(2)} {alertData.unit}
                     </span>
                   </div>
                 </CardContent>

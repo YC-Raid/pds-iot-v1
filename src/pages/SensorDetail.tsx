@@ -378,7 +378,7 @@ const SensorDetail = () => {
                   name: "Temperature",
                   unit: "°C", 
                   icon: Thermometer,
-                  description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(3)}°C, Std: ${dynamicConfig.statistics.std.toFixed(3)}°C`,
+                  description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(2)}°C, Std: ${dynamicConfig.statistics.std.toFixed(2)}°C`,
                   optimalRange: dynamicConfig.optimalRange,
                   thresholds: dynamicConfig.thresholds,
                   yAxisRange: dynamicConfig.yAxisRange
@@ -558,25 +558,25 @@ const SensorDetail = () => {
                   <>
                     <div className="text-center p-4 bg-muted/50 rounded-lg">
                      <div className="text-2xl font-bold text-chart-1">
-                        {chartData[chartData.length - 1]?.x_axis?.toFixed(3) || "0.000"}
+                        {chartData[chartData.length - 1]?.x_axis?.toFixed(2) || "0.00"}
                       </div>
                       <div className="text-sm text-muted-foreground">X-Axis ({currentSensor.unit})</div>
                     </div>
                     <div className="text-center p-4 bg-muted/50 rounded-lg">
                       <div className="text-2xl font-bold text-chart-2">
-                        {chartData[chartData.length - 1]?.y_axis?.toFixed(3) || "0.000"}
+                        {chartData[chartData.length - 1]?.y_axis?.toFixed(2) || "0.00"}
                       </div>
                       <div className="text-sm text-muted-foreground">Y-Axis ({currentSensor.unit})</div>
                     </div>
                     <div className="text-center p-4 bg-muted/50 rounded-lg">
                       <div className="text-2xl font-bold text-chart-3">
-                        {chartData[chartData.length - 1]?.z_axis?.toFixed(3) || "0.000"}
+                        {chartData[chartData.length - 1]?.z_axis?.toFixed(2) || "0.00"}
                       </div>
                       <div className="text-sm text-muted-foreground">Z-Axis ({currentSensor.unit})</div>
                     </div>
                     <div className="text-center p-4 bg-muted/50 rounded-lg">
                       <div className="text-2xl font-bold text-chart-4">
-                        {chartData[chartData.length - 1]?.magnitude?.toFixed(3) || "0.000"}
+                        {chartData[chartData.length - 1]?.magnitude?.toFixed(2) || "0.00"}
                       </div>
                       <div className="text-sm text-muted-foreground">Magnitude ({currentSensor.unit})</div>
                     </div>
@@ -584,7 +584,7 @@ const SensorDetail = () => {
                 ) : (
                   <div className="text-center p-6 bg-muted/50 rounded-lg">
                     <div className="text-3xl font-bold text-chart-1">
-                      {chartData[chartData.length - 1]?.value?.toFixed(3) || "0.000"}
+                      {chartData[chartData.length - 1]?.value?.toFixed(2) || "0.00"}
                     </div>
                     <div className="text-sm text-muted-foreground">Current {currentSensor.name} ({currentSensor.unit})</div>
                   </div>

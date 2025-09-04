@@ -133,9 +133,9 @@ export function DataExport({ title = "Sensor Data Export", description, classNam
       const maxValue = Math.max(...data.map(item => item.value));
       const minValue = Math.min(...data.map(item => item.value));
       
-      doc.text(`Average: ${avgValue.toFixed(3)} ${data[0]?.unit || ''}`, 20, 80);
-      doc.text(`Maximum: ${maxValue.toFixed(3)} ${data[0]?.unit || ''}`, 20, 90);
-      doc.text(`Minimum: ${minValue.toFixed(3)} ${data[0]?.unit || ''}`, 20, 100);
+      doc.text(`Average: ${avgValue.toFixed(2)} ${data[0]?.unit || ''}`, 20, 80);
+      doc.text(`Maximum: ${maxValue.toFixed(2)} ${data[0]?.unit || ''}`, 20, 90);
+      doc.text(`Minimum: ${minValue.toFixed(2)} ${data[0]?.unit || ''}`, 20, 100);
       
       // Data table - matching Excel format exactly
       const tableData = data.map(item => [

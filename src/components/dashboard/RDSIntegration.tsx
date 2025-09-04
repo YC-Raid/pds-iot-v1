@@ -148,7 +148,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
           </div>
           <div className="text-center p-3 bg-secondary/20 rounded-lg">
             <div className="text-2xl font-bold text-primary">
-              {(avgAnomalyScore * 100).toFixed(3)}%
+              {(avgAnomalyScore * 100).toFixed(2)}%
             </div>
             <div className="text-sm text-muted-foreground">Avg Anomaly Score</div>
           </div>

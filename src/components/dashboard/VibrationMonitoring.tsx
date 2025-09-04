@@ -103,7 +103,7 @@ const VibrationMonitoring = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {latestReading?.accel_magnitude?.toFixed(3) || "0.000"} m/s²
+              {latestReading?.accel_magnitude?.toFixed(2) || "0.00"} m/s²
             </div>
             <p className="text-xs text-muted-foreground">
               Current acceleration magnitude
@@ -125,7 +125,7 @@ const VibrationMonitoring = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {latestReading?.gyro_magnitude?.toFixed(3) || "0.000"} °/s
+              {latestReading?.gyro_magnitude?.toFixed(2) || "0.00"} °/s
             </div>
             <p className="text-xs text-muted-foreground">
               Current gyroscope magnitude

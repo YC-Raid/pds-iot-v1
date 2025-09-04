@@ -32,7 +32,7 @@ const TemperaturePanel = () => {
     name: "Temperature",
     unit: "°C", 
     icon: Thermometer,
-    description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(3)}°C, Std: ${dynamicConfig.statistics.std.toFixed(3)}°C`,
+    description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(2)}°C, Std: ${dynamicConfig.statistics.std.toFixed(2)}°C`,
     optimalRange: dynamicConfig.optimalRange,
     thresholds: dynamicConfig.thresholds,
     yAxisRange: dynamicConfig.yAxisRange

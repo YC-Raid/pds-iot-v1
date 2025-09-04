@@ -13,19 +13,7 @@ export const CustomTooltip = ({ active, payload, label, sensorType }: CustomTool
   }
 
   const formatValue = (value: number, dataKey: string) => {
-    if (dataKey.includes('magnitude') || dataKey.includes('axis')) {
-      return value.toFixed(3);
-    }
-    if (dataKey === 'temperature') {
-      return value.toFixed(3);
-    }
-    if (dataKey === 'humidity') {
-      return value.toFixed(3);
-    }
-    if (dataKey === 'pressure') {
-      return value.toFixed(3);
-    }
-    return value.toFixed(3);
+    return value.toFixed(2);
   };
 
   const getUnit = (dataKey: string) => {
