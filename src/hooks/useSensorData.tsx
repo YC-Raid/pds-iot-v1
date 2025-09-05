@@ -101,32 +101,23 @@ export function useSensorData() {
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
       const startTime = new Date();
-      startTime.setHours(startTime.getHours() - hours - 2); // Add buffer for recent data
+      startTime.setHours(startTime.getHours() - hours);
       
       const { data, error } = await supabase
         .from('processed_sensor_readings')
         .select('*')
         .gte('recorded_at', startTime.toISOString())
         .order('recorded_at', { ascending: true })
-        .limit(5000); // High limit to capture all recent data
+        .limit(5000);
 
       if (error) {
         console.error('Supabase query error:', error);
         throw error;
       }
       
-      // Filter to actual requested time range
-      const actualStartTime = new Date();
-      actualStartTime.setHours(actualStartTime.getHours() - hours);
-      
-      const filteredData = data?.filter(reading => 
-        new Date(reading.recorded_at) >= actualStartTime
-      ) || [];
-      
-      return filteredData;
+      return data || [];
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
-      // Return empty array but don't throw to prevent UI breaking
       return [];
     }
   }, []);
