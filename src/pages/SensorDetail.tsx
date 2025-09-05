@@ -328,17 +328,9 @@ const SensorDetail = () => {
               const minuteGroups = new Map();
               
               data.forEach(reading => {
-                // For sensor_data, use local_time field directly (already Singapore time)
-                // For processed_sensor_readings, recorded_at is already Singapore time
-                let singaporeTime;
-                if (reading.local_time) {
-                  // sensor_data table - already has Singapore local time
-                  singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
-                } else {
-                  // processed_sensor_readings table - already in Singapore time
-                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                  singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                }
+                // recorded_at is already in Singapore timezone in the database
+                const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
                 
                 if (!minuteGroups.has(singaporeTime)) {
                   minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
@@ -358,29 +350,21 @@ const SensorDetail = () => {
                
                console.log(`📊 Processing 24h data: ${data.length} records for temperature sensor`);
                
-               data.forEach(reading => {
-                 if (!reading[dataKey] && !reading[`avg_${dataKey}`]) return; // Skip null/undefined readings
-                 
-                 // For sensor_data, use local_time field directly (already Singapore time)
-                 // For processed_sensor_readings, recorded_at is already Singapore time
-                 let singaporeHour;
-                 if (reading.local_time) {
-                   // sensor_data table - already has Singapore local time
-                   singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
-                 } else {
-                   // processed_sensor_readings table - already in Singapore time
-                   const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                   singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
-                 }
-                 
-                 if (!hourGroups.has(singaporeHour)) {
-                   hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
-                 }
-                 const value = Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0;
-                 if (value > 0) { // Only include valid readings
-                   hourGroups.get(singaporeHour).values.push(value);
-                 }
-               });
+                data.forEach(reading => {
+                  if (!reading[dataKey] && !reading[`avg_${dataKey}`]) return; // Skip null/undefined readings
+                  
+                  // recorded_at is already in Singapore timezone in the database
+                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                  const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+                  
+                  if (!hourGroups.has(singaporeHour)) {
+                    hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                  }
+                  const value = Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0;
+                  if (value > 0) { // Only include valid readings
+                    hourGroups.get(singaporeHour).values.push(value);
+                  }
+                });
                
                formatted = Array.from(hourGroups.entries())
                  .filter(([_, group]) => group.values.length > 0) // Only include hours with valid data

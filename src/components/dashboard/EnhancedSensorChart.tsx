@@ -272,9 +272,10 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                 <XAxis 
                   dataKey="time" 
                   tick={{ fontSize: 12 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
+                  angle={0}
+                  textAnchor="middle"
+                  height={40}
+                  interval="preserveStartEnd"
                 />
                 <YAxis 
                   label={{ value: config.unit, angle: -90, position: 'insideLeft' }}
@@ -331,11 +332,15 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
           </ChartContainer>
         </div>
 
-        {/* Threshold Legend */}
+        {/* Critical Thresholds */}
         <div className="flex flex-wrap gap-2">
-          {config.thresholds.map((threshold, index) => (
-            <Badge key={index} variant="outline" style={{ borderColor: threshold.color }}>
-              {threshold.label}: {threshold.value.toFixed(2)}{config.unit}
+          {config.thresholds.filter(t => t.type === 'critical').map((threshold, index) => (
+            <Badge 
+              key={index} 
+              variant={threshold.label.toLowerCase().includes('low') ? 'default' : 'destructive'}
+              className={threshold.label.toLowerCase().includes('low') ? 'border-blue-500 text-blue-700' : 'border-red-500 text-red-700'}
+            >
+              {threshold.label}: {threshold.value.toFixed(2)}°C
             </Badge>
           ))}
         </div>

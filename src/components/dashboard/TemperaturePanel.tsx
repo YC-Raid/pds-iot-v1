@@ -51,10 +51,10 @@ const TemperaturePanel = () => {
           // 1 hour: Group by minute and average
           const minuteGroups = new Map();
           
-          data.filter(reading => reading.temperature !== null).forEach(reading => {
+        data.filter(reading => reading.temperature !== null).forEach(reading => {
+            // recorded_at is already in Singapore timezone in the database
             const date = new Date(reading.recorded_at);
-            const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-            const minuteKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
+            const minuteKey = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
             
             if (!minuteGroups.has(minuteKey)) {
               minuteGroups.set(minuteKey, { values: [], timestamp: reading.recorded_at });
@@ -74,9 +74,9 @@ const TemperaturePanel = () => {
           const hourGroups = new Map();
           
           data.filter(reading => reading.temperature !== null).forEach(reading => {
+            // recorded_at is already in Singapore timezone in the database
             const date = new Date(reading.recorded_at);
-            const singaporeDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-            const hourKey = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+            const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`;
             
             if (!hourGroups.has(hourKey)) {
               hourGroups.set(hourKey, { values: [], timestamp: reading.recorded_at });
