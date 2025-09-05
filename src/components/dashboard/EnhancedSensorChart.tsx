@@ -264,19 +264,16 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
         </div>
 
         {/* Chart with Thresholds */}
-        <div className="h-[400px]">
+        <div className="h-[400px] px-4">
           <ChartContainer config={chartConfig}>
-            <ResponsiveContainer width="95%" height="100%">
-              <LineChart data={data}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="time" 
-                  tick={{ fontSize: 11 }}
-                  angle={0}
-                  textAnchor="middle"
-                  height={40}
-                  interval="preserveStartEnd"
-                  tickMargin={5}
+                  tick={{ fontSize: 12 }}
+                  height={60}
+                  interval={0}
                 />
                 <YAxis 
                   label={{ value: config.unit, angle: -90, position: 'insideLeft' }}
@@ -296,10 +293,14 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                     stroke={threshold.color}
                     strokeDasharray="5 5"
                     label={{
-                      value: `${threshold.label}: ${threshold.value.toFixed(2)}${config.unit}`,
-                      position: "insideTopRight",
-                      offset: 10,
-                      textAnchor: "middle"
+                      value: `${threshold.value.toFixed(2)}${config.unit}`,
+                      position: "insideTopLeft",
+                      style: { 
+                        textAnchor: 'start',
+                        fontSize: '12px',
+                        fill: threshold.color,
+                        fontWeight: 'bold'
+                      }
                     }}
                   />
                 ))}
