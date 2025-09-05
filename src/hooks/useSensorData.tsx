@@ -104,27 +104,56 @@ export function useSensorData() {
       const startTime = new Date();
       startTime.setHours(startTime.getHours() - hours - 2); // Add 2 hour buffer for timezone/sync issues
       
-      console.log(`Fetching sensor data from ${startTime.toISOString()} using processed_sensor_readings`);
-
+      const currentTime = new Date();
+      console.log(`=== DEBUG TIME RANGE QUERY ===`);
+      console.log(`Current time: ${currentTime.toISOString()} (${currentTime.toLocaleString('en-SG', {timeZone: 'Asia/Singapore'})} SGT)`);
+      console.log(`Start time: ${startTime.toISOString()} (${startTime.toLocaleString('en-SG', {timeZone: 'Asia/Singapore'})} SGT)`);
+      console.log(`Requesting ${hours} hours of data with 2-hour buffer`);
+      
       const { data, error } = await supabase
         .from('processed_sensor_readings')
         .select('*')
         .gte('recorded_at', startTime.toISOString())
         .order('recorded_at', { ascending: true })
-        .limit(2000); // Increase limit to ensure we get enough data
+        .limit(5000); // Increase limit significantly to catch all data
 
       if (error) {
         console.error('Supabase query error:', error);
         throw error;
       }
       
-      // Log sample timestamps to debug timezone issues
+      // Log detailed timestamp analysis
       if (data && data.length > 0) {
-        console.log('Sample timestamps from fetched data:');
-        data.slice(-5).forEach((reading, i) => {
+        console.log(`=== FETCHED ${data.length} TOTAL READINGS ===`);
+        
+        // Show first and last few timestamps
+        console.log('FIRST 3 timestamps:');
+        data.slice(0, 3).forEach((reading, i) => {
           const date = new Date(reading.recorded_at);
-          console.log(`${i}: ${reading.recorded_at} -> Singapore: ${date.toLocaleString('en-SG', {timeZone: 'Asia/Singapore'})}`);
+          console.log(`  ${i+1}: ${reading.recorded_at} -> ${date.toLocaleString('en-SG', {timeZone: 'Asia/Singapore'})} SGT`);
         });
+        
+        console.log('LAST 3 timestamps:');
+        data.slice(-3).forEach((reading, i) => {
+          const date = new Date(reading.recorded_at);
+          console.log(`  ${data.length-2+i}: ${reading.recorded_at} -> ${date.toLocaleString('en-SG', {timeZone: 'Asia/Singapore'})} SGT`);
+        });
+        
+        // Count readings per hour for the last 4 hours
+        const hourCounts = {};
+        const last4Hours = new Date();
+        last4Hours.setHours(last4Hours.getHours() - 4);
+        
+        data.forEach(reading => {
+          const readingTime = new Date(reading.recorded_at);
+          if (readingTime >= last4Hours) {
+            const hour = readingTime.getHours();
+            const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+            hourCounts[hourKey] = (hourCounts[hourKey] || 0) + 1;
+          }
+        });
+        
+        console.log('READINGS COUNT BY HOUR (last 4 hours):', hourCounts);
       }
       
       // Filter to get the actual requested time range after fetching with buffer
@@ -135,7 +164,7 @@ export function useSensorData() {
         new Date(reading.recorded_at) >= actualStartTime
       ) || [];
       
-      console.log(`Successfully fetched ${filteredData.length} sensor readings (${data?.length || 0} total with buffer)`);
+      console.log(`AFTER FILTERING: ${filteredData.length} readings (filtered from ${data?.length || 0} with buffer)`);
       return filteredData;
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
