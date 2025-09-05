@@ -318,9 +318,9 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                       strokeDasharray="2 2"
                       label={{ 
                         value: `Min Optimal: ${config.optimalRange.min.toFixed(2)}${config.unit}`, 
-                        position: "insideTopLeft",
+                        position: "center",
                         style: { 
-                          textAnchor: 'start',
+                          textAnchor: 'middle',
                           fontSize: '12px',
                           fill: 'green',
                           fontWeight: 'bold'
@@ -333,9 +333,9 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                       strokeDasharray="2 2"
                       label={{ 
                         value: `Max Optimal: ${config.optimalRange.max.toFixed(2)}${config.unit}`, 
-                        position: "insideTopLeft",
+                        position: "center",
                         style: { 
-                          textAnchor: 'start',
+                          textAnchor: 'middle',
                           fontSize: '12px',
                           fill: 'green',
                           fontWeight: 'bold'
