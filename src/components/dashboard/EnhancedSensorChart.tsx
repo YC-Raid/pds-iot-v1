@@ -323,7 +323,11 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                           textAnchor: 'middle',
                           fontSize: '12px',
                           fill: 'green',
-                          fontWeight: 'bold'
+                          fontWeight: 'bold',
+                          background: 'white',
+                          border: '1px solid #ccc',
+                          padding: '2px 6px',
+                          borderRadius: '4px'
                         }
                       }}
                     />
@@ -338,7 +342,11 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                           textAnchor: 'middle',
                           fontSize: '12px',
                           fill: 'green',
-                          fontWeight: 'bold'
+                          fontWeight: 'bold',
+                          background: 'white',
+                          border: '1px solid #ccc',
+                          padding: '2px 6px',
+                          borderRadius: '4px'
                         }
                       }}
                     />
