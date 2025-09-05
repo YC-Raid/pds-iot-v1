@@ -118,6 +118,15 @@ export function useSensorData() {
         throw error;
       }
       
+      // Log sample timestamps to debug timezone issues
+      if (data && data.length > 0) {
+        console.log('Sample timestamps from fetched data:');
+        data.slice(-5).forEach((reading, i) => {
+          const date = new Date(reading.recorded_at);
+          console.log(`${i}: ${reading.recorded_at} -> Singapore: ${date.toLocaleString('en-SG', {timeZone: 'Asia/Singapore'})}`);
+        });
+      }
+      
       // Filter to get the actual requested time range after fetching with buffer
       const actualStartTime = new Date();
       actualStartTime.setHours(actualStartTime.getHours() - hours);
