@@ -100,76 +100,25 @@ export function useSensorData() {
 
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
-      // For 1h and 24h, use sensor_data table with local Singapore time
-      if (hours <= 24) {
-        const startTime = new Date();
-        startTime.setHours(startTime.getHours() - hours);
-        
-        console.log(`Fetching sensor data from ${startTime.toISOString()} using sensor_data table`);
+      const startTime = new Date();
+      startTime.setHours(startTime.getHours() - hours);
+      
+      console.log(`Fetching sensor data from ${startTime.toISOString()} using processed_sensor_readings`);
 
-        const { data, error } = await supabase
-          .from('sensor_data')
-          .select('*')
-          .gte('utc_timestamp', startTime.toISOString())
-          .order('utc_timestamp', { ascending: true })
-          .limit(1000);
+      const { data, error } = await supabase
+        .from('processed_sensor_readings')
+        .select('*')
+        .gte('recorded_at', startTime.toISOString())
+        .order('recorded_at', { ascending: true })
+        .limit(1000);
 
-        if (error) {
-          console.error('Supabase query error:', error);
-          throw error;
-        }
-        
-        // Transform data to match expected format with Singapore local time
-        const transformedData = data?.map(reading => ({
-          id: reading.id,
-          recorded_at: reading.utc_timestamp, // Keep for compatibility but we'll use local_time for display
-          local_time: reading.local_time,
-          local_date: reading.local_date,
-          temperature: reading.temperature,
-          humidity: reading.humidity,
-          pressure: reading.pressure,
-          gas_resistance: reading.gas_resistance,
-          pm1_0: reading.pm1_0,
-          pm2_5: reading.pm2_5,
-          pm10: reading.pm10,
-          accel_x: reading.accel_x,
-          accel_y: reading.accel_y,
-          accel_z: reading.accel_z,
-          gyro_x: reading.gyro_x,
-          gyro_y: reading.gyro_y,
-          gyro_z: reading.gyro_z,
-          // Calculate magnitudes
-          accel_magnitude: reading.accel_x && reading.accel_y && reading.accel_z ? 
-            Math.sqrt(reading.accel_x**2 + reading.accel_y**2 + reading.accel_z**2) : null,
-          gyro_magnitude: reading.gyro_x && reading.gyro_y && reading.gyro_z ?
-            Math.sqrt(reading.gyro_x**2 + reading.gyro_y**2 + reading.gyro_z**2) : null,
-          location: 'hangar_01'
-        })) || [];
-        
-        console.log(`Successfully fetched ${transformedData.length} sensor readings from sensor_data`);
-        return transformedData;
-      } else {
-        // For longer periods, use processed_sensor_readings
-        const startTime = new Date();
-        startTime.setHours(startTime.getHours() - hours);
-        
-        console.log(`Fetching sensor data from ${startTime.toISOString()} using processed_sensor_readings`);
-
-        const { data, error } = await supabase
-          .from('processed_sensor_readings')
-          .select('*')
-          .gte('recorded_at', startTime.toISOString())
-          .order('recorded_at', { ascending: true })
-          .limit(1000);
-
-        if (error) {
-          console.error('Supabase query error:', error);
-          throw error;
-        }
-        
-        console.log(`Successfully fetched ${data?.length || 0} sensor readings from processed_sensor_readings`);
-        return data || [];
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
       }
+      
+      console.log(`Successfully fetched ${data?.length || 0} sensor readings`);
+      return data || [];
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
       // Return empty array but don't throw to prevent UI breaking
