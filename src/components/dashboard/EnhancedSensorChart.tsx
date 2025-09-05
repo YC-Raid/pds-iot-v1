@@ -271,11 +271,12 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="time" 
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 11 }}
                   angle={0}
                   textAnchor="middle"
-                  height={40}
-                  interval="preserveStartEnd"
+                  height={50}
+                  interval={0}
+                  tickMargin={5}
                 />
                 <YAxis 
                   label={{ value: config.unit, angle: -90, position: 'insideLeft' }}
@@ -333,15 +334,18 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
         </div>
 
         {/* Critical Thresholds */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3 justify-center">
           {config.thresholds.filter(t => t.type === 'critical').map((threshold, index) => (
-            <Badge 
+            <div 
               key={index} 
-              variant={threshold.label.toLowerCase().includes('low') ? 'default' : 'destructive'}
-              className={threshold.label.toLowerCase().includes('low') ? 'border-blue-500 text-blue-700' : 'border-red-500 text-red-700'}
+              className={`px-4 py-2 rounded-full border-2 font-medium text-sm ${
+                threshold.label.toLowerCase().includes('low') 
+                  ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                  : 'border-red-500 bg-red-50 text-red-700'
+              }`}
             >
-              {threshold.label}: {threshold.value.toFixed(2)}°C
-            </Badge>
+              {threshold.label}: {threshold.value.toFixed(2)}{config.unit}
+            </div>
           ))}
         </div>
       </CardContent>
