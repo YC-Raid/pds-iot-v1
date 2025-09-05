@@ -577,7 +577,10 @@ const SensorOverview = () => {
             <div>
               <CardTitle>Sensor Trends - Last {timeRange === '1' ? '1 Hour' : timeRange === '24' ? '24 Hours' : timeRange === '168' ? '1 Week' : '1 Month'}</CardTitle>
               <CardDescription>
-                Real-time data from your AWS RDS sensor network ({timeSeriesData.length} readings)
+                Real-time data from your AWS RDS sensor network ({timeSeriesData.length} chart points from {isLoading ? 'Loading...' : sensorReadings?.length || 0} total readings)
+                {timeSeriesData.length === 0 && !isLoading && (
+                  <span className="text-orange-500 font-medium"> • No data in selected timeframe - check RDS sync</span>
+                )}
               </CardDescription>
             </div>
             <Select value={timeRange} onValueChange={setTimeRange}>
