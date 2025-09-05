@@ -79,13 +79,10 @@ const SensorOverview = () => {
           })).sort((a, b) => a.time.localeCompare(b.time));
           
         } else if (hours === 24) {
-          // 24 hours: Group by hour and average - include ALL hours with any data
+          // 24 hours: Group by hour and include ALL hours with data
           const hourGroups = new Map();
           
-          console.log(`Processing ${data.length} total readings for hourly grouping`);
-          
           data.forEach((reading: any) => {
-            // processed_sensor_readings.recorded_at is already in Singapore time
             const singaporeDate = new Date(reading.recorded_at);
             const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
             
@@ -93,8 +90,7 @@ const SensorOverview = () => {
               hourGroups.set(singaporeHour, {
                 temperature: [], humidity: [], pressure: [], pm25: [],
                 accel_magnitude: [], gyro_magnitude: [], 
-                timestamp: reading.recorded_at,
-                count: 0
+                timestamp: reading.recorded_at
               });
             }
             
@@ -105,15 +101,9 @@ const SensorOverview = () => {
             group.pm25.push(reading.pm2_5 ?? 0);
             group.accel_magnitude.push(reading.accel_magnitude ?? 0);
             group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
-            group.count++;
           });
           
-          console.log('All hour groups found:', Array.from(hourGroups.keys()).sort());
-          console.log('Hour groups details:', Array.from(hourGroups.entries()).map(([hour, group]) => 
-            `${hour}: ${group.count} readings (latest: ${new Date(group.timestamp).toLocaleString('en-SG')})`
-          ));
-          
-          // Convert ALL hour groups to chart data (no filtering, even single data points)
+          // Convert ALL hour groups to chart data
           finalData = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
             time: timeLabel,
             temperature: group.temperature.length > 0 ? group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length : 0,
