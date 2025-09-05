@@ -47,14 +47,14 @@ const SensorOverview = () => {
           const minuteGroups = new Map();
           
           data.forEach((reading: any) => {
-            // processed_sensor_readings.recorded_at is already in Singapore time
-            const singaporeDate = new Date(reading.recorded_at);
-            const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
+            // Use local_time from sensor_data table (already in Singapore time)
+            const localTimeStr = reading.local_time;
+            const singaporeTime = localTimeStr ? localTimeStr.substring(0, 5) : '00:00'; // Extract HH:MM
             
             if (!minuteGroups.has(singaporeTime)) {
               minuteGroups.set(singaporeTime, {
                 temperature: [], humidity: [], pressure: [], pm25: [],
-                accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
+                accel_magnitude: [], gyro_magnitude: [], timestamp: `${reading.local_date}T${reading.local_time}`
               });
             }
             
@@ -83,14 +83,14 @@ const SensorOverview = () => {
           const hourGroups = new Map();
           
           data.forEach((reading: any) => {
-            // processed_sensor_readings.recorded_at is already in Singapore time
-            const singaporeDate = new Date(reading.recorded_at);
-            const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+            // Use local_time from sensor_data table (already in Singapore time)
+            const localTimeStr = reading.local_time;
+            const singaporeHour = localTimeStr ? `${localTimeStr.substring(0, 2)}:00` : '00:00'; // Extract HH:00
             
             if (!hourGroups.has(singaporeHour)) {
               hourGroups.set(singaporeHour, {
                 temperature: [], humidity: [], pressure: [], pm25: [],
-                accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
+                accel_magnitude: [], gyro_magnitude: [], timestamp: `${reading.local_date}T${reading.local_time}`
               });
             }
             
