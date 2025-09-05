@@ -316,13 +316,31 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                       y={config.optimalRange.min}
                       stroke="green"
                       strokeDasharray="2 2"
-                      label={{ value: `Min Optimal: ${config.optimalRange.min.toFixed(2)}${config.unit}`, position: "left" }}
+                      label={{ 
+                        value: `Min Optimal: ${config.optimalRange.min.toFixed(2)}${config.unit}`, 
+                        position: "insideTopLeft",
+                        style: { 
+                          textAnchor: 'start',
+                          fontSize: '12px',
+                          fill: 'green',
+                          fontWeight: 'bold'
+                        }
+                      }}
                     />
                     <ReferenceLine
                       y={config.optimalRange.max}
                       stroke="green"
                       strokeDasharray="2 2"
-                      label={{ value: `Max Optimal: ${config.optimalRange.max.toFixed(2)}${config.unit}`, position: "right" }}
+                      label={{ 
+                        value: `Max Optimal: ${config.optimalRange.max.toFixed(2)}${config.unit}`, 
+                        position: "insideTopLeft",
+                        style: { 
+                          textAnchor: 'start',
+                          fontSize: '12px',
+                          fill: 'green',
+                          fontWeight: 'bold'
+                        }
+                      }}
                     />
                   </>
                 )}
