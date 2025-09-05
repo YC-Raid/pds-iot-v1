@@ -58,6 +58,10 @@ interface EnhancedSensorChartProps {
 }
 
 const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRangeSelector }: EnhancedSensorChartProps) => {
+  // Extract critical thresholds for consistent use
+  const criticalThresholds = useMemo(() => {
+    return config.thresholds.filter(t => t.type === 'critical');
+  }, [config.thresholds]);
   // Calculate trend analysis
   const trendAnalysis = useMemo((): TrendAnalysis => {
     if (data.length < 2) return { direction: 'stable', percentage: 0, isAnomalous: false, prediction: 'Insufficient data' };
@@ -286,7 +290,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                 />
                 
                 {/* Threshold Lines */}
-                {config.thresholds.map((threshold, index) => (
+                {criticalThresholds.map((threshold, index) => (
                   <ReferenceLine
                     key={index}
                     y={threshold.value}
@@ -338,17 +342,18 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
 
         {/* Critical Thresholds */}
         <div className="flex flex-wrap gap-3 justify-center">
-          {config.thresholds.filter(t => t.type === 'critical').map((threshold, index) => (
-            <div 
+          {criticalThresholds.map((threshold, index) => (
+            <Badge 
               key={index} 
-              className={`px-4 py-2 rounded-full border-2 font-medium text-sm ${
+              variant={threshold.label.toLowerCase().includes('low') ? 'default' : 'destructive'}
+              className={`px-4 py-2 text-sm font-medium ${
                 threshold.label.toLowerCase().includes('low') 
                   ? 'border-blue-500 bg-blue-50 text-blue-700' 
                   : 'border-red-500 bg-red-50 text-red-700'
               }`}
             >
               {threshold.label}: {threshold.value.toFixed(2)}{config.unit}
-            </div>
+            </Badge>
           ))}
         </div>
       </CardContent>
