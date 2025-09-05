@@ -79,8 +79,10 @@ const SensorOverview = () => {
           })).sort((a, b) => a.time.localeCompare(b.time));
           
         } else if (hours === 24) {
-          // 24 hours: Group by hour and average  
+          // 24 hours: Group by hour and average - include ALL hours with any data
           const hourGroups = new Map();
+          
+          console.log(`Processing ${data.length} total readings for hourly grouping`);
           
           data.forEach((reading: any) => {
             // processed_sensor_readings.recorded_at is already in Singapore time
@@ -90,7 +92,9 @@ const SensorOverview = () => {
             if (!hourGroups.has(singaporeHour)) {
               hourGroups.set(singaporeHour, {
                 temperature: [], humidity: [], pressure: [], pm25: [],
-                accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
+                accel_magnitude: [], gyro_magnitude: [], 
+                timestamp: reading.recorded_at,
+                count: 0
               });
             }
             
@@ -101,21 +105,23 @@ const SensorOverview = () => {
             group.pm25.push(reading.pm2_5 ?? 0);
             group.accel_magnitude.push(reading.accel_magnitude ?? 0);
             group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
+            group.count++;
           });
           
-          console.log('Hour groups created:', Array.from(hourGroups.keys()).sort());
-          console.log('Hour groups sizes:', Array.from(hourGroups.entries()).map(([hour, group]) => 
-            `${hour}: ${group.temperature.length} readings`
+          console.log('All hour groups found:', Array.from(hourGroups.keys()).sort());
+          console.log('Hour groups details:', Array.from(hourGroups.entries()).map(([hour, group]) => 
+            `${hour}: ${group.count} readings (latest: ${new Date(group.timestamp).toLocaleString('en-SG')})`
           ));
           
+          // Convert ALL hour groups to chart data (no filtering, even single data points)
           finalData = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
             time: timeLabel,
-            temperature: group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length,
-            humidity: group.humidity.reduce((sum, val) => sum + val, 0) / group.humidity.length,
-            pressure: group.pressure.reduce((sum, val) => sum + val, 0) / group.pressure.length,
-            pm25: group.pm25.reduce((sum, val) => sum + val, 0) / group.pm25.length,
-            accel_magnitude: group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length,
-            gyro_magnitude: group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length,
+            temperature: group.temperature.length > 0 ? group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length : 0,
+            humidity: group.humidity.length > 0 ? group.humidity.reduce((sum, val) => sum + val, 0) / group.humidity.length : 0,
+            pressure: group.pressure.length > 0 ? group.pressure.reduce((sum, val) => sum + val, 0) / group.pressure.length : 0,
+            pm25: group.pm25.length > 0 ? group.pm25.reduce((sum, val) => sum + val, 0) / group.pm25.length : 0,
+            accel_magnitude: group.accel_magnitude.length > 0 ? group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length : 0,
+            gyro_magnitude: group.gyro_magnitude.length > 0 ? group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length : 0,
             _ts: new Date(group.timestamp).getTime(),
           })).sort((a, b) => a.time.localeCompare(b.time));
         }
