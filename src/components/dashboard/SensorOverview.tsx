@@ -103,6 +103,11 @@ const SensorOverview = () => {
             group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
           });
           
+          console.log('Hour groups created:', Array.from(hourGroups.keys()).sort());
+          console.log('Hour groups sizes:', Array.from(hourGroups.entries()).map(([hour, group]) => 
+            `${hour}: ${group.temperature.length} readings`
+          ));
+          
           finalData = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
             time: timeLabel,
             temperature: group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length,
