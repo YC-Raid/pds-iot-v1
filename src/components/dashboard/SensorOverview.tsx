@@ -47,9 +47,8 @@ const SensorOverview = () => {
           const minuteGroups = new Map();
           
           data.forEach((reading: any) => {
-            // Convert UTC recorded_at to Singapore time (UTC+8)
-            const utcDate = new Date(reading.recorded_at);
-            const singaporeDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000)); // Add 8 hours
+            // processed_sensor_readings.recorded_at is already in Singapore time
+            const singaporeDate = new Date(reading.recorded_at);
             const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
             
             if (!minuteGroups.has(singaporeTime)) {
@@ -84,9 +83,8 @@ const SensorOverview = () => {
           const hourGroups = new Map();
           
           data.forEach((reading: any) => {
-            // Convert UTC recorded_at to Singapore time (UTC+8)
-            const utcDate = new Date(reading.recorded_at);
-            const singaporeDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000)); // Add 8 hours
+            // processed_sensor_readings.recorded_at is already in Singapore time
+            const singaporeDate = new Date(reading.recorded_at);
             const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
             
             if (!hourGroups.has(singaporeHour)) {
