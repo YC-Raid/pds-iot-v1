@@ -15,10 +15,14 @@ import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 const SensorDetail = () => {
   const { sensorType } = useParams();
   const navigate = useNavigate();
-  const { getSensorReadingsByTimeRange, getAggregatedSensorData } = useSensorData();
+  const { getSensorReadingsByTimeRange, getAggregatedSensorData, sensorReadings } = useSensorData();
   const [chartData, setChartData] = useState([]);
   const [timeRange, setTimeRange] = useState('24');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Get current reading - EXACT same logic as SensorOverview
+  const latestReading = sensorReadings[0];
+  const currentReading = latestReading?.temperature;
 
   // Static test data as fallback
   const testData = [
@@ -474,6 +478,7 @@ const SensorDetail = () => {
                 title={`Temperature Monitoring - ${getTimeRangeLabel()} Analysis`}
                 timeRange={getTimeRangeLabel()}
                 isLoading={isLoading}
+                currentReading={currentReading}
                 timeRangeSelector={
                   <Select value={timeRange} onValueChange={setTimeRange}>
                     <SelectTrigger className="w-32">
