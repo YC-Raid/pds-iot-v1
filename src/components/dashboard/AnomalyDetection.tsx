@@ -73,14 +73,10 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': 
-        return 'text-white bg-red-600 border-red-700 dark:text-white dark:bg-red-700 dark:border-red-800';
-      case 'high': 
-        return 'text-white bg-orange-600 border-orange-700 dark:text-white dark:bg-orange-700 dark:border-orange-800';
-      case 'medium': 
-        return 'text-black bg-yellow-400 border-yellow-500 dark:text-black dark:bg-yellow-500 dark:border-yellow-600';
-      default: 
-        return 'text-white bg-blue-600 border-blue-700 dark:text-white dark:bg-blue-700 dark:border-blue-800';
+      case 'critical': return 'text-red-600 bg-red-50 border-red-200';
+      case 'high': return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      default: return 'text-blue-600 bg-blue-50 border-blue-200';
     }
   };
 
@@ -108,7 +104,7 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
             </div>
             
             <div className="text-center p-4 bg-secondary/20 rounded-lg">
-              <div className="text-3xl font-bold text-warning mb-1">
+              <div className="text-3xl font-bold text-orange-600 mb-1">
                 {anomalies.filter(a => a.severity === 'critical' || a.severity === 'high').length}
               </div>
               <div className="text-sm text-muted-foreground">High Priority</div>
@@ -127,7 +123,7 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
             {anomalies.length > 0 ? (
               <div className="space-y-3">
                 <h4 className="text-sm font-medium flex items-center gap-1">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
                   Recent Anomalies ({anomalies.length} total)
                 </h4>
                 
@@ -140,30 +136,10 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-mono">{anomaly.time}</span>
                         <div className="flex items-center gap-2">
-                          <Badge 
-                            className={`text-xs font-medium ${
-                              anomaly.severity === 'critical' 
-                                ? 'bg-red-800 text-white border-red-900' 
-                                : anomaly.severity === 'high'
-                                ? 'bg-orange-800 text-white border-orange-900'
-                                : anomaly.severity === 'medium'
-                                ? 'bg-yellow-600 text-black border-yellow-700'
-                                : 'bg-blue-800 text-white border-blue-900'
-                            }`}
-                          >
+                          <Badge variant="outline" className="text-xs">
                             {anomaly.severity.toUpperCase()}
                           </Badge>
-                          <Badge 
-                            className={`text-xs font-medium ${
-                              anomaly.severity === 'critical' 
-                                ? 'bg-red-800 text-white border-red-900' 
-                                : anomaly.severity === 'high'
-                                ? 'bg-orange-800 text-white border-orange-900'
-                                : anomaly.severity === 'medium'
-                                ? 'bg-yellow-600 text-black border-yellow-700'
-                                : 'bg-blue-800 text-white border-blue-900'
-                            }`}
-                          >
+                          <Badge variant="outline" className="text-xs">
                             Score: {anomaly.anomalyScore.toFixed(2)}
                           </Badge>
                         </div>
@@ -181,7 +157,7 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
             ) : (
               <div className="flex items-center justify-center h-80 text-center">
                 <div className="space-y-2">
-                  <CheckCircle className="h-12 w-12 text-success mx-auto" />
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
                   <h4 className="text-lg font-medium">All Clear</h4>
                   <p className="text-sm text-muted-foreground">
                     No anomalies detected in the current dataset.
