@@ -20,9 +20,22 @@ const SensorDetail = () => {
   const [timeRange, setTimeRange] = useState('24');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get current reading - EXACT same logic as SensorOverview
+  // Get current reading - EXACT same logic as SensorOverview but for all sensor types
   const latestReading = sensorReadings[0];
-  const currentReading = latestReading?.temperature;
+  const currentReading = useMemo(() => {
+    if (!latestReading) return null;
+    
+    switch (sensorType) {
+      case 'temperature': return latestReading.temperature;
+      case 'humidity': return latestReading.humidity;
+      case 'pressure': return latestReading.pressure;
+      case 'gas': return latestReading.gas_resistance;
+      case 'pm1': return latestReading.pm1_0;
+      case 'pm25': return latestReading.pm2_5;
+      case 'pm10': return latestReading.pm10;
+      default: return latestReading.temperature;
+    }
+  }, [latestReading, sensorType]);
 
   // Static test data as fallback
   const testData = [
@@ -48,13 +61,26 @@ const SensorDetail = () => {
   const currentSensor = sensorConfig[sensorType] || sensorConfig.temperature;
   const IconComponent = currentSensor.icon;
 
-  // Dynamic thresholds for temperature sensor - always calculate when we have data
+  // Dynamic thresholds for all sensors - always calculate when we have data
   const dynamicConfig = useMemo(() => {
-    if (sensorType !== 'temperature') {
+    // Define optimal ranges and Y-axis ranges for each sensor type
+    const sensorDefaults = {
+      temperature: { optimalRange: { min: 18, max: 25 }, yAxisRange: { min: 0, max: 50 } },
+      humidity: { optimalRange: { min: 40, max: 60 }, yAxisRange: { min: 0, max: 100 } },
+      pressure: { optimalRange: { min: 1010, max: 1030 }, yAxisRange: { min: 980, max: 1050 } },
+      gas: { optimalRange: { min: 50000, max: 200000 }, yAxisRange: { min: 0, max: 300000 } },
+      pm1: { optimalRange: { min: 0, max: 12 }, yAxisRange: { min: 0, max: 50 } },
+      pm25: { optimalRange: { min: 0, max: 25 }, yAxisRange: { min: 0, max: 100 } },
+      pm10: { optimalRange: { min: 0, max: 50 }, yAxisRange: { min: 0, max: 150 } }
+    };
+
+    const defaults = sensorDefaults[sensorType] || sensorDefaults.temperature;
+    
+    if (['acceleration', 'rotation'].includes(sensorType)) {
       return {
         thresholds: [],
-        optimalRange: { min: 18, max: 25 },
-        yAxisRange: { min: 0, max: 50 },
+        optimalRange: { min: -2, max: 2 },
+        yAxisRange: { min: -5, max: 5 },
         statistics: { mean: 0, std: 0, min: 0, max: 0 }
       };
     }
@@ -63,13 +89,13 @@ const SensorDetail = () => {
     if (chartData.length === 0) {
       return {
         thresholds: [],
-        optimalRange: { min: 18, max: 25 },
-        yAxisRange: { min: 0, max: 50 },
+        optimalRange: defaults.optimalRange,
+        yAxisRange: defaults.yAxisRange,
         statistics: { mean: 0, std: 0, min: 0, max: 0 }
       };
     }
 
-    console.log(`🔧 Calculating dynamic thresholds for ${chartData.length} data points`);
+    console.log(`🔧 Calculating dynamic thresholds for ${sensorType} with ${chartData.length} data points`);
 
     const dataPoints = chartData.map(d => ({
       value: d.value,
@@ -78,9 +104,9 @@ const SensorDetail = () => {
     
     console.log(`🔧 Data points for threshold calculation:`, dataPoints.slice(0, 3));
     
-    const thresholdResult = calculateDynamicThresholds(dataPoints, 'temperature', 3);
+    const thresholdResult = calculateDynamicThresholds(dataPoints, sensorType, 3);
     
-    console.log(`🎯 Calculated thresholds:`, thresholdResult);
+    console.log(`🎯 Calculated thresholds for ${sensorType}:`, thresholdResult);
     
     return {
       thresholds: thresholdResult.thresholds,
@@ -592,18 +618,18 @@ const SensorDetail = () => {
           </Card>
         )}
 
-        {/* Advanced Analytics for Temperature Only */}
-        {sensorType === 'temperature' && (
+        {/* Advanced Analytics for All Enhanced Sensors */}
+        {['temperature', 'humidity', 'pressure', 'gas', 'pm1', 'pm25', 'pm10'].includes(sensorType) && (
           <div className="grid gap-6 lg:grid-cols-2">
             <AnomalyDetection 
               data={chartData}
-              sensorName="Temperature"
+              sensorName={currentSensor.name}
             />
             
           </div>
         )}
 
-        {/* Temperature-Specific Insights */}
+        {/* Sensor-Specific Insights */}
         {sensorType === 'temperature' && (
           <div className="grid gap-4 md:grid-cols-3">
             <div className="p-4 border rounded-lg bg-card">
@@ -627,6 +653,119 @@ const SensorDetail = () => {
               <p className="text-xs text-muted-foreground">
                 Temperature logs are required for regulatory compliance in pharmaceutical, 
                 food storage, and sensitive equipment environments.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {sensorType === 'humidity' && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Storage Conditions</h4>
+              <p className="text-xs text-muted-foreground">
+                Optimal range: 40-60% RH for most storage applications. 
+                High humidity can cause corrosion, mold, and material degradation.
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Maintenance Impact</h4>
+              <p className="text-xs text-muted-foreground">
+                Excessive humidity may require dehumidifier maintenance, 
+                ventilation system checks, or moisture barrier inspections.
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Equipment Protection</h4>
+              <p className="text-xs text-muted-foreground">
+                Proper humidity control prevents condensation on sensitive equipment 
+                and extends the lifespan of stored materials.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {sensorType === 'pressure' && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Environmental Conditions</h4>
+              <p className="text-xs text-muted-foreground">
+                Normal range: 1010-1030 hPa at sea level. 
+                Pressure changes can indicate weather patterns and ventilation issues.
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">System Monitoring</h4>
+              <p className="text-xs text-muted-foreground">
+                Sudden pressure drops may indicate HVAC system malfunctions 
+                or structural integrity issues requiring immediate attention.
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Safety Considerations</h4>
+              <p className="text-xs text-muted-foreground">
+                Pressure monitoring helps maintain safe working environments 
+                and prevents equipment damage from pressure fluctuations.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {sensorType === 'gas' && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Air Quality Control</h4>
+              <p className="text-xs text-muted-foreground">
+                Gas resistance indicates air quality levels. 
+                Higher values generally indicate cleaner air with fewer pollutants.
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Ventilation Management</h4>
+              <p className="text-xs text-muted-foreground">
+                Poor gas readings may require ventilation system adjustments, 
+                filter replacements, or air purification system maintenance.
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Health & Safety</h4>
+              <p className="text-xs text-muted-foreground">
+                Continuous gas monitoring ensures safe working conditions 
+                and early detection of harmful gas concentrations.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {(sensorType === 'pm1' || sensorType === 'pm25' || sensorType === 'pm10') && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Particulate Matter</h4>
+              <p className="text-xs text-muted-foreground">
+                {sensorType === 'pm1' && 'PM1.0: Ultra-fine particles that can penetrate deep into lungs and bloodstream.'}
+                {sensorType === 'pm25' && 'PM2.5: Fine particles that pose serious health risks and affect air quality.'}
+                {sensorType === 'pm10' && 'PM10: Coarse particles that can cause respiratory irritation.'}
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Filtration Systems</h4>
+              <p className="text-xs text-muted-foreground">
+                High particulate levels may require air filter replacements, 
+                HEPA system maintenance, or enhanced air purification measures.
+              </p>
+            </div>
+            
+            <div className="p-4 border rounded-lg bg-card">
+              <h4 className="font-medium text-sm mb-2">Environmental Impact</h4>
+              <p className="text-xs text-muted-foreground">
+                Monitoring particulate matter ensures compliance with air quality standards 
+                and protects both equipment and personnel health.
               </p>
             </div>
           </div>
