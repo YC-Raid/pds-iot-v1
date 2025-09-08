@@ -30,7 +30,7 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 h-16 border-b border-border bg-card/50 backdrop-blur-sm">
+    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm">
       <div className="flex items-center justify-between h-full px-6">
         <div className="flex items-center gap-4">
           <SidebarTrigger className="hover:bg-accent z-50" />
