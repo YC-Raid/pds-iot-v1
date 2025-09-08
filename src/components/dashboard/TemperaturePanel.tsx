@@ -45,27 +45,33 @@ const TemperaturePanel = () => {
     let interval: any;
 
     const loadCurrentReading = async () => {
+      console.log('🔄 Loading current reading...');
       try {
         const avg = await getLatestBatchAverageTemperature();
+        console.log('📊 Received average from function:', avg);
         if (!isActive) return;
         setCurrentReading(avg);
+        console.log('✅ Set current reading to:', avg);
       } catch (error) {
         console.error("❌ Error loading current reading:", error);
         if (isActive) setCurrentReading(null);
       }
     };
 
-    if (!isLoading) {
+    // Always load current reading, regardless of isLoading state
+    loadCurrentReading();
+    
+    // Refresh periodically to catch new sync batches (RDS -> Supabase ~5min)
+    interval = setInterval(() => {
+      console.log('🔄 Periodic refresh of current reading...');
       loadCurrentReading();
-      // Refresh periodically to catch new sync batches (RDS -> Supabase ~5min)
-      interval = setInterval(loadCurrentReading, 60 * 1000);
-    }
+    }, 30 * 1000); // Check every 30 seconds
 
     return () => {
       isActive = false;
       if (interval) clearInterval(interval);
     };
-  }, [getLatestBatchAverageTemperature, isLoading]);
+  }, [getLatestBatchAverageTemperature]); // Removed isLoading dependency
 
   useEffect(() => {
     const loadTemperatureData = async () => {

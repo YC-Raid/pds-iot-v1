@@ -161,28 +161,56 @@ export function useSensorData() {
  
   const getLatestBatchAverageTemperature = useCallback(async (): Promise<number | null> => {
     try {
-      // Get the most recent 30 temperature readings (covers one RDS sync batch)
+      console.log('🔍 Starting getLatestBatchAverageTemperature...');
+      
+      // Get the most recent 50 temperature readings to ensure we capture the latest batch
       const { data, error } = await supabase
         .from('processed_sensor_readings')
-        .select('temperature, processed_at, recorded_at')
+        .select('temperature, processed_at, recorded_at, id')
         .not('temperature', 'is', null)
         .order('recorded_at', { ascending: false })
-        .limit(30);
+        .limit(50);
 
-      if (error) throw error;
-      if (!data || data.length === 0) return null;
+      console.log('🔍 Query result:', { data: data?.length || 0, error });
+
+      if (error) {
+        console.error('❌ Supabase query error:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log('❌ No temperature data found');
+        return null;
+      }
+
+      console.log('📊 Found', data.length, 'temperature records');
+      console.log('📊 Latest record:', data[0]);
 
       // Calculate average of these recent readings
       const temps = data
-        .map(r => r.temperature as number)
-        .filter(temp => typeof temp === 'number' && !isNaN(temp));
+        .map(r => {
+          const temp = r.temperature as number;
+          console.log('🌡️ Processing temp:', temp, 'type:', typeof temp);
+          return temp;
+        })
+        .filter(temp => {
+          const isValid = typeof temp === 'number' && !isNaN(temp) && temp > -50 && temp < 100;
+          if (!isValid) console.log('❌ Invalid temp filtered out:', temp);
+          return isValid;
+        });
 
-      if (temps.length === 0) return null;
+      console.log('✅ Valid temperatures:', temps.length, 'values:', temps.slice(0, 5));
+
+      if (temps.length === 0) {
+        console.log('❌ No valid temperatures after filtering');
+        return null;
+      }
 
       const avg = temps.reduce((sum, temp) => sum + temp, 0) / temps.length;
+      console.log('🎯 Calculated average temperature:', avg);
       return avg;
     } catch (err) {
-      console.error('Failed to get latest temperature average:', err);
+      console.error('❌ Error in getLatestBatchAverageTemperature:', err);
       return null;
     }
   }, []);
