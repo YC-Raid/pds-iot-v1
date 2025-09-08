@@ -9,9 +9,18 @@ const TemperaturePanel = () => {
   const { getSensorReadingsByTimeRange, getAggregatedSensorData, sensorReadings, isLoading } = useSensorData();
   const [temperatureData, setTemperatureData] = useState<DataPoint[]>([]);
   
-  // Get current reading - EXACT same logic as SensorOverview
+  // Get current reading - EXACT same logic as SensorOverview  
   const latestReading = sensorReadings[0];
-  const currentReading = latestReading?.temperature || null;
+  const currentReading = latestReading?.temperature ?? null;
+  
+  // Add debugging
+  console.log('🌡️ Temperature Debug:', {
+    hasReadings: sensorReadings.length > 0,
+    latestReading,
+    temperature: latestReading?.temperature,
+    currentReading,
+    isLoading
+  });
   const [timeRange, setTimeRange] = useState('24');
 
   // Calculate dynamic thresholds based on collected data
