@@ -2,6 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { 
   Thermometer, 
@@ -15,7 +18,8 @@ import {
   Activity,
   Eye,
   Cloud,
-  Waves
+  Waves,
+  ChevronDown
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useEffect, useState } from "react";
@@ -31,6 +35,7 @@ const SensorOverview = () => {
   } = useSensorData();
   const [timeSeriesData, setTimeSeriesData] = useState([]);
   const [timeRange, setTimeRange] = useState('24');
+  const [selectedSensors, setSelectedSensors] = useState(['temperature', 'humidity', 'pressure', 'pm25']);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,7 +58,7 @@ const SensorOverview = () => {
             
             if (!minuteGroups.has(singaporeTime)) {
               minuteGroups.set(singaporeTime, {
-                temperature: [], humidity: [], pressure: [], pm25: [],
+                temperature: [], humidity: [], pressure: [], pm25: [], pm1: [], pm10: [], gas_resistance: [],
                 accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
               });
             }
@@ -63,6 +68,9 @@ const SensorOverview = () => {
             group.humidity.push(reading.humidity ?? 0);
             group.pressure.push(reading.pressure ?? 0);
             group.pm25.push(reading.pm2_5 ?? 0);
+            group.pm1.push(reading.pm1_0 ?? 0);
+            group.pm10.push(reading.pm10 ?? 0);
+            group.gas_resistance.push(reading.gas_resistance ?? 0);
             group.accel_magnitude.push(reading.accel_magnitude ?? 0);
             group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
           });
@@ -73,6 +81,9 @@ const SensorOverview = () => {
             humidity: group.humidity.reduce((sum, val) => sum + val, 0) / group.humidity.length,
             pressure: group.pressure.reduce((sum, val) => sum + val, 0) / group.pressure.length,
             pm25: group.pm25.reduce((sum, val) => sum + val, 0) / group.pm25.length,
+            pm1: group.pm1.reduce((sum, val) => sum + val, 0) / group.pm1.length,
+            pm10: group.pm10.reduce((sum, val) => sum + val, 0) / group.pm10.length,
+            gas_resistance: group.gas_resistance.reduce((sum, val) => sum + val, 0) / group.gas_resistance.length,
             accel_magnitude: group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length,
             gyro_magnitude: group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length,
             _ts: new Date(group.timestamp).getTime(),
@@ -88,7 +99,7 @@ const SensorOverview = () => {
             
             if (!hourGroups.has(singaporeHour)) {
               hourGroups.set(singaporeHour, {
-                temperature: [], humidity: [], pressure: [], pm25: [],
+                temperature: [], humidity: [], pressure: [], pm25: [], pm1: [], pm10: [], gas_resistance: [],
                 accel_magnitude: [], gyro_magnitude: [], 
                 timestamp: reading.recorded_at
               });
@@ -99,6 +110,9 @@ const SensorOverview = () => {
             group.humidity.push(reading.humidity ?? 0);
             group.pressure.push(reading.pressure ?? 0);
             group.pm25.push(reading.pm2_5 ?? 0);
+            group.pm1.push(reading.pm1_0 ?? 0);
+            group.pm10.push(reading.pm10 ?? 0);
+            group.gas_resistance.push(reading.gas_resistance ?? 0);
             group.accel_magnitude.push(reading.accel_magnitude ?? 0);
             group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
           });
@@ -110,6 +124,9 @@ const SensorOverview = () => {
             humidity: group.humidity.length > 0 ? group.humidity.reduce((sum, val) => sum + val, 0) / group.humidity.length : 0,
             pressure: group.pressure.length > 0 ? group.pressure.reduce((sum, val) => sum + val, 0) / group.pressure.length : 0,
             pm25: group.pm25.length > 0 ? group.pm25.reduce((sum, val) => sum + val, 0) / group.pm25.length : 0,
+            pm1: group.pm1.length > 0 ? group.pm1.reduce((sum, val) => sum + val, 0) / group.pm1.length : 0,
+            pm10: group.pm10.length > 0 ? group.pm10.reduce((sum, val) => sum + val, 0) / group.pm10.length : 0,
+            gas_resistance: group.gas_resistance.length > 0 ? group.gas_resistance.reduce((sum, val) => sum + val, 0) / group.gas_resistance.length : 0,
             accel_magnitude: group.accel_magnitude.length > 0 ? group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length : 0,
             gyro_magnitude: group.gyro_magnitude.length > 0 ? group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length : 0,
             _ts: new Date(group.timestamp).getTime(),
@@ -184,6 +201,9 @@ const SensorOverview = () => {
             humidity: existing?.avg_humidity ?? 0,
             pressure: existing?.avg_pressure ?? 0,
             pm25: existing?.avg_pm2_5 ?? 0,
+            pm1: existing?.avg_pm1_0 ?? 0,
+            pm10: existing?.avg_pm10 ?? 0,
+            gas_resistance: existing?.avg_gas_resistance ?? 0,
             accel_magnitude: existing?.avg_accel_magnitude ?? 0,
             gyro_magnitude: existing?.avg_gyro_magnitude ?? 0,
           };
@@ -258,6 +278,9 @@ const SensorOverview = () => {
               humidity: weekData.reduce((sum, d) => sum + (d.avg_humidity || 0), 0) / weekData.length,
               pressure: weekData.reduce((sum, d) => sum + (d.avg_pressure || 0), 0) / weekData.length,
               pm25: weekData.reduce((sum, d) => sum + (d.avg_pm2_5 || 0), 0) / weekData.length,
+              pm1: weekData.reduce((sum, d) => sum + (d.avg_pm1_0 || 0), 0) / weekData.length,
+              pm10: weekData.reduce((sum, d) => sum + (d.avg_pm10 || 0), 0) / weekData.length,
+              gas_resistance: weekData.reduce((sum, d) => sum + (d.avg_gas_resistance || 0), 0) / weekData.length,
               accel_magnitude: weekData.reduce((sum, d) => sum + (d.avg_accel_magnitude || 0), 0) / weekData.length,
               gyro_magnitude: weekData.reduce((sum, d) => sum + (d.avg_gyro_magnitude || 0), 0) / weekData.length,
             };
@@ -268,6 +291,9 @@ const SensorOverview = () => {
               humidity: 0,
               pressure: 0,
               pm25: 0,
+              pm1: 0,
+              pm10: 0,
+              gas_resistance: 0,
               accel_magnitude: 0,
               gyro_magnitude: 0,
             };
@@ -447,10 +473,46 @@ const SensorOverview = () => {
       label: "PM2.5 (μg/m³)",
       color: "hsl(var(--chart-4))",
     },
-    accel_magnitude: {
-      label: "Acceleration (m/s²)",
+    pm1: {
+      label: "PM1.0 (μg/m³)",
       color: "hsl(var(--chart-5))",
     },
+    pm10: {
+      label: "PM10 (μg/m³)",
+      color: "hsl(var(--chart-6))",
+    },
+    gas_resistance: {
+      label: "Gas Resistance (Ω)",
+      color: "hsl(var(--chart-7))",
+    },
+    accel_magnitude: {
+      label: "Acceleration (m/s²)",
+      color: "hsl(var(--chart-8))",
+    },
+    gyro_magnitude: {
+      label: "Gyroscope (°/s)",
+      color: "hsl(var(--chart-9))",
+    },
+  };
+
+  const availableSensors = [
+    { id: 'temperature', label: 'Temperature (°C)', color: 'hsl(var(--chart-1))' },
+    { id: 'humidity', label: 'Humidity (%)', color: 'hsl(var(--chart-2))' },
+    { id: 'pressure', label: 'Pressure (hPa)', color: 'hsl(var(--chart-3))' },
+    { id: 'pm25', label: 'PM2.5 (μg/m³)', color: 'hsl(var(--chart-4))' },
+    { id: 'pm1', label: 'PM1.0 (μg/m³)', color: 'hsl(var(--chart-5))' },
+    { id: 'pm10', label: 'PM10 (μg/m³)', color: 'hsl(var(--chart-6))' },
+    { id: 'gas_resistance', label: 'Gas Resistance (Ω)', color: 'hsl(var(--chart-7))' },
+    { id: 'accel_magnitude', label: 'Acceleration (m/s²)', color: 'hsl(var(--chart-8))' },
+    { id: 'gyro_magnitude', label: 'Gyroscope (°/s)', color: 'hsl(var(--chart-9))' },
+  ];
+
+  const toggleSensorSelection = (sensorId: string) => {
+    setSelectedSensors(prev => 
+      prev.includes(sensorId) 
+        ? prev.filter(id => id !== sensorId)
+        : [...prev, sensorId]
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -583,17 +645,76 @@ const SensorOverview = () => {
                 )}
               </CardDescription>
             </div>
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 Hour</SelectItem>
-                <SelectItem value="24">24 Hours</SelectItem>
-                <SelectItem value="168">1 Week</SelectItem>
-                <SelectItem value="720">1 Month</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              {/* Sensor Multi-Select */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="min-w-[140px] justify-between">
+                    {selectedSensors.length === availableSensors.length 
+                      ? "All Sensors" 
+                      : `${selectedSensors.length} Selected`}
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="end">
+                  <div className="p-4">
+                    <div className="text-sm font-medium mb-3">Select Sensors to Display</div>
+                    <div className="space-y-2">
+                      {availableSensors.map((sensor) => (
+                        <div key={sensor.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={sensor.id}
+                            checked={selectedSensors.includes(sensor.id)}
+                            onCheckedChange={() => toggleSensorSelection(sensor.id)}
+                          />
+                          <label
+                            htmlFor={sensor.id}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center"
+                          >
+                            <div 
+                              className="w-3 h-3 rounded-full mr-2" 
+                              style={{ backgroundColor: sensor.color }}
+                            />
+                            {sensor.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSelectedSensors(availableSensors.map(s => s.id))}
+                        className="flex-1"
+                      >
+                        Select All
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSelectedSensors([])}
+                        className="flex-1"
+                      >
+                        Clear All
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {/* Time Range Select */}
+              <Select value={timeRange} onValueChange={setTimeRange}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 Hour</SelectItem>
+                  <SelectItem value="24">24 Hours</SelectItem>
+                  <SelectItem value="168">1 Week</SelectItem>
+                  <SelectItem value="720">1 Month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-2 sm:p-6">
@@ -623,38 +744,22 @@ const SensorOverview = () => {
                     width={40}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="temperature" 
-                    stroke="hsl(var(--chart-1))" 
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4, fill: "hsl(var(--chart-1))" }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="humidity" 
-                    stroke="hsl(var(--chart-2))" 
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4, fill: "hsl(var(--chart-2))" }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="pressure" 
-                    stroke="hsl(var(--chart-3))" 
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4, fill: "hsl(var(--chart-3))" }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="pm25" 
-                    stroke="hsl(var(--chart-4))" 
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={{ r: 4, fill: "hsl(var(--chart-4))" }}
-                  />
+                  {selectedSensors.map((sensorId) => {
+                    const sensorConfig = availableSensors.find(s => s.id === sensorId);
+                    if (!sensorConfig) return null;
+                    
+                    return (
+                      <Line 
+                        key={sensorId}
+                        type="monotone" 
+                        dataKey={sensorId} 
+                        stroke={sensorConfig.color} 
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4, fill: sensorConfig.color }}
+                      />
+                    );
+                  })}
                 </LineChart>
               </ResponsiveContainer>
             </ChartContainer>
