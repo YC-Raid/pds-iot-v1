@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, TrendingUp, Brain, Bell } from "lucide-react";
+import { AlertTriangle, TrendingUp, Brain, Bell, CheckCircle } from "lucide-react";
 import { useMemo } from "react";
 
 interface DataPoint {
@@ -92,57 +92,80 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Detection Status</span>
-          <Badge variant={anomalies.length > 0 ? "destructive" : "default"}>
-            {anomalies.length > 0 ? `${anomalies.length} Anomalies` : 'Normal'}
-          </Badge>
-        </div>
-
-        {anomalies.length > 0 && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium flex items-center gap-1">
-              <AlertTriangle className="h-4 w-4 text-orange-500" />
-              Recent Anomalies
-            </h4>
+      <CardContent>
+        <div className="grid gap-6 lg:grid-cols-5">
+          {/* Left side - Key Metrics */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="text-center p-4 bg-secondary/20 rounded-lg">
+              <div className="text-3xl font-bold text-primary mb-1">
+                {((1 - anomalies.length / Math.max(data.length, 1)) * 100).toFixed(2)}%
+              </div>
+              <div className="text-sm text-muted-foreground">Normal Readings</div>
+            </div>
             
-            <div className="max-h-48 overflow-y-auto space-y-2">
-              {anomalies.slice(-5).map((anomaly, index) => (
-                <div 
-                  key={index}
-                  className={`p-3 rounded-lg border ${getSeverityColor(anomaly.severity)}`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-mono">{anomaly.time}</span>
-                    <Badge variant="outline" className="text-xs">
-                      Score: {anomaly.anomalyScore.toFixed(2)}
-                    </Badge>
-                  </div>
-                  <p className="text-sm font-medium">
-                    Value: {anomaly.value.toFixed(2)}
-                  </p>
-                  <p className="text-xs mt-1">
-                    {anomaly.recommendation}
+            <div className="text-center p-4 bg-secondary/20 rounded-lg">
+              <div className="text-3xl font-bold text-orange-600 mb-1">
+                {anomalies.filter(a => a.severity === 'critical' || a.severity === 'high').length}
+              </div>
+              <div className="text-sm text-muted-foreground">High Priority</div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <span className="text-sm font-medium">Detection Status</span>
+              <Badge variant={anomalies.length > 0 ? "destructive" : "default"}>
+                {anomalies.length > 0 ? `${anomalies.length} Anomalies` : 'Normal'}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Right side - Scrollable Anomaly Details */}
+          <div className="lg:col-span-3">
+            {anomalies.length > 0 ? (
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  Recent Anomalies ({anomalies.length} total)
+                </h4>
+                
+                <div className="max-h-80 overflow-y-auto space-y-2 pr-2">
+                  {anomalies.slice(-10).reverse().map((anomaly, index) => (
+                    <div 
+                      key={index}
+                      className={`p-3 rounded-lg border ${getSeverityColor(anomaly.severity)}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-mono">{anomaly.time}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {anomaly.severity.toUpperCase()}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            Score: {anomaly.anomalyScore.toFixed(2)}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium mb-1">
+                        Value: {anomaly.value.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {anomaly.recommendation}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-80 text-center">
+                <div className="space-y-2">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                  <h4 className="text-lg font-medium">All Clear</h4>
+                  <p className="text-sm text-muted-foreground">
+                    No anomalies detected in the current dataset.
+                    The system is operating within normal parameters.
                   </p>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary">
-              {((1 - anomalies.length / Math.max(data.length, 1)) * 100).toFixed(2)}%
-            </div>
-            <div className="text-xs text-muted-foreground">Normal Readings</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">
-              {anomalies.filter(a => a.severity === 'critical' || a.severity === 'high').length}
-            </div>
-            <div className="text-xs text-muted-foreground">High Priority</div>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
