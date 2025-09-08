@@ -80,20 +80,22 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
   const responsiveConfig = useMemo(() => {
     const isMobile = windowSize.width < 640;
     const isTablet = windowSize.width >= 640 && windowSize.width < 1024;
+    const isDesktop = windowSize.width >= 1024;
     
     return {
       margins: {
-        top: 20,
-        right: isMobile ? 15 : isTablet ? 25 : 35,
-        left: isMobile ? 25 : 35,
-        bottom: isMobile ? 50 : isTablet ? 60 : 70
+        top: isMobile ? 40 : isTablet ? 50 : 60,
+        right: isMobile ? 20 : isTablet ? 30 : 40,
+        left: isMobile ? 30 : isTablet ? 40 : 50,
+        bottom: isMobile ? 60 : isTablet ? 80 : 100
       },
-      fontSize: isMobile ? 10 : 12,
-      tickHeight: isMobile ? 45 : 55,
+      fontSize: isMobile ? 10 : isTablet ? 11 : 12,
+      tickHeight: isMobile ? 50 : isTablet ? 65 : 80,
       xAxisInterval: isMobile ? ('preserveStartEnd' as const) : (0 as const),
       xAxisAngle: isMobile ? -45 : 0,
       textAnchor: isMobile ? ('end' as const) : ('middle' as const),
-      precision: isMobile ? 1 : 2
+      precision: isMobile ? 1 : 2,
+      labelOffset: isDesktop ? 15 : isTablet ? 10 : 5
     };
   }, [windowSize.width]);
 
@@ -347,13 +349,17 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                     stroke={threshold.color}
                     strokeDasharray="5 5"
                     label={{
-                      value: `${threshold.value.toFixed(2)}${config.unit}`,
-                      position: "insideTopLeft",
+                      value: `${threshold.label}: ${threshold.value.toFixed(2)}${config.unit}`,
+                      position: "insideTopRight",
+                      offset: responsiveConfig.labelOffset,
                       style: { 
-                        textAnchor: 'start',
-                        fontSize: '12px',
+                        textAnchor: 'end',
+                        fontSize: `${responsiveConfig.fontSize}px`,
                         fill: threshold.color,
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        padding: '2px 4px',
+                        borderRadius: '3px'
                       }
                     }}
                   />
