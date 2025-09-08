@@ -524,8 +524,23 @@ const SensorDetail = () => {
         ) : (
           <Card className="overflow-hidden">
             <CardHeader>
-              <CardTitle>{sensorType} Data - Last 24 Hours</CardTitle>
-              <CardDescription>Historical readings and trends ({chartData.length} data points)</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>{currentSensor.name} - {getTimeRangeLabel()}</CardTitle>
+                  <CardDescription>Historical readings and trends ({chartData.length} data points)</CardDescription>
+                </div>
+                <Select value={timeRange} onValueChange={setTimeRange}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 Hour</SelectItem>
+                    <SelectItem value="24">24 Hours</SelectItem>
+                    <SelectItem value="168">1 Week</SelectItem>
+                    <SelectItem value="720">1 Month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent className="p-2 sm:p-6">
               <div className="w-full overflow-hidden">
@@ -620,12 +635,11 @@ const SensorDetail = () => {
 
         {/* Advanced Analytics for All Enhanced Sensors */}
         {['temperature', 'humidity', 'pressure', 'gas', 'pm1', 'pm25', 'pm10'].includes(sensorType) && (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6">
             <AnomalyDetection 
               data={chartData}
               sensorName={currentSensor.name}
             />
-            
           </div>
         )}
 
