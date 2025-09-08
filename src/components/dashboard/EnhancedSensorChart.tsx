@@ -271,7 +271,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
         <div className="h-[400px] p-4">
           <ChartContainer config={chartConfig}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 30, right: 80, left: 40, bottom: 60 }}>
+              <LineChart data={data} margin={{ top: 30, right: 80, left: 40, bottom: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="time" 
