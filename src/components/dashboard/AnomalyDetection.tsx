@@ -73,10 +73,14 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'text-destructive bg-destructive/10 border-destructive/20 dark:text-destructive-foreground dark:bg-destructive/20 dark:border-destructive/30';
-      case 'high': return 'text-warning bg-warning/10 border-warning/20 dark:text-warning-foreground dark:bg-warning/20 dark:border-warning/30';
-      case 'medium': return 'text-yellow-600 bg-yellow-500/10 border-yellow-500/20 dark:text-yellow-400 dark:bg-yellow-400/20 dark:border-yellow-400/30';
-      default: return 'text-info bg-info/10 border-info/20 dark:text-info-foreground dark:bg-info/20 dark:border-info/30';
+      case 'critical': 
+        return 'text-white bg-red-600 border-red-700 dark:text-white dark:bg-red-700 dark:border-red-800';
+      case 'high': 
+        return 'text-white bg-orange-600 border-orange-700 dark:text-white dark:bg-orange-700 dark:border-orange-800';
+      case 'medium': 
+        return 'text-black bg-yellow-400 border-yellow-500 dark:text-black dark:bg-yellow-500 dark:border-yellow-600';
+      default: 
+        return 'text-white bg-blue-600 border-blue-700 dark:text-white dark:bg-blue-700 dark:border-blue-800';
     }
   };
 
@@ -136,10 +140,30 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-mono">{anomaly.time}</span>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge 
+                            className={`text-xs font-medium ${
+                              anomaly.severity === 'critical' 
+                                ? 'bg-red-800 text-white border-red-900' 
+                                : anomaly.severity === 'high'
+                                ? 'bg-orange-800 text-white border-orange-900'
+                                : anomaly.severity === 'medium'
+                                ? 'bg-yellow-600 text-black border-yellow-700'
+                                : 'bg-blue-800 text-white border-blue-900'
+                            }`}
+                          >
                             {anomaly.severity.toUpperCase()}
                           </Badge>
-                          <Badge variant="outline" className="text-xs">
+                          <Badge 
+                            className={`text-xs font-medium ${
+                              anomaly.severity === 'critical' 
+                                ? 'bg-red-800 text-white border-red-900' 
+                                : anomaly.severity === 'high'
+                                ? 'bg-orange-800 text-white border-orange-900'
+                                : anomaly.severity === 'medium'
+                                ? 'bg-yellow-600 text-black border-yellow-700'
+                                : 'bg-blue-800 text-white border-blue-900'
+                            }`}
+                          >
                             Score: {anomaly.anomalyScore.toFixed(2)}
                           </Badge>
                         </div>
