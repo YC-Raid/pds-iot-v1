@@ -771,8 +771,8 @@ const SensorDetail = () => {
           </div>
         )}
 
-        {/* Current Values - Only for sensors that don't use EnhancedSensorChart */}
-        {chartData.length > 0 && sensorType !== 'temperature' && (
+        {/* Current Values - Only for acceleration/rotation sensors that don't use EnhancedSensorChart */}
+        {chartData.length > 0 && ['acceleration', 'rotation'].includes(sensorType) && (
           <Card>
             <CardHeader>
               <CardTitle>Current Readings</CardTitle>
