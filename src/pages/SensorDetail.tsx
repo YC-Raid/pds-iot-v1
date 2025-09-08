@@ -486,22 +486,22 @@ const SensorDetail = () => {
           </CardHeader>
         </Card>
 
-        {/* Enhanced Chart for Temperature */}
-        {sensorType === 'temperature' ? (
+        {/* Enhanced Chart for All Supported Sensors */}
+        {['temperature', 'humidity', 'pressure', 'gas', 'pm1', 'pm25', 'pm10'].includes(sensorType) ? (
           <div className="w-full overflow-hidden">
             <div className="max-w-full">
               <EnhancedSensorChart
                 data={chartData}
                 config={{
-                  name: "Temperature",
-                  unit: "°C", 
-                  icon: Thermometer,
-                  description: `Environmental temperature monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(2)}°C, Std: ${dynamicConfig.statistics.std.toFixed(2)}°C`,
+                  name: currentSensor.name.replace(' Sensor', '').replace(' Monitor', ''),
+                  unit: currentSensor.unit, 
+                  icon: currentSensor.icon,
+                  description: `Environmental ${sensorType} monitoring - Mean: ${dynamicConfig.statistics.mean.toFixed(2)}${currentSensor.unit}, Std: ${dynamicConfig.statistics.std.toFixed(2)}${currentSensor.unit}`,
                   optimalRange: dynamicConfig.optimalRange,
                   thresholds: dynamicConfig.thresholds,
                   yAxisRange: dynamicConfig.yAxisRange
                 }}
-                title={`Temperature Monitoring - ${getTimeRangeLabel()} Analysis`}
+                title={`${currentSensor.name} - ${getTimeRangeLabel()} Analysis`}
                 timeRange={getTimeRangeLabel()}
                 isLoading={isLoading}
                 currentReading={currentReading}
