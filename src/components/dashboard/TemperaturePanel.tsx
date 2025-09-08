@@ -42,13 +42,35 @@ const TemperaturePanel = () => {
   // Fetch current reading independently (latest sensor reading regardless of timeframe)
   useEffect(() => {
     const loadCurrentReading = async () => {
-      // Get the most recent reading (limit to 1 hour to get latest data)
-      const latestData = await getSensorReadingsByTimeRange(1);
-      const latestReading = latestData
-        .filter(reading => reading.temperature !== null)
-        .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())[0];
-      
-      setCurrentReading(latestReading?.temperature || null);
+      try {
+        // Get recent readings to find the absolute latest
+        const latestData = await getSensorReadingsByTimeRange(24);
+        console.log("🔍 Raw data for current reading:", latestData.length);
+        
+        if (latestData.length > 0) {
+          // Filter and sort to get the most recent temperature reading
+          const temperatureReadings = latestData
+            .filter(reading => reading.temperature !== null && reading.temperature !== undefined)
+            .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
+          
+          console.log("🔍 Filtered temperature readings:", temperatureReadings.length);
+          
+          if (temperatureReadings.length > 0) {
+            const currentTemp = temperatureReadings[0].temperature;
+            console.log("🔍 Setting current reading to:", currentTemp);
+            setCurrentReading(currentTemp);
+          } else {
+            console.log("🔍 No valid temperature readings found");
+            setCurrentReading(null);
+          }
+        } else {
+          console.log("🔍 No data returned from getSensorReadingsByTimeRange");
+          setCurrentReading(null);
+        }
+      } catch (error) {
+        console.error("❌ Error loading current reading:", error);
+        setCurrentReading(null);
+      }
     };
 
     if (!isLoading) {
