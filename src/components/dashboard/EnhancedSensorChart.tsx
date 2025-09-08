@@ -12,7 +12,7 @@ import {
   FileText,
   Calendar
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -58,6 +58,45 @@ interface EnhancedSensorChartProps {
 }
 
 const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRangeSelector }: EnhancedSensorChartProps) => {
+  // Window size hook for responsive design
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    // Set initial size
+    handleResize();
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Responsive chart configuration
+  const responsiveConfig = useMemo(() => {
+    const isMobile = windowSize.width < 640;
+    const isTablet = windowSize.width >= 640 && windowSize.width < 1024;
+    
+    return {
+      margins: {
+        top: 20,
+        right: isMobile ? 15 : isTablet ? 25 : 35,
+        left: isMobile ? 25 : 35,
+        bottom: isMobile ? 50 : isTablet ? 60 : 70
+      },
+      fontSize: isMobile ? 10 : 12,
+      tickHeight: isMobile ? 45 : 55,
+      xAxisInterval: isMobile ? ('preserveStartEnd' as const) : (0 as const),
+      xAxisAngle: isMobile ? -45 : 0,
+      textAnchor: isMobile ? ('end' as const) : ('middle' as const),
+      precision: isMobile ? 1 : 2
+    };
+  }, [windowSize.width]);
+
   // Extract critical thresholds for consistent use
   const criticalThresholds = useMemo(() => {
     return config.thresholds.filter(t => t.type === 'critical');
@@ -268,21 +307,32 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
         </div>
 
         {/* Chart with Thresholds */}
-        <div className="h-[400px] p-4">
+        <div className="h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] p-2 sm:p-4">
           <ChartContainer config={chartConfig}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 30, right: 80, left: 40, bottom: 80 }}>
+              <LineChart 
+                data={data} 
+                margin={responsiveConfig.margins}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="time" 
-                  tick={{ fontSize: 12 }}
-                  height={60}
-                  interval={0}
+                  tick={{ fontSize: responsiveConfig.fontSize }}
+                  height={responsiveConfig.tickHeight}
+                  interval={responsiveConfig.xAxisInterval}
+                  angle={responsiveConfig.xAxisAngle}
+                  textAnchor={responsiveConfig.textAnchor}
                 />
                 <YAxis 
-                  label={{ value: config.unit, angle: -90, position: 'insideLeft' }}
+                  label={{ 
+                    value: config.unit, 
+                    angle: -90, 
+                    position: 'insideLeft',
+                    style: { fontSize: responsiveConfig.fontSize }
+                  }}
                   domain={config.yAxisRange ? [config.yAxisRange.min, config.yAxisRange.max] : ['auto', 'auto']}
-                  tickFormatter={(value) => value.toFixed(2)}
+                  tickFormatter={(value) => value.toFixed(responsiveConfig.precision)}
+                  tick={{ fontSize: responsiveConfig.fontSize }}
                 />
                 <ChartTooltip 
                   content={<ChartTooltipContent formatter={(value) => [typeof value === 'number' ? value.toFixed(2) : value, '']} />}
