@@ -298,7 +298,9 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
               <h4 className="font-medium">Current Reading</h4>
             </div>
             <div className="text-2xl font-bold text-primary">
-              {currentReading?.toFixed(2) || 'No data'}{currentReading ? config.unit : ''}
+              {currentReading !== null && currentReading !== undefined 
+                ? `${currentReading.toFixed(2)}${config.unit}` 
+                : 'No data'}
             </div>
             <Badge 
               variant={trendAnalysis.isAnomalous ? "destructive" : "default"}
