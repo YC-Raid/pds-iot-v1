@@ -158,6 +158,37 @@ export function useSensorData() {
       return [];
     }
   }, []);
+ 
+  const getLatestBatchAverageTemperature = useCallback(async (): Promise<number | null> => {
+    try {
+      // Fetch recent rows to determine the latest processed batch
+      const { data, error } = await supabase
+        .from('processed_sensor_readings')
+        .select('temperature, processed_at')
+        .not('temperature', 'is', null)
+        .order('processed_at', { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+      if (!data || data.length === 0) return null;
+
+      const latestBatchTs = data[0].processed_at;
+      const latestBatch = data.filter((r) => r.processed_at === latestBatchTs);
+
+      const temps = latestBatch
+        .map((r) => r.temperature as number)
+        .filter((v) => typeof v === 'number');
+
+      if (temps.length === 0) return null;
+
+      const avg = temps.reduce((sum, v) => sum + v, 0) / temps.length;
+      console.log('📌 Latest batch processed_at:', latestBatchTs, 'count:', temps.length, 'avg:', avg);
+      return avg;
+    } catch (err) {
+      console.error('Failed to compute latest batch average temperature:', err);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -261,5 +292,6 @@ export function useSensorData() {
     getSensorReadingsByTimeRange,
     getAnomalousSensorReadings,
     getAggregatedSensorData,
+    getLatestBatchAverageTemperature,
   };
 }

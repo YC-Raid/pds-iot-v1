@@ -6,7 +6,7 @@ import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const TemperaturePanel = () => {
-  const { getSensorReadingsByTimeRange, getAggregatedSensorData, isLoading } = useSensorData();
+  const { getSensorReadingsByTimeRange, getAggregatedSensorData, getLatestBatchAverageTemperature, isLoading } = useSensorData();
   const [temperatureData, setTemperatureData] = useState<DataPoint[]>([]);
   const [currentReading, setCurrentReading] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState('24');
@@ -39,44 +39,33 @@ const TemperaturePanel = () => {
     yAxisRange: dynamicConfig.yAxisRange
   };
 
-  // Fetch current reading independently (latest sensor reading regardless of timeframe)
+  // Fetch current reading as the average of the latest RDS sync batch (same processed_at)
   useEffect(() => {
+    let isActive = true;
+    let interval: any;
+
     const loadCurrentReading = async () => {
       try {
-        // Get recent readings to find the absolute latest
-        const latestData = await getSensorReadingsByTimeRange(24);
-        console.log("🔍 Raw data for current reading:", latestData.length);
-        
-        if (latestData.length > 0) {
-          // Filter and sort to get the most recent temperature reading
-          const temperatureReadings = latestData
-            .filter(reading => reading.temperature !== null && reading.temperature !== undefined)
-            .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
-          
-          console.log("🔍 Filtered temperature readings:", temperatureReadings.length);
-          
-          if (temperatureReadings.length > 0) {
-            const currentTemp = temperatureReadings[0].temperature;
-            console.log("🔍 Setting current reading to:", currentTemp);
-            setCurrentReading(currentTemp);
-          } else {
-            console.log("🔍 No valid temperature readings found");
-            setCurrentReading(null);
-          }
-        } else {
-          console.log("🔍 No data returned from getSensorReadingsByTimeRange");
-          setCurrentReading(null);
-        }
+        const avg = await getLatestBatchAverageTemperature();
+        if (!isActive) return;
+        setCurrentReading(avg);
       } catch (error) {
         console.error("❌ Error loading current reading:", error);
-        setCurrentReading(null);
+        if (isActive) setCurrentReading(null);
       }
     };
 
     if (!isLoading) {
       loadCurrentReading();
+      // Refresh periodically to catch new sync batches (RDS -> Supabase ~5min)
+      interval = setInterval(loadCurrentReading, 60 * 1000);
     }
-  }, [getSensorReadingsByTimeRange, isLoading]);
+
+    return () => {
+      isActive = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [getLatestBatchAverageTemperature, isLoading]);
 
   useEffect(() => {
     const loadTemperatureData = async () => {
