@@ -9,7 +9,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { CustomTooltip } from "@/components/ui/custom-chart-tooltip";
 import { EnhancedSensorChart, SensorConfig, DataPoint } from "@/components/dashboard/EnhancedSensorChart";
 import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
-import PredictiveAnalytics from "@/components/dashboard/PredictiveAnalytics";
+
 import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 
 const SensorDetail = () => {
@@ -600,12 +600,6 @@ const SensorDetail = () => {
               sensorName="Temperature"
             />
             
-            <PredictiveAnalytics
-              data={chartData}
-              sensorName="Temperature"
-              optimalRange={{ min: 18, max: 25 }}
-              criticalThresholds={{ max: 30, min: 15 }}
-            />
           </div>
         )}
 
