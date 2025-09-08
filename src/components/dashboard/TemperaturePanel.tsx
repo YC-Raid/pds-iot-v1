@@ -8,8 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const TemperaturePanel = () => {
   const { getSensorReadingsByTimeRange, getAggregatedSensorData, sensorReadings, isLoading } = useSensorData();
   const [temperatureData, setTemperatureData] = useState<DataPoint[]>([]);
-  // Get current reading from the same source as main dashboard
-  const currentReading = sensorReadings[0]?.temperature || null;
+  
+  // Get current reading with proper null checking - same logic as SensorOverview
+  const latestReading = sensorReadings[0];
+  const currentReading = latestReading?.temperature ?? null;
   const [timeRange, setTimeRange] = useState('24');
 
   // Calculate dynamic thresholds based on collected data
