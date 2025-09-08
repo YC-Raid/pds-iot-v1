@@ -6,9 +6,10 @@ import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const TemperaturePanel = () => {
-  const { getSensorReadingsByTimeRange, getAggregatedSensorData, getLatestBatchAverageTemperature, isLoading } = useSensorData();
+  const { getSensorReadingsByTimeRange, getAggregatedSensorData, sensorReadings, isLoading } = useSensorData();
   const [temperatureData, setTemperatureData] = useState<DataPoint[]>([]);
-  const [currentReading, setCurrentReading] = useState<number | null>(null);
+  // Get current reading from the same source as main dashboard
+  const currentReading = sensorReadings[0]?.temperature || null;
   const [timeRange, setTimeRange] = useState('24');
 
   // Calculate dynamic thresholds based on collected data
@@ -39,39 +40,7 @@ const TemperaturePanel = () => {
     yAxisRange: dynamicConfig.yAxisRange
   };
 
-  // Fetch current reading as the average of the latest RDS sync batch (same processed_at)
-  useEffect(() => {
-    let isActive = true;
-    let interval: any;
-
-    const loadCurrentReading = async () => {
-      console.log('🔄 Loading current reading...');
-      try {
-        const avg = await getLatestBatchAverageTemperature();
-        console.log('📊 Received average from function:', avg);
-        if (!isActive) return;
-        setCurrentReading(avg);
-        console.log('✅ Set current reading to:', avg);
-      } catch (error) {
-        console.error("❌ Error loading current reading:", error);
-        if (isActive) setCurrentReading(null);
-      }
-    };
-
-    // Always load current reading, regardless of isLoading state
-    loadCurrentReading();
-    
-    // Refresh periodically to catch new sync batches (RDS -> Supabase ~5min)
-    interval = setInterval(() => {
-      console.log('🔄 Periodic refresh of current reading...');
-      loadCurrentReading();
-    }, 30 * 1000); // Check every 30 seconds
-
-    return () => {
-      isActive = false;
-      if (interval) clearInterval(interval);
-    };
-  }, [getLatestBatchAverageTemperature]); // Removed isLoading dependency
+  // Current reading comes directly from sensorReadings - no need for separate fetching
 
   useEffect(() => {
     const loadTemperatureData = async () => {
