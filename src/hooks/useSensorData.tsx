@@ -161,28 +161,60 @@ export function useSensorData() {
  
   const getLatestBatchAverageTemperature = useCallback(async (): Promise<number | null> => {
     try {
-      // Fetch recent rows to determine the latest processed batch
-      const { data, error } = await supabase
+      // Step 1: Get the latest processed_at from non-null temperature rows
+      const { data: latestRow, error: latestErr } = await supabase
         .from('processed_sensor_readings')
-        .select('temperature, processed_at')
+        .select('processed_at')
         .not('temperature', 'is', null)
         .order('processed_at', { ascending: false })
-        .limit(200);
+        .limit(1)
+        .maybeSingle();
 
-      if (error) throw error;
-      if (!data || data.length === 0) return null;
+      if (latestErr) throw latestErr;
+      if (!latestRow?.processed_at) return null;
 
-      const latestBatchTs = data[0].processed_at;
-      const latestBatch = data.filter((r) => r.processed_at === latestBatchTs);
+      const latestTs = latestRow.processed_at as string;
 
-      const temps = latestBatch
+      // Step 2: Fetch all rows from that batch (exact processed_at match)
+      const { data: batchEq, error: eqErr } = await supabase
+        .from('processed_sensor_readings')
+        .select('temperature, processed_at')
+        .eq('processed_at', latestTs)
+        .not('temperature', 'is', null)
+        .limit(1000);
+
+      if (eqErr) throw eqErr;
+
+      let temps: number[] = (batchEq || [])
         .map((r) => r.temperature as number)
         .filter((v) => typeof v === 'number');
+
+      // Step 3 (fallback): If too few records (precision mismatch), use a ±2 min window around latestTs
+      if (temps.length < 5) {
+        const end = new Date(latestTs);
+        const start = new Date(latestTs);
+        start.setMinutes(start.getMinutes() - 2);
+        end.setMinutes(end.getMinutes() + 2);
+
+        const { data: batchWindow, error: windowErr } = await supabase
+          .from('processed_sensor_readings')
+          .select('temperature, processed_at')
+          .not('temperature', 'is', null)
+          .gte('processed_at', start.toISOString())
+          .lte('processed_at', end.toISOString())
+          .order('processed_at', { ascending: false })
+          .limit(1000);
+
+        if (windowErr) throw windowErr;
+        temps = (batchWindow || [])
+          .map((r) => r.temperature as number)
+          .filter((v) => typeof v === 'number');
+      }
 
       if (temps.length === 0) return null;
 
       const avg = temps.reduce((sum, v) => sum + v, 0) / temps.length;
-      console.log('📌 Latest batch processed_at:', latestBatchTs, 'count:', temps.length, 'avg:', avg);
+      console.log('📌 Latest batch avg temp:', avg, 'count:', temps.length, 'latest processed_at:', latestTs);
       return avg;
     } catch (err) {
       console.error('Failed to compute latest batch average temperature:', err);
