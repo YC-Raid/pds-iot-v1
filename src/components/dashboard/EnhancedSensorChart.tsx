@@ -268,10 +268,10 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
         </div>
 
         {/* Chart with Thresholds */}
-        <div className="h-[400px] px-4">
+        <div className="h-[400px] p-4">
           <ChartContainer config={chartConfig}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <LineChart data={data} margin={{ top: 30, right: 80, left: 40, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="time" 
