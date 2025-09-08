@@ -11,7 +11,15 @@ const TemperaturePanel = () => {
   
   // Get current reading with proper null checking - same logic as SensorOverview
   const latestReading = sensorReadings[0];
-  const currentReading = latestReading?.temperature ?? null;
+  const currentReading = latestReading?.temperature ?? undefined;
+  
+  // Debug logging
+  console.log('🌡️ TemperaturePanel Debug:', {
+    sensorReadingsLength: sensorReadings.length,
+    latestReading: latestReading,
+    currentReading: currentReading,
+    temperature: latestReading?.temperature
+  });
   const [timeRange, setTimeRange] = useState('24');
 
   // Calculate dynamic thresholds based on collected data
