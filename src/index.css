@@ -46,9 +46,13 @@
 
     --chart-1: 221 64% 39%; /* Primary blue for temperature */
     --chart-2: 195 100% 31%; /* Teal for humidity */
-    --chart-3: 123 43% 43%; /* Green for air quality */
-    --chart-4: 42 96% 49%; /* Yellow for additional metrics */
-    --chart-5: 348 83% 62%; /* Red for alerts */
+    --chart-3: 123 43% 43%; /* Green for pressure */
+    --chart-4: 42 96% 49%; /* Yellow for PM2.5 */
+    --chart-5: 348 83% 62%; /* Red for PM1.0 */
+    --chart-6: 263 41% 50%; /* Purple for PM10 */
+    --chart-7: 25 95% 53%; /* Orange for gas resistance */
+    --chart-8: 280 100% 70%; /* Magenta for acceleration */
+    --chart-9: 160 84% 39%; /* Emerald for gyroscope */
 
     --radius: 0.75rem;
 
@@ -105,6 +109,10 @@
     --chart-3: 123 43% 63%; /* Lighter green for dark mode */
     --chart-4: 42 96% 69%; /* Lighter yellow for dark mode */
     --chart-5: 348 83% 72%; /* Lighter red for dark mode */
+    --chart-6: 263 41% 70%; /* Lighter purple for dark mode */
+    --chart-7: 25 95% 73%; /* Lighter orange for dark mode */
+    --chart-8: 280 100% 80%; /* Lighter magenta for dark mode */
+    --chart-9: 160 84% 59%; /* Lighter emerald for dark mode */
 
     --sidebar-background: 210 11% 7%;
     --sidebar-foreground: 210 40% 98%;
