@@ -1,65 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line } from "recharts";
 import { 
-  Wind, 
-  Eye,
-  Cloud,
   AlertTriangle,
-  CheckCircle,
-  TrendingUp,
-  Thermometer,
-  Droplets
+  CheckCircle
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
-import { useEffect, useState } from "react";
 import { SingaporeAQICard } from "./SingaporeAQICard";
 
 const AirQualityPanel = () => {
-  const { sensorReadings, isLoading, getSensorReadingsByTimeRange } = useSensorData();
-  const [airQualityData, setAirQualityData] = useState([]);
-  const [environmentalData, setEnvironmentalData] = useState([]);
-
-  useEffect(() => {
-    const loadAirQualityData = async () => {
-      const data = await getSensorReadingsByTimeRange(24);
-      
-      // Process PM sensor data
-      const pmData = data.map(reading => ({
-        time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false 
-        }),
-        pm1_0: reading.pm1_0 || 0,
-        pm2_5: reading.pm2_5 || 0,
-        pm10: reading.pm10 || 0,
-        total_pm: (reading.pm1_0 || 0) + (reading.pm2_5 || 0) + (reading.pm10 || 0)
-      })).slice(-20);
-      
-      // Process environmental factors affecting air quality
-      const envData = data.map(reading => ({
-        time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false 
-        }),
-        temperature: reading.temperature || 0,
-        humidity: reading.humidity || 0,
-        gas_resistance: reading.gas_resistance || 0,
-        air_quality_index: calculateAQI(reading.pm2_5 || 0)
-      })).slice(-20);
-
-      setAirQualityData(pmData);
-      setEnvironmentalData(envData);
-    };
-
-    if (!isLoading) {
-      loadAirQualityData();
-    }
-  }, [getSensorReadingsByTimeRange, isLoading]);
+  const { sensorReadings, isLoading } = useSensorData();
 
   // Calculate Air Quality Index from PM2.5
   const calculateAQI = (pm25: number) => {
@@ -83,18 +31,10 @@ const AirQualityPanel = () => {
   const currentAQI = latestReading ? calculateAQI(latestReading.pm2_5 || 0) : 0;
   const aqiInfo = getAQILevel(currentAQI);
 
-  const chartConfig = {
-    pm1_0: { label: "PM1.0", color: "hsl(var(--chart-1))" },
-    pm2_5: { label: "PM2.5", color: "hsl(var(--chart-2))" },
-    pm10: { label: "PM10", color: "hsl(var(--chart-3))" },
-    temperature: { label: "Temperature", color: "hsl(var(--chart-4))" },
-    humidity: { label: "Humidity", color: "hsl(var(--chart-5))" },
-  };
-
   if (isLoading) {
     return (
       <div className="space-y-6">
-        {[...Array(3)].map((_, i) => (
+        {[...Array(2)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardHeader>
               <div className="h-6 w-32 bg-muted rounded"></div>
@@ -124,35 +64,6 @@ const AirQualityPanel = () => {
           <SingaporeAQICard />
         </CardContent>
       </Card>
-
-      {/* Particulate Matter Trends */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wind className="h-5 w-5" />
-            Particulate Matter Levels - 24 Hour Trend
-          </CardTitle>
-          <CardDescription>
-            Real-time monitoring of PM1.0, PM2.5, and PM10 concentrations
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={airQualityData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="pm1_0" fill="hsl(var(--chart-1))" name="PM1.0" />
-                <Bar dataKey="pm2_5" fill="hsl(var(--chart-2))" name="PM2.5" />
-                <Bar dataKey="pm10" fill="hsl(var(--chart-3))" name="PM10" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
-
 
       {/* Air Quality Recommendations */}
       <Card>
