@@ -55,9 +55,10 @@ interface EnhancedSensorChartProps {
   timeRange: string;
   isLoading?: boolean;
   timeRangeSelector?: React.ReactNode;
+  currentReading?: number | null;
 }
 
-const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRangeSelector }: EnhancedSensorChartProps) => {
+const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRangeSelector, currentReading }: EnhancedSensorChartProps) => {
   // Window size hook for responsive design
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   
@@ -297,13 +298,13 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
               <h4 className="font-medium">Current Reading</h4>
             </div>
             <div className="text-2xl font-bold text-primary">
-              {data[data.length - 1]?.value.toFixed(2) || 0}{config.unit}
+              {currentReading?.toFixed(2) || 'No data'}{currentReading ? config.unit : ''}
             </div>
             <Badge 
               variant={trendAnalysis.isAnomalous ? "destructive" : "default"}
               className="mt-1"
             >
-              {getThresholdStatus(data[data.length - 1]?.value || 0)}
+              {currentReading ? getThresholdStatus(currentReading) : 'NO DATA'}
             </Badge>
           </div>
         </div>

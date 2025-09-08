@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const TemperaturePanel = () => {
   const { getSensorReadingsByTimeRange, getAggregatedSensorData, isLoading } = useSensorData();
   const [temperatureData, setTemperatureData] = useState<DataPoint[]>([]);
+  const [currentReading, setCurrentReading] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState('24');
 
   // Calculate dynamic thresholds based on collected data
@@ -37,6 +38,23 @@ const TemperaturePanel = () => {
     thresholds: dynamicConfig.thresholds,
     yAxisRange: dynamicConfig.yAxisRange
   };
+
+  // Fetch current reading independently (latest sensor reading regardless of timeframe)
+  useEffect(() => {
+    const loadCurrentReading = async () => {
+      // Get the most recent reading (limit to 1 hour to get latest data)
+      const latestData = await getSensorReadingsByTimeRange(1);
+      const latestReading = latestData
+        .filter(reading => reading.temperature !== null)
+        .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())[0];
+      
+      setCurrentReading(latestReading?.temperature || null);
+    };
+
+    if (!isLoading) {
+      loadCurrentReading();
+    }
+  }, [getSensorReadingsByTimeRange, isLoading]);
 
   useEffect(() => {
     const loadTemperatureData = async () => {
@@ -228,6 +246,7 @@ const TemperaturePanel = () => {
         title={`Temperature Monitoring - ${getTimeRangeLabel()} Analysis`}
         timeRange={getTimeRangeLabel()}
         isLoading={isLoading}
+        currentReading={currentReading}
         timeRangeSelector={
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-32">
