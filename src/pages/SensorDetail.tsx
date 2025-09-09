@@ -384,14 +384,38 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-              // 24 hours: Group by date + hour with Singapore timezone data
+              // 24 hours: Ensure complete 24-hour timeline with Singapore timezone data
               const hourGroups = new Map();
               
               console.log(`🔍 Processing ${data.length} readings for ${dataKey} over 24 hours`);
               console.log('Sample data:', data.slice(0, 3));
               
+              // Get the current date in Singapore timezone
+              const now = new Date();
+              const singaporeNow = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+              
+              // Create all 24 hours for the current day
+              for (let h = 0; h < 24; h++) {
+                const hourDate = new Date(singaporeNow);
+                hourDate.setHours(h, 0, 0, 0);
+                
+                const dateStr = hourDate.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric' 
+                });
+                const hourStr = hourDate.getHours().toString().padStart(2, '0') + ':00';
+                const timeKey = `${dateStr} ${hourStr}`;
+                
+                hourGroups.set(timeKey, { 
+                  values: [], 
+                  timestamp: hourDate.toISOString(), 
+                  sortKey: hourDate.getTime(),
+                  hour: h 
+                });
+              }
+              
+              // Fill in actual data
               data.forEach(reading => {
-                // recorded_at is already Singapore time, use it directly
                 const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
                 const dateStr = singaporeDate.toLocaleDateString('en-US', { 
                   month: 'short', 
@@ -400,27 +424,33 @@ const SensorDetail = () => {
                 const hourStr = singaporeDate.getHours().toString().padStart(2, '0') + ':00';
                 const timeKey = `${dateStr} ${hourStr}`;
                 
-                if (!hourGroups.has(timeKey)) {
-                  hourGroups.set(timeKey, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp, sortKey: singaporeDate.getTime() });
-                }
-                const group = hourGroups.get(timeKey);
-                const value = Number(reading[dataKey]);
-                // Include ALL values including 0, negative, and null (converted to 0)
-                if (value !== null && !isNaN(value)) {
-                  group.values.push(value);
-                } else {
-                  group.values.push(0); // Handle null/NaN as 0
+                if (hourGroups.has(timeKey)) {
+                  const group = hourGroups.get(timeKey);
+                  const value = Number(reading[dataKey]);
+                  if (value !== null && !isNaN(value)) {
+                    group.values.push(value);
+                  }
                 }
               });
               
               console.log(`📊 Created ${hourGroups.size} hour groups for ${dataKey}`);
               
               formatted = Array.from(hourGroups.entries())
-                .map(([timeLabel, group]) => ({
-                  time: timeLabel,
-                  value: group.values.length > 0 ? (group.values.reduce((sum, val) => sum + val, 0) / group.values.length) : 0,
-                  timestamp: group.timestamp
-                }))
+                .map(([timeLabel, group]) => {
+                  let value = 0;
+                  if (group.values.length > 0) {
+                    value = group.values.reduce((sum, val) => sum + val, 0) / group.values.length;
+                  } else {
+                    // For missing hours, use null to show gaps in the chart
+                    value = null;
+                  }
+                  
+                  return {
+                    time: timeLabel,
+                    value: value,
+                    timestamp: group.timestamp
+                  };
+                })
                 .sort((a, b) => {
                   const aGroup = hourGroups.get(a.time);
                   const bGroup = hourGroups.get(b.time);
@@ -428,7 +458,8 @@ const SensorDetail = () => {
                 });
               
               console.log(`✅ Formatted ${formatted.length} data points for chart`);
-              console.log('Formatted sample:', formatted.slice(0, 3));
+              console.log('Formatted sample:', formatted.slice(0, 6));
+              console.log('Formatted last:', formatted.slice(-3));
               
              } else {
                // Longer periods: use existing logic with downsampling  
