@@ -100,19 +100,25 @@ export function useSensorData() {
 
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
-      // Calculate time range in UTC but know that recorded_at represents Singapore local time
+      // Calculate time range in Singapore time since recorded_at is already Singapore time
       const now = new Date();
-      const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+      // Convert to Singapore time by adding 8 hours offset
+      const singaporeNow = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+      const singaporeStart = new Date(singaporeNow.getTime() - (hours * 60 * 60 * 1000));
+      
+      console.log(`🔍 Fetching ${hours} hours of data`);
+      console.log(`Singapore time range: ${singaporeStart.toISOString()} to ${singaporeNow.toISOString()}`);
       
       const { data, error } = await supabase
         .from('processed_sensor_readings')
         .select('*')
-        .gte('recorded_at', startTime.toISOString())
-        .lte('recorded_at', now.toISOString())
+        .gte('recorded_at', singaporeStart.toISOString())
+        .lte('recorded_at', singaporeNow.toISOString())
         .order('recorded_at', { ascending: true })
         .limit(50000);
 
       if (error) throw error;
+      console.log(`📊 Found ${data?.length || 0} records in Singapore time range`);
       return data || [];
     } catch (err) {
       console.error('Failed to fetch time range data:', err);

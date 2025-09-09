@@ -39,7 +39,8 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
           return;
         }
         
-        console.log('📋 Sample data:', data.slice(0, 2));
+        console.log('📋 Sample raw data:', data.slice(0, 3));
+        console.log('📋 Sample recorded_at:', data.slice(0, 3).map(d => d.recorded_at));
         
         let formattedData = [];
         

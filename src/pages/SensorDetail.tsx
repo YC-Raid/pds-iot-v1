@@ -404,9 +404,13 @@ const SensorDetail = () => {
                   hourGroups.set(timeKey, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp, sortKey: singaporeDate.getTime() });
                 }
                 const group = hourGroups.get(timeKey);
-                const value = Number(reading[dataKey]) || 0;
-                // Include ALL values including 0 and negative values
-                group.values.push(value);
+                const value = Number(reading[dataKey]);
+                // Include ALL values including 0, negative, and null (converted to 0)
+                if (value !== null && !isNaN(value)) {
+                  group.values.push(value);
+                } else {
+                  group.values.push(0); // Handle null/NaN as 0
+                }
               });
               
               console.log(`📊 Created ${hourGroups.size} hour groups for ${dataKey}`);
