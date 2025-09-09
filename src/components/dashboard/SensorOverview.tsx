@@ -94,19 +94,13 @@ const SensorOverview = () => {
           const hourGroups = new Map();
           
           data.forEach((reading: any) => {
-            // Since recorded_at is UTC but represents Singapore sensor time,
-            // treat it as local Singapore time for grouping
+            // recorded_at is already Singapore time, use it directly
             const singaporeDate = new Date(reading.recorded_at);
             const dateStr = singaporeDate.toLocaleDateString('en-US', { 
-              timeZone: 'Asia/Singapore',
               month: 'short', 
               day: 'numeric' 
             });
-            const hourStr = singaporeDate.toLocaleString('en-US', {
-              timeZone: 'Asia/Singapore',
-              hour: '2-digit',
-              hour12: false
-            }) + ':00';
+            const hourStr = singaporeDate.getHours().toString().padStart(2, '0') + ':00';
             const timeLabel = `${dateStr} ${hourStr}`;
             
             if (!hourGroups.has(timeLabel)) {
@@ -153,10 +147,9 @@ const SensorOverview = () => {
         const dayGroups = new Map();
         
         data.forEach((reading: any) => {
-          // Convert recorded_at to Singapore timezone for display
+          // recorded_at is already Singapore time, use it directly
           const singaporeDate = new Date(reading.recorded_at);
           const singaporeTime = singaporeDate.toLocaleDateString('en-US', {
-            timeZone: 'Asia/Singapore',
             weekday: 'short',
             month: 'short', 
             day: 'numeric'

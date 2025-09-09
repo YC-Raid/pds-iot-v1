@@ -388,18 +388,13 @@ const SensorDetail = () => {
               const hourGroups = new Map();
               
               data.forEach(reading => {
-                // Convert recorded_at to Singapore timezone for display
+                // recorded_at is already Singapore time, use it directly
                 const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
                 const dateStr = singaporeDate.toLocaleDateString('en-US', { 
-                  timeZone: 'Asia/Singapore',
                   month: 'short', 
                   day: 'numeric' 
                 });
-                const hourStr = singaporeDate.toLocaleString('en-US', {
-                  timeZone: 'Asia/Singapore',
-                  hour: '2-digit',
-                  hour12: false
-                }) + ':00';
+                const hourStr = singaporeDate.getHours().toString().padStart(2, '0') + ':00';
                 const timeKey = `${dateStr} ${hourStr}`;
                 
                 if (!hourGroups.has(timeKey)) {
