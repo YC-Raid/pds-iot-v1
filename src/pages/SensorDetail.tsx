@@ -15,7 +15,7 @@ import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 const SensorDetail = () => {
   const { sensorType } = useParams();
   const navigate = useNavigate();
-  const { getSensorReadingsByTimeRange, getAggregatedSensorData, sensorReadings } = useSensorData();
+  const { getSensorReadingsByTimeRange, getAggregatedSensorData, getRawSensorData24Hours, sensorReadings } = useSensorData();
   const [chartData, setChartData] = useState([]);
   const [timeRange, setTimeRange] = useState('24');
   const [isLoading, setIsLoading] = useState(true);
@@ -108,8 +108,11 @@ const SensorDetail = () => {
         const hours = parseInt(timeRange);
         let data: any[] = [];
 
-        if (hours <= 24) {
-          // Use raw data for 1h/24h views
+        if (hours === 24) {
+          // Use raw sensor_data for 24-hour analysis with Singapore timezone
+          data = await getRawSensorData24Hours();
+        } else if (hours <= 24) {
+          // Use processed data for shorter periods
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
           // 1 week: Use raw data and group by day - same pattern as other timeframes
@@ -384,20 +387,20 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-              // 24 hours: Ensure complete 24-hour timeline with Singapore timezone data
+              // 24 hours: Create hourly intervals from raw sensor_data using Singapore local time
               const hourGroups = new Map();
               
-              console.log(`🔍 Processing ${data.length} readings for ${dataKey} over 24 hours`);
-              console.log('Sample data:', data.slice(0, 3));
+              console.log(`🔍 Processing ${data.length} readings for ${dataKey} over 24 hours from sensor_data`);
+              console.log('Sample raw data:', data.slice(0, 3));
               
-              // Get the current date in Singapore timezone
+              // Get current Singapore time for the past 24 hours
               const now = new Date();
               const singaporeNow = new Date(now.getTime() + (8 * 60 * 60 * 1000));
               
-              // Create all 24 hours for the current day
+              // Create 24 hourly buckets starting from 24 hours ago
               for (let h = 0; h < 24; h++) {
                 const hourDate = new Date(singaporeNow);
-                hourDate.setHours(h, 0, 0, 0);
+                hourDate.setHours(hourDate.getHours() - 24 + h, 0, 0, 0);
                 
                 const dateStr = hourDate.toLocaleDateString('en-US', { 
                   month: 'short', 
@@ -410,13 +413,20 @@ const SensorDetail = () => {
                   values: [], 
                   timestamp: hourDate.toISOString(), 
                   sortKey: hourDate.getTime(),
-                  hour: h 
+                  hour: hourDate.getHours(),
+                  isCurrent: h === 23 // Mark the current hour
                 });
               }
               
-              // Fill in actual data
+              // Process raw sensor_data entries
               data.forEach(reading => {
-                const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                if (!reading.local_date || !reading.local_time || reading[dataKey] == null) return;
+                
+                // Combine local_date and local_time to create Singapore datetime
+                const dateTimeStr = `${reading.local_date}T${reading.local_time}`;
+                const singaporeDate = new Date(dateTimeStr);
+                
+                // Create hour key
                 const dateStr = singaporeDate.toLocaleDateString('en-US', { 
                   month: 'short', 
                   day: 'numeric' 
@@ -427,7 +437,7 @@ const SensorDetail = () => {
                 if (hourGroups.has(timeKey)) {
                   const group = hourGroups.get(timeKey);
                   const value = Number(reading[dataKey]);
-                  if (value !== null && !isNaN(value)) {
+                  if (!isNaN(value)) {
                     group.values.push(value);
                   }
                 }
@@ -435,20 +445,20 @@ const SensorDetail = () => {
               
               console.log(`📊 Created ${hourGroups.size} hour groups for ${dataKey}`);
               
+              // Calculate averages and format for chart
               formatted = Array.from(hourGroups.entries())
                 .map(([timeLabel, group]) => {
-                  let value = 0;
+                  let value = null;
                   if (group.values.length > 0) {
                     value = group.values.reduce((sum, val) => sum + val, 0) / group.values.length;
-                  } else {
-                    // For missing hours, use null to show gaps in the chart
-                    value = null;
                   }
                   
                   return {
                     time: timeLabel,
                     value: value,
-                    timestamp: group.timestamp
+                    timestamp: group.timestamp,
+                    isCurrent: group.isCurrent,
+                    dataCount: group.values.length
                   };
                 })
                 .sort((a, b) => {
@@ -457,9 +467,9 @@ const SensorDetail = () => {
                   return aGroup.sortKey - bGroup.sortKey;
                 });
               
-              console.log(`✅ Formatted ${formatted.length} data points for chart`);
-              console.log('Formatted sample:', formatted.slice(0, 6));
-              console.log('Formatted last:', formatted.slice(-3));
+              console.log(`✅ Formatted ${formatted.length} data points for 24-hour chart`);
+              console.log('First 3 hours:', formatted.slice(0, 3));
+              console.log('Last 3 hours:', formatted.slice(-3));
               
              } else {
                // Longer periods: use existing logic with downsampling  
@@ -575,8 +585,18 @@ const SensorDetail = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>{currentSensor.name} - {getTimeRangeLabel()}</CardTitle>
-                  <CardDescription>Historical readings and trends ({chartData.length} data points)</CardDescription>
+                  <CardTitle>
+                    {timeRange === '24' && sensorType === 'temperature' 
+                      ? `${currentSensor.name} – 24 Hour Analysis`
+                      : `${currentSensor.name} - ${getTimeRangeLabel()}`
+                    }
+                  </CardTitle>
+                  <CardDescription>
+                    {timeRange === '24' && sensorType === 'temperature'
+                      ? "Hourly temperature averages with color-coded threshold alerts"
+                      : `Historical readings and trends (${chartData.length} data points)`
+                    }
+                  </CardDescription>
                 </div>
                 <Select value={timeRange} onValueChange={setTimeRange}>
                   <SelectTrigger className="w-32">
