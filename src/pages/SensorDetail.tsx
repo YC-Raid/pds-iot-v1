@@ -388,20 +388,19 @@ const SensorDetail = () => {
               const hourGroups = new Map();
               
               data.forEach(reading => {
-                // Convert UTC timestamp to Singapore timezone for proper grouping
+                // Convert recorded_at to Singapore timezone for display
                 const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeTime = singaporeDate.toLocaleString('en-US', {
+                const dateStr = singaporeDate.toLocaleDateString('en-US', { 
                   timeZone: 'Asia/Singapore',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false
+                  month: 'short', 
+                  day: 'numeric' 
                 });
-                // Extract just hour part for grouping
-                const hourPart = singaporeTime.split(', ')[1] || singaporeTime.split(' ')[2];
-                const datePart = singaporeTime.split(', ')[0];
-                const timeKey = `${datePart} ${hourPart.split(':')[0]}:00`;
+                const hourStr = singaporeDate.toLocaleString('en-US', {
+                  timeZone: 'Asia/Singapore',
+                  hour: '2-digit',
+                  hour12: false
+                }) + ':00';
+                const timeKey = `${dateStr} ${hourStr}`;
                 
                 if (!hourGroups.has(timeKey)) {
                   hourGroups.set(timeKey, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp, sortKey: singaporeDate.getTime() });

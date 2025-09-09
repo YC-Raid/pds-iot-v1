@@ -94,20 +94,20 @@ const SensorOverview = () => {
           const hourGroups = new Map();
           
           data.forEach((reading: any) => {
-            // processed_sensor_readings.recorded_at is stored in UTC, convert to Singapore time for display
+            // Since recorded_at is UTC but represents Singapore sensor time,
+            // treat it as local Singapore time for grouping
             const singaporeDate = new Date(reading.recorded_at);
-            const singaporeTime = singaporeDate.toLocaleString('en-US', {
+            const dateStr = singaporeDate.toLocaleDateString('en-US', { 
               timeZone: 'Asia/Singapore',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
+              month: 'short', 
+              day: 'numeric' 
             });
-            // Extract just hour part for grouping: "14:00"
-            const hourPart = singaporeTime.split(', ')[1] || singaporeTime.split(' ')[2];
-            const datePart = singaporeTime.split(', ')[0];
-            const timeLabel = `${datePart} ${hourPart.split(':')[0]}:00`;
+            const hourStr = singaporeDate.toLocaleString('en-US', {
+              timeZone: 'Asia/Singapore',
+              hour: '2-digit',
+              hour12: false
+            }) + ':00';
+            const timeLabel = `${dateStr} ${hourStr}`;
             
             if (!hourGroups.has(timeLabel)) {
               hourGroups.set(timeLabel, {
@@ -153,9 +153,9 @@ const SensorOverview = () => {
         const dayGroups = new Map();
         
         data.forEach((reading: any) => {
-          // Convert UTC timestamp to Singapore timezone for proper grouping
+          // Convert recorded_at to Singapore timezone for display
           const singaporeDate = new Date(reading.recorded_at);
-          const singaporeTime = singaporeDate.toLocaleString('en-US', {
+          const singaporeTime = singaporeDate.toLocaleDateString('en-US', {
             timeZone: 'Asia/Singapore',
             weekday: 'short',
             month: 'short', 
