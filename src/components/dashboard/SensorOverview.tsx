@@ -93,6 +93,8 @@ const SensorOverview = () => {
           // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
           const hourGroups = new Map();
           
+          console.log(`🔍 Processing 24h data: ${data.length} records`);
+          
           data.forEach((reading: any) => {
             // processed_sensor_readings.recorded_at is already in Singapore time
             const singaporeDate = new Date(reading.recorded_at);
@@ -117,6 +119,9 @@ const SensorOverview = () => {
             group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
           });
           
+          console.log(`🔍 Created ${hourGroups.size} hour groups`);
+          console.log(`🔍 Hour groups:`, Array.from(hourGroups.keys()).sort());
+          
           // Convert hour groups to chart data - same pattern as 1h
           finalData = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
             time: timeLabel,
@@ -131,11 +136,15 @@ const SensorOverview = () => {
             gyro_magnitude: group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length,
             _ts: new Date(group.timestamp).getTime(),
           })).sort((a, b) => a.time.localeCompare(b.time));
+          
+          console.log(`🔍 Final 24h data: ${finalData.length} hourly points`);
         }
       } else if (hours === 168) {
         // 1 week: Group by day using raw data - same simple pattern as 1h and 24h
         const data = await getSensorReadingsByTimeRange(168);
         const dayGroups = new Map();
+        
+        console.log(`🔍 Processing 1 week data: ${data.length} records`);
         
         data.forEach((reading: any) => {
           const singaporeDate = new Date(reading.recorded_at);
@@ -160,6 +169,9 @@ const SensorOverview = () => {
           group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
         });
         
+        console.log(`🔍 Created ${dayGroups.size} day groups`);
+        console.log(`🔍 Day groups:`, Array.from(dayGroups.keys()).sort());
+        
         finalData = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
           time: timeLabel,
           temperature: group.temperature.length > 0 ? group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length : 0,
@@ -173,6 +185,8 @@ const SensorOverview = () => {
           gyro_magnitude: group.gyro_magnitude.length > 0 ? group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length : 0,
           _ts: new Date(group.timestamp).getTime(),
         })).sort((a, b) => new Date(a.time + ', 2024').getTime() - new Date(b.time + ', 2024').getTime());
+        
+        console.log(`🔍 Final 1 week data: ${finalData.length} daily points`);
         
       } else if (hours === 720) {
         // 1 month: Group by day using raw data - same simple pattern as 1h, 24h, and 1 week

@@ -104,6 +104,8 @@ export function useSensorData() {
       const now = new Date();
       const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
       
+      console.log(`🔍 Fetching ${hours}h data from ${startTime.toISOString()} to ${now.toISOString()}`);
+      
       const { data, error } = await supabase
         .from('processed_sensor_readings')
         .select('*')
@@ -113,6 +115,19 @@ export function useSensorData() {
         .limit(50000);
 
       if (error) throw error;
+      
+      console.log(`🔍 Query returned ${data?.length || 0} records`);
+      if (data && data.length > 0) {
+        const firstRecord = data[0];
+        const lastRecord = data[data.length - 1];
+        console.log(`🔍 First record: ${firstRecord.recorded_at}`);
+        console.log(`🔍 Last record: ${lastRecord.recorded_at}`);
+        
+        // Log time distribution for debugging
+        const timeSpanHours = (new Date(lastRecord.recorded_at).getTime() - new Date(firstRecord.recorded_at).getTime()) / (1000 * 60 * 60);
+        console.log(`🔍 Actual data time span: ${timeSpanHours.toFixed(2)} hours`);
+      }
+      
       return data || [];
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
