@@ -161,6 +161,20 @@ export function useSensorData() {
       if (rawData && rawData.length > 0) {
         console.log(`📈 [DEBUG] Sample raw data:`, rawData.slice(0, 2));
         console.log(`📈 [DEBUG] Last raw data:`, rawData.slice(-2));
+        console.log(`📈 [DEBUG] First record time: ${rawData[0]?.recorded_at}`);
+        console.log(`📈 [DEBUG] Last record time: ${rawData[rawData.length - 1]?.recorded_at}`);
+      }
+
+      // Let's also check what we would get with a broader query
+      const { data: broadData, error: broadError } = await supabase
+        .from('processed_sensor_readings')
+        .select(`recorded_at, ${sensorColumn}`)
+        .not(sensorColumn, 'is', null)
+        .order('recorded_at', { ascending: false })
+        .limit(5);
+
+      if (!broadError && broadData) {
+        console.log(`🔍 [DEBUG] Latest 5 records in DB:`, broadData.map(r => r.recorded_at));
       }
 
       // Group by hour buckets - data is already in Singapore time
