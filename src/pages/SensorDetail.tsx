@@ -115,16 +115,17 @@ const SensorDetail = () => {
           const hourlyData = await getHourlyAveragedData(sensorType);
           console.log(`📊 [DEBUG] Hourly data received:`, hourlyData);
           
-          // Generate full 24-hour range aligned to Asia/Singapore hours  
+          // Generate full 24-hour range: current hour minus 24h to current hour
           const nowUtc = new Date();
           const nowSg = toZonedTime(nowUtc, 'Asia/Singapore');
-          // Use exact current time minus 24 hours (not rounded)
-          const startSg = new Date(nowSg.getTime() - 24 * 60 * 60 * 1000);
+          const endSg = new Date(nowSg);
+          endSg.setMinutes(0, 0, 0); // Round down to current hour
+          const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
 
-          console.log(`⏰ [DEBUG] Time range: ${startSg.toISOString()} to ${nowSg.toISOString()}`);
+          console.log(`⏰ [DEBUG] Time range: ${startSg.toISOString()} to ${endSg.toISOString()}`);
 
           const fullRange: any[] = [];
-          for (let i = 0; i < 24; i++) { // exactly 24 hours
+          for (let i = 0; i <= 24; i++) { // 25 data points: start hour to current hour inclusive
             const bucketDate = new Date(startSg.getTime() + i * 60 * 60 * 1000);
             const hourKey = formatInTimeZone(bucketDate, 'Asia/Singapore', 'yyyy-MM-dd HH:00:00');
             const timeLabel = formatInTimeZone(bucketDate, 'Asia/Singapore', 'd MMM HH:mm');

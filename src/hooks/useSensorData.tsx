@@ -138,13 +138,15 @@ export function useSensorData() {
       const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
       console.log(`📊 [DEBUG] Using sensor column: ${sensorColumn}`);
       
-      // Compute SG time window: from current SG time minus exactly 24h to current SG time  
+      // Compute SG time window: current SG hour minus 24h to current SG hour
       const nowUtc = new Date();
       const nowSg = toZonedTime(nowUtc, 'Asia/Singapore');
-      // Don't round - use exact current time minus 24 hours
-      const startSg = new Date(nowSg.getTime() - 24 * 60 * 60 * 1000);
+      // Round down to current hour, then subtract exactly 24 hours
+      const endSg = new Date(nowSg);
+      endSg.setMinutes(0, 0, 0); // Round to current hour
+      const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
 
-      console.log(`⏰ [DEBUG] SG Time window: ${startSg.toISOString()} to ${nowSg.toISOString()}`);
+      console.log(`⏰ [DEBUG] SG Time window: ${startSg.toISOString()} to ${endSg.toISOString()}`);
 
       // Fetch readings from processed_sensor_readings within 26 hours to be safe, then filter client-side by SG window
       const { data: rawData, error } = await supabase
@@ -165,10 +167,21 @@ export function useSensorData() {
 
       // Group by SG hour buckets
       const hourlyData = new Map<string, { values: number[]; hour_bucket: string }>();
+      let totalProcessed = 0;
+      let withinWindow = 0;
 
       rawData?.forEach((row: any) => {
-        const sgDate = toZonedTime(new Date(row.recorded_at), 'Asia/Singapore');
-        if (sgDate >= startSg && sgDate <= nowSg) {
+        totalProcessed++;
+        const utcDate = new Date(row.recorded_at);
+        const sgDate = toZonedTime(utcDate, 'Asia/Singapore');
+        
+        // Debug first few records
+        if (totalProcessed <= 3) {
+          console.log(`🔍 [DEBUG] Record ${totalProcessed}: UTC=${utcDate.toISOString()}, SG=${sgDate.toISOString()}, within window=${sgDate >= startSg && sgDate <= endSg}`);
+        }
+        
+        if (sgDate >= startSg && sgDate <= endSg) {
+          withinWindow++;
           const hourKey = formatInTimeZone(sgDate, 'Asia/Singapore', 'yyyy-MM-dd HH:00:00');
           if (!hourlyData.has(hourKey)) {
             hourlyData.set(hourKey, { values: [], hour_bucket: hourKey });
@@ -177,6 +190,7 @@ export function useSensorData() {
         }
       });
 
+      console.log(`🗂️ [DEBUG] Processed ${totalProcessed} records, ${withinWindow} within time window`);
       console.log(`🗂️ [DEBUG] Hour buckets created: ${hourlyData.size}`);
       console.log(`🗂️ [DEBUG] Hour bucket keys:`, Array.from(hourlyData.keys()).sort());
 
