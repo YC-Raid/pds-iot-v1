@@ -15,7 +15,7 @@ import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 const SensorDetail = () => {
   const { sensorType } = useParams();
   const navigate = useNavigate();
-  const { getSensorReadingsByTimeRange, getAggregatedSensorData, sensorReadings } = useSensorData();
+  const { getSensorReadingsByTimeRange, getAggregatedSensorData, getHourlyAveragedData, sensorReadings } = useSensorData();
   const [chartData, setChartData] = useState([]);
   const [timeRange, setTimeRange] = useState('24');
   const [isLoading, setIsLoading] = useState(true);
@@ -108,8 +108,36 @@ const SensorDetail = () => {
         const hours = parseInt(timeRange);
         let data: any[] = [];
 
-        if (hours <= 24) {
-          // Use raw data for 1h/24h views
+        if (hours === 24 && !['acceleration', 'rotation'].includes(sensorType)) {
+          // Use hourly averaged data from sensor_data table for 24h single-value sensors
+          const hourlyData = await getHourlyAveragedData(sensorType);
+          
+          // Generate full 24-hour range and fill with data
+          const now = new Date();
+          const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+          const fullRange = [];
+          
+          for (let i = 0; i < 24; i++) {
+            const hourTime = new Date(twentyFourHoursAgo.getTime() + (i * 60 * 60 * 1000));
+            const hourKey = hourTime.toISOString().substring(0, 13) + ':00:00';
+            const matchingData = Array.isArray(hourlyData) ? hourlyData.find(d => d.hour_bucket.startsWith(hourKey.substring(0, 13))) : null;
+            
+            const timeLabel = `${hourTime.getDate()} ${hourTime.toLocaleDateString('en', {month: 'short'})} ${hourTime.getHours().toString().padStart(2, '0')}:00`;
+            
+            fullRange.push({
+              time: timeLabel,
+              value: matchingData ? Number(matchingData.avg_value) : null,
+              timestamp: hourTime.toISOString(),
+              hour_bucket: hourKey,
+              reading_count: matchingData ? matchingData.reading_count : 0
+            });
+          }
+          
+          setChartData(fullRange);
+          setIsLoading(false);
+          return;
+        } else if (hours <= 24) {
+          // Use raw data for 1h views and multi-axis sensors
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
           // 1 week: Use raw data and group by day - same pattern as other timeframes

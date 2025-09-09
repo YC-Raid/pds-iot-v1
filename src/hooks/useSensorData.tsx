@@ -120,6 +120,62 @@ export function useSensorData() {
     }
   }, []);
 
+  const getHourlyAveragedData = useCallback(async (sensorType: string): Promise<Array<{hour_bucket: string, avg_value: number, reading_count: number}>> => {
+    try {
+      // Use direct query to get hourly averages from sensor_data table
+      const sensorColumnMap = {
+        'temperature': 'temperature',
+        'humidity': 'humidity', 
+        'pressure': 'pressure',
+        'gas': 'gas_resistance',
+        'pm1': 'pm1_0',
+        'pm25': 'pm2_5',
+        'pm10': 'pm10'
+      };
+      
+      const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
+      
+      // Get raw data from sensor_data table
+      const { data: rawData, error } = await supabase
+        .from('sensor_data')
+        .select(`local_date, local_time, ${sensorColumn}`)
+        .not(sensorColumn, 'is', null)
+        .order('id', { ascending: false })
+        .limit(10000);
+        
+      if (error) throw error;
+      
+      // Process data client-side for hourly averages
+      const hourlyData = new Map<string, {values: number[], hour_bucket: string}>();
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      
+      rawData.forEach(row => {
+        // Type assertion to handle the query result properly
+        const typedRow = row as any;
+        const timestamp = new Date(`${typedRow.local_date} ${typedRow.local_time}`);
+        if (timestamp >= twentyFourHoursAgo) {
+          const hourKey = `${timestamp.getFullYear()}-${(timestamp.getMonth()+1).toString().padStart(2,'0')}-${timestamp.getDate().toString().padStart(2,'0')} ${timestamp.getHours().toString().padStart(2,'0')}:00:00`;
+          
+          if (!hourlyData.has(hourKey)) {
+            hourlyData.set(hourKey, { values: [], hour_bucket: hourKey });
+          }
+          hourlyData.get(hourKey)?.values.push(typedRow[sensorColumn] as number);
+        }
+      });
+      
+      return Array.from(hourlyData.values()).map(bucket => ({
+        hour_bucket: bucket.hour_bucket,
+        avg_value: bucket.values.reduce((sum, val) => sum + val, 0) / bucket.values.length,
+        reading_count: bucket.values.length
+      })).sort((a, b) => a.hour_bucket.localeCompare(b.hour_bucket));
+      
+    } catch (err) {
+      console.error('Failed to fetch hourly averaged data:', err);
+      return [];
+    }
+  }, []);
+
   const getAnomalousSensorReadings = async (threshold = 0.7) => {
     try {
       const { data, error } = await supabase
@@ -254,6 +310,7 @@ export function useSensorData() {
     fetchDashboardData,
     syncRDSData,
     getSensorReadingsByTimeRange,
+    getHourlyAveragedData,
     getAnomalousSensorReadings,
     getAggregatedSensorData,
   };
