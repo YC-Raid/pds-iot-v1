@@ -94,12 +94,20 @@ const SensorOverview = () => {
           const hourGroups = new Map();
           
           data.forEach((reading: any) => {
-            // processed_sensor_readings.recorded_at is already in Singapore time
+            // processed_sensor_readings.recorded_at is stored in UTC, convert to Singapore time for display
             const singaporeDate = new Date(reading.recorded_at);
-            // Include both date and hour to prevent merging different days
-            const dateStr = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const hourStr = singaporeDate.getHours().toString().padStart(2, '0') + ':00';
-            const timeLabel = `${dateStr} ${hourStr}`;
+            const singaporeTime = singaporeDate.toLocaleString('en-US', {
+              timeZone: 'Asia/Singapore',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            // Extract just hour part for grouping: "14:00"
+            const hourPart = singaporeTime.split(', ')[1] || singaporeTime.split(' ')[2];
+            const datePart = singaporeTime.split(', ')[0];
+            const timeLabel = `${datePart} ${hourPart.split(':')[0]}:00`;
             
             if (!hourGroups.has(timeLabel)) {
               hourGroups.set(timeLabel, {
@@ -145,21 +153,23 @@ const SensorOverview = () => {
         const dayGroups = new Map();
         
         data.forEach((reading: any) => {
+          // Convert UTC timestamp to Singapore timezone for proper grouping
           const singaporeDate = new Date(reading.recorded_at);
-          const singaporeDay = singaporeDate.toLocaleDateString('en-US', { 
+          const singaporeTime = singaporeDate.toLocaleString('en-US', {
+            timeZone: 'Asia/Singapore',
+            weekday: 'short',
             month: 'short', 
-            day: 'numeric',
-            weekday: 'short'
+            day: 'numeric'
           });
           
-          if (!dayGroups.has(singaporeDay)) {
-            dayGroups.set(singaporeDay, {
+          if (!dayGroups.has(singaporeTime)) {
+            dayGroups.set(singaporeTime, {
               temperature: [], humidity: [], pressure: [], pm25: [], pm1: [], pm10: [], gas_resistance: [],
               accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at, sortKey: singaporeDate.getTime()
             });
           }
           
-          const group = dayGroups.get(singaporeDay);
+          const group = dayGroups.get(singaporeTime);
           group.temperature.push(reading.temperature ?? 0);
           group.humidity.push(reading.humidity ?? 0);
           group.pressure.push(reading.pressure ?? 0);

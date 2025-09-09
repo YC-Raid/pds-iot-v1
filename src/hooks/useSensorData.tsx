@@ -100,15 +100,20 @@ export function useSensorData() {
 
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
-      // Always calculate from current time backwards
+      // Calculate time range properly in Singapore timezone
       const now = new Date();
-      const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+      const singaporeNow = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+      const startTime = new Date(singaporeNow.getTime() - (hours * 60 * 60 * 1000));
+      
+      // Convert back to UTC for database query
+      const utcNow = now;
+      const utcStartTime = new Date(utcNow.getTime() - (hours * 60 * 60 * 1000));
       
       const { data, error } = await supabase
         .from('processed_sensor_readings')
         .select('*')
-        .gte('recorded_at', startTime.toISOString())
-        .lte('recorded_at', now.toISOString())
+        .gte('recorded_at', utcStartTime.toISOString())
+        .lte('recorded_at', utcNow.toISOString())
         .order('recorded_at', { ascending: true })
         .limit(50000);
 
