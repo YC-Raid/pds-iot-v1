@@ -146,42 +146,60 @@ export function useSensorData() {
 
       console.log(`⏰ [DEBUG] Time window (treating as SG time): ${startTime.toISOString()} to ${currentHour.toISOString()}`);
 
-      // Fetch readings from processed_sensor_readings
-      const { data: rawData, error } = await supabase
-        .from('processed_sensor_readings')
-        .select(`recorded_at, ${sensorColumn}`)
-        .not(sensorColumn, 'is', null)
-        .gte('recorded_at', startTime.toISOString())
-        .lte('recorded_at', currentHour.toISOString())
-        .order('recorded_at', { ascending: true })
-        .limit(50000); // Add explicit limit to get all records
+      // Fetch readings from processed_sensor_readings with pagination (PostgREST default limit ~1000)
+      const pageSize = 1000;
+      let from = 0;
+      let to = pageSize - 1;
+      let allData: any[] = [];
 
-      if (error) throw error;
+      while (true) {
+        const { data, error } = await supabase
+          .from('processed_sensor_readings')
+          .select(`recorded_at, ${sensorColumn}`)
+          .not(sensorColumn, 'is', null)
+          .gte('recorded_at', startTime.toISOString())
+          .lte('recorded_at', currentHour.toISOString())
+          .order('recorded_at', { ascending: true })
+          .range(from, to);
 
-      console.log(`📈 [DEBUG] Raw data fetched: ${rawData?.length || 0} records`);
-      if (rawData && rawData.length > 0) {
-        console.log(`📈 [DEBUG] Sample raw data:`, rawData.slice(0, 2));
-        console.log(`📈 [DEBUG] Last raw data:`, rawData.slice(-2));
-        console.log(`📈 [DEBUG] First record time: ${rawData[0]?.recorded_at}`);
-        console.log(`📈 [DEBUG] Last record time: ${rawData[rawData.length - 1]?.recorded_at}`);
+        if (error) throw error;
+        const batchCount = data?.length || 0;
+        allData = allData.concat(data || []);
+        console.log(`📦 [DEBUG] Fetched batch ${from}-${to} (${batchCount} rows), total so far: ${allData.length}`);
+
+        if (batchCount < pageSize) break;
+        from += pageSize;
+        to += pageSize;
+        if (from > 100000) { // safety guard
+          console.warn('⚠️ [DEBUG] Stopping pagination after 100k rows to avoid runaway requests');
+          break;
+        }
       }
 
-      // Let's also check what we would get with a broader query
-      const { data: broadData, error: broadError } = await supabase
-        .from('processed_sensor_readings')
-        .select(`recorded_at, ${sensorColumn}`)
-        .not(sensorColumn, 'is', null)
-        .order('recorded_at', { ascending: false })
-        .limit(5);
-
-      if (!broadError && broadData) {
-        console.log(`🔍 [DEBUG] Latest 5 records in DB:`, broadData.map(r => r.recorded_at));
+      console.log(`📈 [DEBUG] Raw data fetched total: ${allData.length} records`);
+      if (allData && allData.length > 0) {
+        console.log(`📈 [DEBUG] First record time: ${allData[0]?.recorded_at}`);
+        console.log(`📈 [DEBUG] Last record time: ${allData[allData.length - 1]?.recorded_at}`);
       }
+
+      // Optional: peek at latest records to ensure window alignment
+      try {
+        const { data: broadData } = await supabase
+          .from('processed_sensor_readings')
+          .select(`recorded_at, ${sensorColumn}`)
+          .not(sensorColumn, 'is', null)
+          .order('recorded_at', { ascending: false })
+          .limit(5);
+        if (broadData) {
+          console.log(`🔍 [DEBUG] Latest 5 records in DB:`, broadData.map(r => r.recorded_at));
+        }
+      } catch {}
+
 
       // Group by hour buckets - data is already in Singapore time
       const hourlyData = new Map<string, { values: number[]; hour_bucket: string }>();
 
-      rawData?.forEach((row: any) => {
+      allData?.forEach((row: any) => {
         const recordTime = new Date(row.recorded_at);
         // Create hour bucket key (already in Singapore time)
         const hourKey = recordTime.getFullYear() + '-' + 
