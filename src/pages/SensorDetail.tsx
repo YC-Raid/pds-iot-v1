@@ -159,15 +159,35 @@ const SensorDetail = () => {
           // Use raw data for 1h views and multi-axis sensors
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
-          // 1 week: Use raw data and group by day - same pattern as other timeframes
-          data = await getSensorReadingsByTimeRange(hours);
+          // 1 week: Try aggregated data first, fallback to raw data
+          console.log(`📊 [DEBUG] Trying aggregated data for 1 week view`);
+          const aggregatedData = await getAggregatedSensorData('day', 7);
+          if (aggregatedData && aggregatedData.length > 0) {
+            console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated day records`);
+            data = aggregatedData;
+          } else {
+            console.log(`⚠️ [DEBUG] No aggregated data, falling back to raw data for 1 week`);
+            data = await getSensorReadingsByTimeRange(hours);
+          }
         } else if (hours === 720) {
-          // 1 month: Use raw data and group by day - same pattern as other timeframes  
-          data = await getSensorReadingsByTimeRange(hours);
+          // 1 month: Try aggregated data first, fallback to raw data
+          console.log(`📊 [DEBUG] Trying aggregated data for 1 month view`);
+          const aggregatedData = await getAggregatedSensorData('week', 4);
+          if (aggregatedData && aggregatedData.length > 0) {
+            console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated week records`);
+            data = aggregatedData;
+          } else {
+            console.log(`⚠️ [DEBUG] No aggregated data, falling back to raw data for 1 month`);
+            data = await getSensorReadingsByTimeRange(hours);
+          }
         }
         
         if (data.length > 0) {
           let formatted = [];
+          
+          // Check if this is aggregated data or raw data
+          const isAggregated = data[0] && data[0].hasOwnProperty('avg_temperature');
+          console.log(`📊 [DEBUG] Data type: ${isAggregated ? 'aggregated' : 'raw'}, sample:`, data[0]);
           
           if (sensorType === 'acceleration') {
             const maxPoints = hours === 1 ? 60 : 200;
@@ -474,30 +494,129 @@ const SensorDetail = () => {
               console.log('Formatted sample:', formatted.slice(0, 3));
               
              } else {
-               // Longer periods: use existing logic with downsampling  
-               const maxPoints = 200;
-               const step = Math.max(1, Math.ceil(data.length / maxPoints));
-               
-               formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                 // For longer periods, show date instead of time
-                 let timeLabel;
-                 if (reading.local_date) {
-                   // sensor_data table - use local_date which is already Singapore date
-                   const date = new Date(reading.local_date);
-                   timeLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                 } else {
-                   // processed_sensor_readings table - recorded_at is already Singapore time
-                   const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                   timeLabel = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                 }
-                 
-                 return {
-                   time: timeLabel,
-                   value: Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0,
-                   timestamp: reading.recorded_at || reading.utc_timestamp
-                 };
-               });
-             }
+                // Longer periods: Check if we have aggregated data or use raw data with downsampling
+                if (isAggregated) {
+                  console.log(`📊 [DEBUG] Processing aggregated data for ${sensorType}`);
+                  // Use aggregated data columns for single-value sensors
+                  const valueColumn = {
+                    'temperature': 'avg_temperature',
+                    'humidity': 'avg_humidity', 
+                    'pressure': 'avg_pressure',
+                    'gas': 'avg_gas_resistance',
+                    'pm1': 'avg_pm1_0',
+                    'pm25': 'avg_pm2_5',
+                    'pm10': 'avg_pm10'
+                  }[sensorType] || 'avg_temperature';
+
+                  if (hours === 168) {
+                    // 1 week: aggregated by day
+                    formatted = data.map(reading => {
+                      const bucketDate = new Date(reading.time_bucket);
+                      const timeLabel = bucketDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      return {
+                        time: timeLabel,
+                        value: Number(reading[valueColumn]) || null,
+                        timestamp: reading.time_bucket
+                      };
+                    }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                  } else if (hours === 720) {
+                    // 1 month: aggregated by week
+                    formatted = data.map((reading, index) => ({
+                      time: `Week ${index + 1}`,
+                      value: Number(reading[valueColumn]) || null,
+                      timestamp: reading.time_bucket
+                    }));
+                  } else {
+                    // Other periods: use existing raw data logic
+                    const maxPoints = 200;
+                    const step = Math.max(1, Math.ceil(data.length / maxPoints));
+                    formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
+                      const bucketDate = new Date(reading.time_bucket);
+                      const timeLabel = bucketDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      return {
+                        time: timeLabel,
+                        value: Number(reading[valueColumn]) || null,
+                        timestamp: reading.time_bucket
+                      };
+                    });
+                  }
+                } else {
+                  console.log(`📊 [DEBUG] Processing raw data for ${sensorType} (${data.length} records)`);
+                  // Use raw data with intelligent grouping for week/month
+                  if (hours === 168) {
+                    // 1 week: Group by day
+                    const dayGroups = new Map();
+                    data.forEach(reading => {
+                      const singaporeDate = new Date(reading.recorded_at);
+                      const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      
+                      if (!dayGroups.has(singaporeDay)) {
+                        dayGroups.set(singaporeDay, { values: [], timestamp: reading.recorded_at, sortKey: singaporeDate.getTime() });
+                      }
+                      const value = Number(reading[dataKey]) || 0;
+                      dayGroups.get(singaporeDay).values.push(value);
+                    });
+                    
+                    formatted = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
+                      time: timeLabel,
+                      value: group.values.length > 0 ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length : null,
+                      timestamp: group.timestamp
+                    })).sort((a, b) => {
+                      const aGroup = dayGroups.get(a.time);
+                      const bGroup = dayGroups.get(b.time);
+                      return aGroup.sortKey - bGroup.sortKey;
+                    });
+                    
+                  } else if (hours === 720) {
+                    // 1 month: Group by week
+                    const weekGroups = new Map();
+                    const currentDate = new Date();
+                    
+                    data.forEach(reading => {
+                      const readingDate = new Date(reading.recorded_at);
+                      const weeksDiff = Math.floor((currentDate.getTime() - readingDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+                      const weekLabel = `Week ${Math.max(1, 4 - weeksDiff)}`;
+                      
+                      if (!weekGroups.has(weekLabel)) {
+                        weekGroups.set(weekLabel, { values: [], timestamp: reading.recorded_at });
+                      }
+                      const value = Number(reading[dataKey]) || 0;
+                      weekGroups.get(weekLabel).values.push(value);
+                    });
+                    
+                    formatted = Array.from(weekGroups.entries()).map(([timeLabel, group]) => ({
+                      time: timeLabel,
+                      value: group.values.length > 0 ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length : null,
+                      timestamp: group.timestamp
+                    })).sort((a, b) => a.time.localeCompare(b.time));
+                    
+                  } else {
+                    // Other periods: use existing logic with downsampling  
+                    const maxPoints = 200;
+                    const step = Math.max(1, Math.ceil(data.length / maxPoints));
+                    
+                    formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
+                      // For longer periods, show date instead of time
+                      let timeLabel;
+                      if (reading.local_date) {
+                        // sensor_data table - use local_date which is already Singapore date
+                        const date = new Date(reading.local_date);
+                        timeLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      } else {
+                        // processed_sensor_readings table - recorded_at is already Singapore time
+                        const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                        timeLabel = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      }
+                      
+                      return {
+                        time: timeLabel,
+                        value: Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0,
+                        timestamp: reading.recorded_at || reading.utc_timestamp
+                      };
+                    });
+                  }
+                }
+              }
           }
          
           setChartData(formatted);

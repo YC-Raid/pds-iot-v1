@@ -104,16 +104,54 @@ export function useSensorData() {
       const now = new Date();
       const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
       
-      const { data, error } = await supabase
-        .from('processed_sensor_readings')
-        .select('*')
-        .gte('recorded_at', startTime.toISOString())
-        .lte('recorded_at', now.toISOString())
-        .order('recorded_at', { ascending: true })
-        .limit(50000);
+      console.log(`🔍 [DEBUG] Fetching sensor readings for ${hours} hours (${startTime.toISOString()} to ${now.toISOString()})`);
+      
+      // For longer periods, use pagination to ensure we get all data
+      if (hours > 24) {
+        const pageSize = 1000;
+        let from = 0;
+        let to = pageSize - 1;
+        let allData: any[] = [];
 
-      if (error) throw error;
-      return data || [];
+        while (true) {
+          const { data, error } = await supabase
+            .from('processed_sensor_readings')
+            .select('*')
+            .gte('recorded_at', startTime.toISOString())
+            .lte('recorded_at', now.toISOString())
+            .order('recorded_at', { ascending: true })
+            .range(from, to);
+
+          if (error) throw error;
+          const batchCount = data?.length || 0;
+          allData = allData.concat(data || []);
+          console.log(`📦 [DEBUG] Fetched batch ${from}-${to} (${batchCount} rows), total so far: ${allData.length}`);
+
+          if (batchCount < pageSize) break;
+          from += pageSize;
+          to += pageSize;
+          if (from > 200000) { // safety guard for very large datasets
+            console.warn('⚠️ [DEBUG] Stopping pagination after 200k rows to avoid runaway requests');
+            break;
+          }
+        }
+
+        console.log(`📈 [DEBUG] Total time range data fetched: ${allData.length} records`);
+        return allData;
+      } else {
+        // For short periods, use single query with reasonable limit
+        const { data, error } = await supabase
+          .from('processed_sensor_readings')
+          .select('*')
+          .gte('recorded_at', startTime.toISOString())
+          .lte('recorded_at', now.toISOString())
+          .order('recorded_at', { ascending: true })
+          .limit(10000);
+
+        if (error) throw error;
+        console.log(`📈 [DEBUG] Short time range data fetched: ${data?.length || 0} records`);
+        return data || [];
+      }
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
       return [];
