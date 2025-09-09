@@ -164,11 +164,12 @@ const SensorDetail = () => {
           try {
             const aggregatedData = await getAggregatedSensorData('day', 7);
             console.log(`📊 [DEBUG] Aggregated data result:`, aggregatedData?.length || 0, 'records');
-            if (aggregatedData && aggregatedData.length > 0) {
+            // Need at least 4 days of aggregated data to show meaningful 1-week view
+            if (aggregatedData && aggregatedData.length >= 4) {
               console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated day records`);
               data = aggregatedData;
             } else {
-              console.log(`⚠️ [DEBUG] No aggregated data, falling back to raw data for 1 week`);
+              console.log(`⚠️ [DEBUG] Insufficient aggregated data (${aggregatedData?.length || 0} days), falling back to raw data for 1 week`);
               data = await getSensorReadingsByTimeRange(hours);
               console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
             }
@@ -183,11 +184,12 @@ const SensorDetail = () => {
           try {
             const aggregatedData = await getAggregatedSensorData('week', 4);
             console.log(`📊 [DEBUG] Aggregated data result:`, aggregatedData?.length || 0, 'records');
-            if (aggregatedData && aggregatedData.length > 0) {
+            // Need at least 2 weeks of aggregated data to show meaningful 1-month view
+            if (aggregatedData && aggregatedData.length >= 2) {
               console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated week records`);
               data = aggregatedData;
             } else {
-              console.log(`⚠️ [DEBUG] No aggregated data, falling back to raw data for 1 month`);
+              console.log(`⚠️ [DEBUG] Insufficient aggregated data (${aggregatedData?.length || 0} weeks), falling back to raw data for 1 month`);
               data = await getSensorReadingsByTimeRange(hours);
               console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
             }
