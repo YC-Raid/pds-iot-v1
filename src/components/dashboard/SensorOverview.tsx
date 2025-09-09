@@ -133,7 +133,7 @@ const SensorOverview = () => {
           })).sort((a, b) => a.time.localeCompare(b.time));
         }
       } else if (hours === 168) {
-        // 1 week: Try aggregated data first, fallback to raw data
+        // 1 week: Use raw data and aggregate manually by day
         let data = await getAggregatedSensorData('day', 7);
         
         if (data.length === 0) {
@@ -142,7 +142,6 @@ const SensorOverview = () => {
           const dailyGroups: Record<string, any[]> = {};
           
           rawData.forEach(reading => {
-            // processed_sensor_readings.recorded_at is already in Singapore time
             const singaporeDate = new Date(reading.recorded_at);
             const dateStr = singaporeDate.toISOString().split('T')[0];
             if (!dailyGroups[dateStr]) dailyGroups[dateStr] = [];
@@ -170,26 +169,9 @@ const SensorOverview = () => {
           }));
         }
         
-        // Generate all dates for the past 7 days
-        const allDates = [];
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          allDates.push(date.toISOString().split('T')[0]);
-        }
-        
-        // Create map of existing data
-        const dataMap: Record<string, any> = {};
-        data.forEach((row: any) => {
+        // Convert to daily format for consistent display
+        finalData = data.map(row => {
           const date = new Date(row.time_bucket);
-          const dateStr = date.toISOString().split('T')[0];
-          dataMap[dateStr] = row;
-        });
-        
-        // Backfill missing dates with 0 values
-        finalData = allDates.map(dateStr => {
-          const existing = dataMap[dateStr];
-          const date = new Date(dateStr + 'T00:00:00');
           const label = date.toLocaleDateString('en-US', { 
             month: 'short', 
             day: 'numeric'
@@ -197,19 +179,20 @@ const SensorOverview = () => {
           
           return {
             time: label,
-            temperature: existing?.avg_temperature ?? 0,
-            humidity: existing?.avg_humidity ?? 0,
-            pressure: existing?.avg_pressure ?? 0,
-            pm25: existing?.avg_pm2_5 ?? 0,
-            pm1: existing?.avg_pm1_0 ?? 0,
-            pm10: existing?.avg_pm10 ?? 0,
-            gas_resistance: existing?.avg_gas_resistance ?? 0,
-            accel_magnitude: existing?.avg_accel_magnitude ?? 0,
-            gyro_magnitude: existing?.avg_gyro_magnitude ?? 0,
+            temperature: row.avg_temperature ?? 0,
+            humidity: row.avg_humidity ?? 0,
+            pressure: row.avg_pressure ?? 0,
+            pm25: row.avg_pm2_5 ?? 0,
+            pm1: row.avg_pm1_0 ?? 0,
+            pm10: row.avg_pm10 ?? 0,
+            gas_resistance: row.avg_gas_resistance ?? 0,
+            accel_magnitude: row.avg_accel_magnitude ?? 0,
+            gyro_magnitude: row.avg_gyro_magnitude ?? 0,
           };
-        });
+        }).sort((a, b) => new Date(a.time + ', 2024').getTime() - new Date(b.time + ', 2024').getTime());
+        
       } else if (hours === 720) {
-        // 1 month: Try aggregated data first, fallback to raw data
+        // 1 month: Use raw data and aggregate manually by week
         let data = await getAggregatedSensorData('day', 30);
         
         if (data.length === 0) {
@@ -218,7 +201,6 @@ const SensorOverview = () => {
           const dailyGroups: Record<string, any[]> = {};
           
           rawData.forEach(reading => {
-            // processed_sensor_readings.recorded_at is already in Singapore time
             const singaporeDate = new Date(reading.recorded_at);
             const dateStr = singaporeDate.toISOString().split('T')[0];
             if (!dailyGroups[dateStr]) dailyGroups[dateStr] = [];
@@ -246,7 +228,7 @@ const SensorOverview = () => {
           }));
         }
         
-        // Group daily data into weeks
+        // Group daily data into weeks for consistent display
         const weeklyData: Record<string, any[]> = {};
         const currentDate = new Date();
         
@@ -260,7 +242,6 @@ const SensorOverview = () => {
           const weekKey = `Week ${4 - week}`;
           weeklyData[weekKey] = [];
           
-          // Find data for this week
           data.forEach(row => {
             const rowDate = new Date(row.time_bucket);
             if (rowDate >= weekStart && rowDate <= weekEnd) {
@@ -287,15 +268,8 @@ const SensorOverview = () => {
           } else {
             return {
               time: weekLabel,
-              temperature: 0,
-              humidity: 0,
-              pressure: 0,
-              pm25: 0,
-              pm1: 0,
-              pm10: 0,
-              gas_resistance: 0,
-              accel_magnitude: 0,
-              gyro_magnitude: 0,
+              temperature: 0, humidity: 0, pressure: 0, pm25: 0, pm1: 0, pm10: 0,
+              gas_resistance: 0, accel_magnitude: 0, gyro_magnitude: 0,
             };
           }
         });

@@ -100,11 +100,9 @@ export function useSensorData() {
 
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
-      // Always calculate from current time backwards (not from latest data timestamp)
+      // Always calculate from current time backwards
       const now = new Date();
       const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
-      
-      console.log(`🔍 Fetching ${hours}h data from ${startTime.toISOString()} to ${now.toISOString()}`);
       
       const { data, error } = await supabase
         .from('processed_sensor_readings')
@@ -114,39 +112,7 @@ export function useSensorData() {
         .order('recorded_at', { ascending: true })
         .limit(50000);
 
-      if (error) {
-        console.error('Supabase query error:', error);
-        throw error;
-      }
-      
-      console.log(`🔍 Raw query returned ${data?.length || 0} records`);
-      
-      // Log the actual time range of returned data
-      if (data && data.length > 0) {
-        const firstRecord = data[0];
-        const lastRecord = data[data.length - 1];
-        console.log(`🔍 First record: ${firstRecord.recorded_at}`);
-        console.log(`🔍 Last record: ${lastRecord.recorded_at}`);
-        
-        // Calculate actual time span
-        const timeSpanHours = (new Date(lastRecord.recorded_at).getTime() - new Date(firstRecord.recorded_at).getTime()) / (1000 * 60 * 60);
-        console.log(`🔍 Actual data time span: ${timeSpanHours.toFixed(2)} hours`);
-        
-        // Count records per 4-hour blocks for debugging
-        const recordsByBlock: { [key: string]: number } = {};
-        
-        data.forEach(record => {
-          const recordTime = new Date(record.recorded_at);
-          const hoursFromStart = Math.floor((recordTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
-          const blockKey = `Hours ${Math.floor(hoursFromStart / 4) * 4}-${Math.floor(hoursFromStart / 4) * 4 + 3}`;
-          recordsByBlock[blockKey] = (recordsByBlock[blockKey] || 0) + 1;
-        });
-        
-        console.log('🔍 Records by 4-hour blocks:', recordsByBlock);
-      } else {
-        console.log('🔍 No records found in the specified time range');
-      }
-      
+      if (error) throw error;
       return data || [];
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
@@ -215,11 +181,9 @@ export function useSensorData() {
     // Perform initial sync when component mounts
     const performInitialSync = async () => {
       try {
-        console.log('🚀 Performing initial RDS data sync...');
         await syncRDSData();
-        console.log('✅ Initial sync completed');
       } catch (error) {
-        console.error('❌ Initial sync failed:', error);
+        console.error('Initial sync failed:', error);
       }
     };
 
@@ -245,14 +209,11 @@ export function useSensorData() {
       )
       .subscribe();
 
-    // Auto-sync every 5 minutes - start immediately for testing
-    console.log('⏰ Setting up auto-sync interval (5 minutes)');
+    // Auto-sync every 5 minutes
     const autoSyncInterval = setInterval(async () => {
       try {
-        console.log('🔄 Auto-syncing RDS data (5-min interval)...');
         const syncStartTime = new Date().toISOString();
         const result = await syncRDSData();
-        console.log('✅ Auto-sync completed successfully', result);
         
         // Store sync time even if no new records
         localStorage.setItem('lastSyncTime', syncStartTime);
@@ -265,7 +226,7 @@ export function useSensorData() {
           duration: 3000,
         });
       } catch (error) {
-        console.error('❌ Auto-sync failed:', error);
+        console.error('Auto-sync failed:', error);
         
         // Show error notification for failed sync
         toast({

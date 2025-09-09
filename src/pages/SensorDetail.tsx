@@ -85,28 +85,12 @@ const SensorDetail = () => {
       };
     }
 
-    // Always try to calculate thresholds if we have any chart data
-    if (chartData.length === 0) {
-      return {
-        thresholds: [],
-        optimalRange: defaults.optimalRange,
-        yAxisRange: defaults.yAxisRange,
-        statistics: { mean: 0, std: 0, min: 0, max: 0 }
-      };
-    }
-
-    console.log(`🔧 Calculating dynamic thresholds for ${sensorType} with ${chartData.length} data points`);
-
     const dataPoints = chartData.map(d => ({
       value: d.value,
       timestamp: d.timestamp || d.time
     }));
     
-    console.log(`🔧 Data points for threshold calculation:`, dataPoints.slice(0, 3));
-    
     const thresholdResult = calculateDynamicThresholds(dataPoints, sensorType, 3);
-    
-    console.log(`🎯 Calculated thresholds for ${sensorType}:`, thresholdResult);
     
     return {
       thresholds: thresholdResult.thresholds,
@@ -125,56 +109,18 @@ const SensorDetail = () => {
         let data: any[] = [];
 
         if (hours <= 24) {
-          // Use raw data for 1h/24h views - fetch ALL data without limit
+          // Use raw data for 1h/24h views
           data = await getSensorReadingsByTimeRange(hours);
-          console.log(`📊 Fetched ${data.length} records for ${sensorType} - Time range: ${hours} hours`);
-          
-          // Debug: Show time range of actual data
-          if (data.length > 0) {
-            const firstTime = new Date(data[0].recorded_at).toISOString();
-            const lastTime = new Date(data[data.length - 1].recorded_at).toISOString();
-            console.log(`📊 Data time range: ${firstTime} to ${lastTime}`);
-          }
-          
-          // Additional debug: Show how many records per hour
-          if (data.length > 0) {
-            const now = new Date();
-            const hoursBack = Math.min(hours, 24);
-            const startTime = new Date(now.getTime() - (hoursBack * 60 * 60 * 1000));
-            const recordsInTimeRange = data.filter(reading => 
-              new Date(reading.recorded_at) >= startTime
-            );
-            console.log(`📊 Records in last ${hoursBack} hours: ${recordsInTimeRange.length} (avg ${(recordsInTimeRange.length / hoursBack).toFixed(1)} per hour)`);
-            
-            // Show hourly breakdown for debugging
-            for (let i = 0; i < hoursBack; i++) {
-              const hourStart = new Date(now.getTime() - ((i + 1) * 60 * 60 * 1000));
-              const hourEnd = new Date(now.getTime() - (i * 60 * 60 * 1000));
-              const hourlyCount = data.filter(reading => {
-                const readingTime = new Date(reading.recorded_at);
-                return readingTime >= hourStart && readingTime < hourEnd;
-              }).length;
-              console.log(`📊 Hour ${i + 1} ago (${hourStart.toISOString().split('T')[1].substring(0, 5)} - ${hourEnd.toISOString().split('T')[1].substring(0, 5)}): ${hourlyCount} records`);
-            }
-          }
         } else if (hours === 168) {
-          // 1 week: Try aggregated data first, fallback to raw data
-          data = await getAggregatedSensorData('day', 7);
-          if (data.length === 0) {
-            data = await getSensorReadingsByTimeRange(168);
-          }
+          // 1 week: Use raw data and aggregate manually for better consistency
+          data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 720) {
-          // 1 month: Try aggregated data first, fallback to raw data
-          data = await getAggregatedSensorData('day', 30);
-          if (data.length === 0) {
-            data = await getSensorReadingsByTimeRange(720);
-          }
+          // 1 month: Use raw data and aggregate manually for better consistency  
+          data = await getSensorReadingsByTimeRange(hours);
         }
         
         if (data.length > 0) {
           let formatted = [];
-          
-          console.log(`🔧 Processing ${sensorType} sensor data: ${data.length} records for ${hours}h timeframe`);
           
           if (sensorType === 'acceleration') {
             const maxPoints = hours === 1 ? 60 : 200;
@@ -249,33 +195,59 @@ const SensorDetail = () => {
                 magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
               })).sort((a, b) => a.time.localeCompare(b.time));
               
-            } else {
-              // Longer periods: use existing downsampling logic
-              const maxPoints = 200;
-              const step = Math.max(1, Math.ceil(data.length / maxPoints));
+            } else if (hours === 168) {
+              // 1 week: Group by day and average accelerometer data
+              const dayGroups = new Map();
               
-               formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                 // For longer periods, show date instead of time
-                 let timeLabel;
-                 if (reading.local_date) {
-                   // sensor_data table - use local_date which is already Singapore date
-                   const date = new Date(reading.local_date);
-                   timeLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                 } else {
-                   // processed_sensor_readings table - convert UTC to Singapore date
-                   const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                   utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                   timeLabel = utcDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                 }
-                 
-                 return {
-                   time: timeLabel,
-                   x_axis: Number(reading.accel_x || reading.avg_accel_x) || 0,
-                   y_axis: Number(reading.accel_y || reading.avg_accel_y) || 0,
-                   z_axis: Number(reading.accel_z || reading.avg_accel_z) || 0,
-                   magnitude: Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0
-                 };
-               });
+              data.forEach(reading => {
+                const singaporeDate = new Date(reading.recorded_at);
+                const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                
+                if (!dayGroups.has(singaporeDay)) {
+                  dayGroups.set(singaporeDay, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                }
+                const group = dayGroups.get(singaporeDay);
+                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
+                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
+                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
+                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+              });
+              
+              formatted = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
+                time: timeLabel,
+                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
+                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
+                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
+                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
+              })).sort((a, b) => new Date(a.time + ', 2024').getTime() - new Date(b.time + ', 2024').getTime());
+              
+            } else if (hours === 720) {
+              // 1 month: Group by week and average accelerometer data
+              const weekGroups = new Map();
+              const currentDate = new Date();
+              
+              data.forEach(reading => {
+                const readingDate = new Date(reading.recorded_at);
+                const weeksDiff = Math.floor((currentDate.getTime() - readingDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+                const weekLabel = `Week ${Math.max(1, 4 - weeksDiff)}`;
+                
+                if (!weekGroups.has(weekLabel)) {
+                  weekGroups.set(weekLabel, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                }
+                const group = weekGroups.get(weekLabel);
+                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
+                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
+                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
+                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+              });
+              
+              formatted = Array.from(weekGroups.entries()).map(([timeLabel, group]) => ({
+                time: timeLabel,
+                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
+                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
+                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
+                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
+              })).sort((a, b) => a.time.localeCompare(b.time));
             }
           } else if (sensorType === 'rotation') {
             const maxPoints = hours === 1 ? 60 : 200;
@@ -350,33 +322,59 @@ const SensorDetail = () => {
                 magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
               })).sort((a, b) => a.time.localeCompare(b.time));
               
-            } else {
-              // Longer periods: use existing downsampling logic
-              const maxPoints = 200;
-              const step = Math.max(1, Math.ceil(data.length / maxPoints));
+            } else if (hours === 168) {
+              // 1 week: Group by day and average gyroscope data
+              const dayGroups = new Map();
               
-               formatted = data.filter((_, i) => i % step === 0 || i === data.length - 1).map(reading => {
-                 // For longer periods, show date instead of time
-                 let timeLabel;
-                 if (reading.local_date) {
-                   // sensor_data table - use local_date which is already Singapore date
-                   const date = new Date(reading.local_date);
-                   timeLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                 } else {
-                   // processed_sensor_readings table - convert UTC to Singapore date
-                   const utcDate = new Date(reading.recorded_at || reading.time_bucket);
-                   utcDate.setHours(utcDate.getHours() + 8); // Add 8 hours for Singapore
-                   timeLabel = utcDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                 }
-                 
-                 return {
-                   time: timeLabel,
-                   x_axis: Number(reading.gyro_x || reading.avg_gyro_x) || 0,
-                   y_axis: Number(reading.gyro_y || reading.avg_gyro_y) || 0,
-                   z_axis: Number(reading.gyro_z || reading.avg_gyro_z) || 0,
-                   magnitude: Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0
-                 };
-               });
+              data.forEach(reading => {
+                const singaporeDate = new Date(reading.recorded_at);
+                const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                
+                if (!dayGroups.has(singaporeDay)) {
+                  dayGroups.set(singaporeDay, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                }
+                const group = dayGroups.get(singaporeDay);
+                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
+                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
+                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+              });
+              
+              formatted = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
+                time: timeLabel,
+                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
+                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
+                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
+                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
+              })).sort((a, b) => new Date(a.time + ', 2024').getTime() - new Date(b.time + ', 2024').getTime());
+              
+            } else if (hours === 720) {
+              // 1 month: Group by week and average gyroscope data
+              const weekGroups = new Map();
+              const currentDate = new Date();
+              
+              data.forEach(reading => {
+                const readingDate = new Date(reading.recorded_at);
+                const weeksDiff = Math.floor((currentDate.getTime() - readingDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+                const weekLabel = `Week ${Math.max(1, 4 - weeksDiff)}`;
+                
+                if (!weekGroups.has(weekLabel)) {
+                  weekGroups.set(weekLabel, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                }
+                const group = weekGroups.get(weekLabel);
+                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
+                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
+                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+              });
+              
+              formatted = Array.from(weekGroups.entries()).map(([timeLabel, group]) => ({
+                time: timeLabel,
+                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
+                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
+                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
+                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
+              })).sort((a, b) => a.time.localeCompare(b.time));
             }
           } else {
             // Single value sensors with time range filtering and aggregation
