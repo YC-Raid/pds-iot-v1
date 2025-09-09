@@ -387,8 +387,6 @@ const SensorDetail = () => {
               // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
               const hourGroups = new Map();
               
-              console.log(`🔍 Processing 24h data for ${sensorType}: ${data.length} records`);
-              
               data.forEach(reading => {
                 const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
                 const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
@@ -400,16 +398,11 @@ const SensorDetail = () => {
                 group.values.push(Number(reading[dataKey]) || 0);
               });
               
-              console.log(`🔍 Created ${hourGroups.size} hour groups for ${sensorType}`);
-              console.log(`🔍 Hour groups:`, Array.from(hourGroups.keys()).sort());
-              
               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
                 value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
                 timestamp: group.timestamp
               })).sort((a, b) => a.time.localeCompare(b.time));
-              
-              console.log(`🔍 Final 24h data for ${sensorType}: ${formatted.length} hourly points`);
               
              } else {
                // Longer periods: use existing logic with downsampling  
