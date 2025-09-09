@@ -43,27 +43,33 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
         
         let formattedData = [];
         
-        // Process data based on sensor type
+        // Process data based on sensor type - recorded_at is already Singapore time
         if (sensor.type === "Acceleration") {
-          formattedData = data.map((reading) => ({
-            time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-              hour: '2-digit', minute: '2-digit', hour12: false 
-            }),
-            x_axis: Number(reading.accel_x) || 0,
-            y_axis: Number(reading.accel_y) || 0,
-            z_axis: Number(reading.accel_z) || 0,
-            magnitude: Number(reading.accel_magnitude) || 0
-          })).slice(-50);
+          formattedData = data.map((reading) => {
+            const date = new Date(reading.recorded_at);
+            const timeStr = date.getHours().toString().padStart(2, '0') + ':' + 
+                           date.getMinutes().toString().padStart(2, '0');
+            return {
+              time: timeStr,
+              x_axis: Number(reading.accel_x) || 0,
+              y_axis: Number(reading.accel_y) || 0,
+              z_axis: Number(reading.accel_z) || 0,
+              magnitude: Number(reading.accel_magnitude) || 0
+            };
+          }).slice(-50);
         } else if (sensor.type === "Rotation") {
-          formattedData = data.map((reading) => ({
-            time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-              hour: '2-digit', minute: '2-digit', hour12: false 
-            }),
-            x_axis: Number(reading.gyro_x) || 0,
-            y_axis: Number(reading.gyro_y) || 0,
-            z_axis: Number(reading.gyro_z) || 0,
-            magnitude: Number(reading.gyro_magnitude) || 0
-          })).slice(-50);
+          formattedData = data.map((reading) => {
+            const date = new Date(reading.recorded_at);
+            const timeStr = date.getHours().toString().padStart(2, '0') + ':' + 
+                           date.getMinutes().toString().padStart(2, '0');
+            return {
+              time: timeStr,
+              x_axis: Number(reading.gyro_x) || 0,
+              y_axis: Number(reading.gyro_y) || 0,
+              z_axis: Number(reading.gyro_z) || 0,
+              magnitude: Number(reading.gyro_magnitude) || 0
+            };
+          }).slice(-50);
         } else {
           // Single value sensors
           const valueKey = {
@@ -76,12 +82,15 @@ export const SensorDetailView = ({ sensor, onBack }: SensorDetailViewProps) => {
             "PM10": "pm10"
           }[sensor.type];
           
-          formattedData = data.map((reading) => ({
-            time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-              hour: '2-digit', minute: '2-digit', hour12: false 
-            }),
-            value: Number(reading[valueKey]) || 0
-          })).slice(-50);
+          formattedData = data.map((reading) => {
+            const date = new Date(reading.recorded_at);
+            const timeStr = date.getHours().toString().padStart(2, '0') + ':' + 
+                           date.getMinutes().toString().padStart(2, '0');
+            return {
+              time: timeStr,
+              value: Number(reading[valueKey]) || 0
+            };
+          }).slice(-50);
         }
         
         console.log(`✅ Formatted ${formattedData.length} data points for ${sensor.type}`);

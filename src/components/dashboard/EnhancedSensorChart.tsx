@@ -154,7 +154,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
   // Export functions
   const exportToExcel = () => {
     const exportData = data.map(d => ({
-      Timestamp: new Date(d.timestamp).toLocaleString(),
+      Timestamp: d.timestamp ? new Date(d.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Singapore' }) : d.time,
       [config.name]: d.value,
       Unit: config.unit,
       Status: getThresholdStatus(d.value)
@@ -174,7 +174,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
     doc.text(`${config.name} Sensor Report`, 14, 22);
     doc.setFontSize(12);
     doc.text(`Time Range: ${timeRange}`, 14, 32);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 42);
+    doc.text(`Generated: ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' })}`, 14, 42);
     
     // Trend Analysis
     doc.setFontSize(14);
@@ -194,7 +194,7 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
 
     // Data Table
     const tableData = data.slice(-20).map(d => [
-      new Date(d.timestamp).toLocaleString(),
+      d.timestamp ? new Date(d.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Singapore' }) : d.time,
       `${d.value}${config.unit}`,
       getThresholdStatus(d.value)
     ]);
