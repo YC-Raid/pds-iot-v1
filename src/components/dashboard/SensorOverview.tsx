@@ -90,22 +90,25 @@ const SensorOverview = () => {
           })).sort((a, b) => a.time.localeCompare(b.time));
           
         } else if (hours === 24) {
-          // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
+          // 24 hours: Group by date + hour to handle multi-day data properly
           const hourGroups = new Map();
           
           data.forEach((reading: any) => {
             // processed_sensor_readings.recorded_at is already in Singapore time
             const singaporeDate = new Date(reading.recorded_at);
-            const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+            // Include both date and hour to prevent merging different days
+            const dateStr = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const hourStr = singaporeDate.getHours().toString().padStart(2, '0') + ':00';
+            const timeLabel = `${dateStr} ${hourStr}`;
             
-            if (!hourGroups.has(singaporeHour)) {
-              hourGroups.set(singaporeHour, {
+            if (!hourGroups.has(timeLabel)) {
+              hourGroups.set(timeLabel, {
                 temperature: [], humidity: [], pressure: [], pm25: [], pm1: [], pm10: [], gas_resistance: [],
-                accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
+                accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at, sortKey: singaporeDate.getTime()
               });
             }
             
-            const group = hourGroups.get(singaporeHour);
+            const group = hourGroups.get(timeLabel);
             group.temperature.push(reading.temperature ?? 0);
             group.humidity.push(reading.humidity ?? 0);
             group.pressure.push(reading.pressure ?? 0);
@@ -117,7 +120,7 @@ const SensorOverview = () => {
             group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
           });
           
-          // Convert hour groups to chart data - same pattern as 1h
+          // Convert hour groups to chart data with proper sorting
           finalData = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
             time: timeLabel,
             temperature: group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length,
@@ -130,23 +133,29 @@ const SensorOverview = () => {
             accel_magnitude: group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length,
             gyro_magnitude: group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length,
             _ts: new Date(group.timestamp).getTime(),
-          })).sort((a, b) => a.time.localeCompare(b.time));
+          })).sort((a, b) => {
+            const aGroup = hourGroups.get(a.time);
+            const bGroup = hourGroups.get(b.time);
+            return aGroup.sortKey - bGroup.sortKey;
+          });
         }
       } else if (hours === 168) {
-        // 1 week: Group by day using raw data - same simple pattern as 1h and 24h
+        // 1 week: Group by day using raw data with proper sorting
         const data = await getSensorReadingsByTimeRange(168);
         const dayGroups = new Map();
         
-        console.log(`🔍 Processing 1 week data: ${data.length} records`);
-        
         data.forEach((reading: any) => {
           const singaporeDate = new Date(reading.recorded_at);
-          const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const singaporeDay = singaporeDate.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            weekday: 'short'
+          });
           
           if (!dayGroups.has(singaporeDay)) {
             dayGroups.set(singaporeDay, {
               temperature: [], humidity: [], pressure: [], pm25: [], pm1: [], pm10: [], gas_resistance: [],
-              accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
+              accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at, sortKey: singaporeDate.getTime()
             });
           }
           
@@ -162,9 +171,6 @@ const SensorOverview = () => {
           group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
         });
         
-        console.log(`🔍 Created ${dayGroups.size} day groups`);
-        console.log(`🔍 Day groups:`, Array.from(dayGroups.keys()).sort());
-        
         finalData = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
           time: timeLabel,
           temperature: group.temperature.length > 0 ? group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length : 0,
@@ -177,9 +183,11 @@ const SensorOverview = () => {
           accel_magnitude: group.accel_magnitude.length > 0 ? group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length : 0,
           gyro_magnitude: group.gyro_magnitude.length > 0 ? group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length : 0,
           _ts: new Date(group.timestamp).getTime(),
-        })).sort((a, b) => new Date(a.time + ', 2024').getTime() - new Date(b.time + ', 2024').getTime());
-        
-        console.log(`🔍 Final 1 week data: ${finalData.length} daily points`);
+        })).sort((a, b) => {
+          const aGroup = dayGroups.get(a.time);
+          const bGroup = dayGroups.get(b.time);
+          return aGroup.sortKey - bGroup.sortKey;
+        });
         
       } else if (hours === 720) {
         // 1 month: Group by day using raw data - same simple pattern as 1h, 24h, and 1 week

@@ -384,17 +384,20 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-              // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
+              // 24 hours: Group by date + hour to handle multi-day data properly
               const hourGroups = new Map();
               
               data.forEach(reading => {
                 const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+                // Include both date and hour to prevent merging different days
+                const dateStr = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const hourStr = singaporeDate.getHours().toString().padStart(2, '0') + ':00';
+                const timeKey = `${dateStr} ${hourStr}`;
                 
-                if (!hourGroups.has(singaporeHour)) {
-                  hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                if (!hourGroups.has(timeKey)) {
+                  hourGroups.set(timeKey, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp, sortKey: singaporeDate.getTime() });
                 }
-                const group = hourGroups.get(singaporeHour);
+                const group = hourGroups.get(timeKey);
                 group.values.push(Number(reading[dataKey]) || 0);
               });
               
@@ -402,7 +405,11 @@ const SensorDetail = () => {
                 time: timeLabel,
                 value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
                 timestamp: group.timestamp
-              })).sort((a, b) => a.time.localeCompare(b.time));
+              })).sort((a, b) => {
+                const aGroup = hourGroups.get(a.time);
+                const bGroup = hourGroups.get(b.time);
+                return aGroup.sortKey - bGroup.sortKey;
+              });
               
              } else {
                // Longer periods: use existing logic with downsampling  
@@ -430,12 +437,9 @@ const SensorDetail = () => {
                });
              }
           }
-        
-          console.log(`✅ Final formatted data for ${sensorType}: ${formatted.length} points`);
-          console.log(`🎯 Sample data points:`, formatted.slice(0, 3));
+         
           setChartData(formatted);
         } else {
-          console.warn('⚠️ No data available, using test data');
           setChartData(testData);
         }
       } catch (error) {
