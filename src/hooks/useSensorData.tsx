@@ -103,12 +103,12 @@ export function useSensorData() {
       const startTime = new Date();
       startTime.setHours(startTime.getHours() - hours);
       
-      const { data, error } = await supabase
-        .from('processed_sensor_readings')
-        .select('*')
-        .gte('recorded_at', startTime.toISOString())
-        .order('recorded_at', { ascending: true })
-        .limit(5000);
+       const { data, error } = await supabase
+         .from('processed_sensor_readings')
+         .select('*')
+         .gte('recorded_at', startTime.toISOString())
+         .order('recorded_at', { ascending: true })
+         .limit(10000);
 
       if (error) {
         console.error('Supabase query error:', error);

@@ -380,9 +380,9 @@ const SensorDetail = () => {
                
                console.log(`📊 Processing 24h data: ${data.length} records for ${sensorType} sensor`);
                
-                data.forEach(reading => {
-                  // Check if reading has the required data field
-                  if (!reading[dataKey] || reading[dataKey] === null || reading[dataKey] === undefined) return;
+                 data.forEach(reading => {
+                   // Check if reading has the required data field (allow 0 values)
+                   if (reading[dataKey] === null || reading[dataKey] === undefined) return;
                   
                   // recorded_at is already in Singapore timezone in the database
                   const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
