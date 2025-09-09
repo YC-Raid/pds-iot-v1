@@ -111,13 +111,17 @@ const SensorDetail = () => {
 
         if (hours === 24 && !['acceleration', 'rotation'].includes(sensorType)) {
           // Use hourly averaged data from processed_sensor_readings for 24h single-value sensors
+          console.log(`🔍 [DEBUG] Fetching hourly data for sensor: ${sensorType}`);
           const hourlyData = await getHourlyAveragedData(sensorType);
+          console.log(`📊 [DEBUG] Hourly data received:`, hourlyData);
           
           // Generate full 24-hour range aligned to Asia/Singapore hours
           const endUtc = new Date();
           const endSg = toZonedTime(endUtc, 'Asia/Singapore');
           endSg.setMinutes(0, 0, 0); // Round down to current hour
           const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
+
+          console.log(`⏰ [DEBUG] Time range: ${startSg.toISOString()} to ${endSg.toISOString()}`);
 
           const fullRange: any[] = [];
           for (let i = 0; i <= 24; i++) { // inclusive of start and end hour
@@ -136,6 +140,10 @@ const SensorDetail = () => {
               reading_count: matchingData ? matchingData.reading_count : 0,
             });
           }
+
+          console.log(`📈 [DEBUG] Full range data points:`, fullRange.length);
+          console.log(`📈 [DEBUG] Sample data points:`, fullRange.slice(0, 3));
+          console.log(`📈 [DEBUG] Data points with values:`, fullRange.filter(d => d.value !== null).length);
 
           setChartData(fullRange);
           setIsLoading(false);

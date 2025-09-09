@@ -122,6 +122,8 @@ export function useSensorData() {
 
   const getHourlyAveragedData = useCallback(async (sensorType: string): Promise<Array<{hour_bucket: string, avg_value: number, reading_count: number}>> => {
     try {
+      console.log(`🚀 [DEBUG] Starting getHourlyAveragedData for: ${sensorType}`);
+      
       // Map sensor type to column in processed_sensor_readings
       const sensorColumnMap = {
         'temperature': 'temperature',
@@ -134,6 +136,7 @@ export function useSensorData() {
       } as const;
       
       const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
+      console.log(`📊 [DEBUG] Using sensor column: ${sensorColumn}`);
       
       // Compute SG time window: from current SG hour minus 24h to current SG hour
       const nowUtc = new Date();
@@ -141,6 +144,8 @@ export function useSensorData() {
       const endSg = new Date(nowSg);
       endSg.setMinutes(0, 0, 0); // round down to hour
       const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
+
+      console.log(`⏰ [DEBUG] SG Time window: ${startSg.toISOString()} to ${endSg.toISOString()}`);
 
       // Fetch readings from processed_sensor_readings within 26 hours to be safe, then filter client-side by SG window
       const { data: rawData, error } = await supabase
@@ -152,6 +157,11 @@ export function useSensorData() {
         .limit(50000);
 
       if (error) throw error;
+
+      console.log(`📈 [DEBUG] Raw data fetched: ${rawData?.length || 0} records`);
+      if (rawData && rawData.length > 0) {
+        console.log(`📈 [DEBUG] Sample raw data:`, rawData.slice(0, 2));
+      }
 
       // Group by SG hour buckets
       const hourlyData = new Map<string, { values: number[]; hour_bucket: string }>();
@@ -167,16 +177,25 @@ export function useSensorData() {
         }
       });
 
+      console.log(`🗂️ [DEBUG] Hour buckets created: ${hourlyData.size}`);
+
       // Return sorted buckets
-      return Array.from(hourlyData.values())
+      const result = Array.from(hourlyData.values())
         .map((bucket) => ({
           hour_bucket: bucket.hour_bucket,
           avg_value: bucket.values.reduce((s, v) => s + v, 0) / bucket.values.length,
           reading_count: bucket.values.length,
         }))
         .sort((a, b) => a.hour_bucket.localeCompare(b.hour_bucket));
+
+      console.log(`✅ [DEBUG] Returning ${result.length} hourly averages`);
+      if (result.length > 0) {
+        console.log(`📊 [DEBUG] Sample result:`, result.slice(0, 2));
+      }
+
+      return result;
     } catch (err) {
-      console.error('Failed to fetch hourly averaged data (processed):', err);
+      console.error('❌ [DEBUG] Failed to fetch hourly averaged data (processed):', err);
       return [];
     }
   }, []);
