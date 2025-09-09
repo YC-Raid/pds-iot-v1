@@ -90,18 +90,18 @@ const SensorOverview = () => {
           })).sort((a, b) => a.time.localeCompare(b.time));
           
         } else if (hours === 24) {
-          // 24 hours: Group by hour and include ALL hours with data
+          // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
           const hourGroups = new Map();
           
           data.forEach((reading: any) => {
+            // processed_sensor_readings.recorded_at is already in Singapore time
             const singaporeDate = new Date(reading.recorded_at);
             const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
             
             if (!hourGroups.has(singaporeHour)) {
               hourGroups.set(singaporeHour, {
                 temperature: [], humidity: [], pressure: [], pm25: [], pm1: [], pm10: [], gas_resistance: [],
-                accel_magnitude: [], gyro_magnitude: [], 
-                timestamp: reading.recorded_at
+                accel_magnitude: [], gyro_magnitude: [], timestamp: reading.recorded_at
               });
             }
             
@@ -117,18 +117,18 @@ const SensorOverview = () => {
             group.gyro_magnitude.push(reading.gyro_magnitude ?? 0);
           });
           
-          // Convert ALL hour groups to chart data
+          // Convert hour groups to chart data - same pattern as 1h
           finalData = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
             time: timeLabel,
-            temperature: group.temperature.length > 0 ? group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length : 0,
-            humidity: group.humidity.length > 0 ? group.humidity.reduce((sum, val) => sum + val, 0) / group.humidity.length : 0,
-            pressure: group.pressure.length > 0 ? group.pressure.reduce((sum, val) => sum + val, 0) / group.pressure.length : 0,
-            pm25: group.pm25.length > 0 ? group.pm25.reduce((sum, val) => sum + val, 0) / group.pm25.length : 0,
-            pm1: group.pm1.length > 0 ? group.pm1.reduce((sum, val) => sum + val, 0) / group.pm1.length : 0,
-            pm10: group.pm10.length > 0 ? group.pm10.reduce((sum, val) => sum + val, 0) / group.pm10.length : 0,
-            gas_resistance: group.gas_resistance.length > 0 ? group.gas_resistance.reduce((sum, val) => sum + val, 0) / group.gas_resistance.length : 0,
-            accel_magnitude: group.accel_magnitude.length > 0 ? group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length : 0,
-            gyro_magnitude: group.gyro_magnitude.length > 0 ? group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length : 0,
+            temperature: group.temperature.reduce((sum, val) => sum + val, 0) / group.temperature.length,
+            humidity: group.humidity.reduce((sum, val) => sum + val, 0) / group.humidity.length,
+            pressure: group.pressure.reduce((sum, val) => sum + val, 0) / group.pressure.length,
+            pm25: group.pm25.reduce((sum, val) => sum + val, 0) / group.pm25.length,
+            pm1: group.pm1.reduce((sum, val) => sum + val, 0) / group.pm1.length,
+            pm10: group.pm10.reduce((sum, val) => sum + val, 0) / group.pm10.length,
+            gas_resistance: group.gas_resistance.reduce((sum, val) => sum + val, 0) / group.gas_resistance.length,
+            accel_magnitude: group.accel_magnitude.reduce((sum, val) => sum + val, 0) / group.accel_magnitude.length,
+            gyro_magnitude: group.gyro_magnitude.reduce((sum, val) => sum + val, 0) / group.gyro_magnitude.length,
             _ts: new Date(group.timestamp).getTime(),
           })).sort((a, b) => a.time.localeCompare(b.time));
         }

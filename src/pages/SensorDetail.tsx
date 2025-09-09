@@ -161,21 +161,12 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-              // 24 hours: Group by hour and average accelerometer data
+              // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
               const hourGroups = new Map();
               
               data.forEach(reading => {
-                // For sensor_data, use local_time field directly (already Singapore time)
-                // For processed_sensor_readings, recorded_at is already Singapore time
-                let singaporeHour;
-                if (reading.local_time) {
-                  // sensor_data table - already has Singapore local time
-                  singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
-                } else {
-                  // processed_sensor_readings table - already in Singapore time
-                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                  singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
-                }
+                const singaporeDate = new Date(reading.recorded_at);
+                const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
                 
                 if (!hourGroups.has(singaporeHour)) {
                   hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
@@ -288,21 +279,12 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-              // 24 hours: Group by hour and average gyroscope data
+              // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
               const hourGroups = new Map();
               
               data.forEach(reading => {
-                // For sensor_data, use local_time field directly (already Singapore time)
-                // For processed_sensor_readings, recorded_at is already Singapore time
-                let singaporeHour;
-                if (reading.local_time) {
-                  // sensor_data table - already has Singapore local time
-                  singaporeHour = reading.local_time.substring(0, 2) + ':00'; // Extract HH:00
-                } else {
-                  // processed_sensor_readings table - already in Singapore time
-                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                  singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
-                }
+                const singaporeDate = new Date(reading.recorded_at);
+                const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
                 
                 if (!hourGroups.has(singaporeHour)) {
                   hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
@@ -402,46 +384,25 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-               // 24 hours: Group by hour using Singapore local time
-               const hourGroups = new Map();
-               
-               console.log(`📊 Processing 24h data: ${data.length} records for ${sensorType} sensor`);
-               
-                 data.forEach(reading => {
-                   // Check if reading has the required data field (allow 0 values)
-                   if (reading[dataKey] === null || reading[dataKey] === undefined) return;
-                  
-                  // recorded_at is already in Singapore timezone in the database
-                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                  const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
-                  
-                  if (!hourGroups.has(singaporeHour)) {
-                    hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
-                  }
-                  
-                  const value = Number(reading[dataKey]);
-                  // Include all valid numeric readings (including 0, which can be valid for some sensors)
-                  if (!isNaN(value) && isFinite(value)) {
-                    hourGroups.get(singaporeHour).values.push(value);
-                  }
-                });
-               
-               console.log(`📊 Hour groups created: ${hourGroups.size} unique hours`);
-               console.log(`📊 Sample hour groups:`, Array.from(hourGroups.entries()).slice(0, 3).map(([hour, group]) => 
-                 `${hour}: ${group.values.length} readings`));
-               
-               formatted = Array.from(hourGroups.entries())
-                 .filter(([_, group]) => group.values.length > 0) // Only include hours with valid data
-                 .map(([timeLabel, group]) => {
-                   const avgValue = group.values.reduce((sum, val) => sum + val, 0) / group.values.length;
-                   return {
-                     time: timeLabel,
-                     value: avgValue,
-                     timestamp: group.timestamp
-                   };
-                 }).sort((a, b) => a.time.localeCompare(b.time));
-               
-               console.log(`📊 Formatted 24h data: ${formatted.length} hourly points`, formatted.slice(0, 3));
+              // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
+              const hourGroups = new Map();
+              
+              data.forEach(reading => {
+                const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
+                
+                if (!hourGroups.has(singaporeHour)) {
+                  hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                }
+                const group = hourGroups.get(singaporeHour);
+                group.values.push(Number(reading[dataKey]) || 0);
+              });
+              
+              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
+                time: timeLabel,
+                value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
+                timestamp: group.timestamp
+              })).sort((a, b) => a.time.localeCompare(b.time));
               
              } else {
                // Longer periods: use existing logic with downsampling  
