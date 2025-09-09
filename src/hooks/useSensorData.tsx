@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 interface SensorReading {
   id: number;
   original_id: number;
@@ -122,7 +122,7 @@ export function useSensorData() {
 
   const getHourlyAveragedData = useCallback(async (sensorType: string): Promise<Array<{hour_bucket: string, avg_value: number, reading_count: number}>> => {
     try {
-      // Use direct query to get hourly averages from sensor_data table
+      // Map sensor type to column in processed_sensor_readings
       const sensorColumnMap = {
         'temperature': 'temperature',
         'humidity': 'humidity', 
@@ -131,47 +131,52 @@ export function useSensorData() {
         'pm1': 'pm1_0',
         'pm25': 'pm2_5',
         'pm10': 'pm10'
-      };
+      } as const;
       
       const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
       
-      // Get raw data from sensor_data table
+      // Compute SG time window: from current SG hour minus 24h to current SG hour
+      const nowUtc = new Date();
+      const nowSg = toZonedTime(nowUtc, 'Asia/Singapore');
+      const endSg = new Date(nowSg);
+      endSg.setMinutes(0, 0, 0); // round down to hour
+      const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
+
+      // Fetch readings from processed_sensor_readings within 26 hours to be safe, then filter client-side by SG window
       const { data: rawData, error } = await supabase
-        .from('sensor_data')
-        .select(`local_date, local_time, ${sensorColumn}`)
+        .from('processed_sensor_readings')
+        .select(`recorded_at, ${sensorColumn}`)
         .not(sensorColumn, 'is', null)
-        .order('id', { ascending: false })
-        .limit(10000);
-        
+        .gte('recorded_at', new Date(nowUtc.getTime() - 26 * 60 * 60 * 1000).toISOString())
+        .order('recorded_at', { ascending: true })
+        .limit(50000);
+
       if (error) throw error;
-      
-      // Process data client-side for hourly averages
-      const hourlyData = new Map<string, {values: number[], hour_bucket: string}>();
-      const now = new Date();
-      const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-      
-      rawData.forEach(row => {
-        // Type assertion to handle the query result properly
-        const typedRow = row as any;
-        const timestamp = new Date(`${typedRow.local_date} ${typedRow.local_time}`);
-        if (timestamp >= twentyFourHoursAgo) {
-          const hourKey = `${timestamp.getFullYear()}-${(timestamp.getMonth()+1).toString().padStart(2,'0')}-${timestamp.getDate().toString().padStart(2,'0')} ${timestamp.getHours().toString().padStart(2,'0')}:00:00`;
-          
+
+      // Group by SG hour buckets
+      const hourlyData = new Map<string, { values: number[]; hour_bucket: string }>();
+
+      rawData?.forEach((row: any) => {
+        const sgDate = toZonedTime(new Date(row.recorded_at), 'Asia/Singapore');
+        if (sgDate >= startSg && sgDate <= endSg) {
+          const hourKey = formatInTimeZone(sgDate, 'Asia/Singapore', 'yyyy-MM-dd HH:00:00');
           if (!hourlyData.has(hourKey)) {
             hourlyData.set(hourKey, { values: [], hour_bucket: hourKey });
           }
-          hourlyData.get(hourKey)?.values.push(typedRow[sensorColumn] as number);
+          hourlyData.get(hourKey)!.values.push(Number(row[sensorColumn]));
         }
       });
-      
-      return Array.from(hourlyData.values()).map(bucket => ({
-        hour_bucket: bucket.hour_bucket,
-        avg_value: bucket.values.reduce((sum, val) => sum + val, 0) / bucket.values.length,
-        reading_count: bucket.values.length
-      })).sort((a, b) => a.hour_bucket.localeCompare(b.hour_bucket));
-      
+
+      // Return sorted buckets
+      return Array.from(hourlyData.values())
+        .map((bucket) => ({
+          hour_bucket: bucket.hour_bucket,
+          avg_value: bucket.values.reduce((s, v) => s + v, 0) / bucket.values.length,
+          reading_count: bucket.values.length,
+        }))
+        .sort((a, b) => a.hour_bucket.localeCompare(b.hour_bucket));
     } catch (err) {
-      console.error('Failed to fetch hourly averaged data:', err);
+      console.error('Failed to fetch hourly averaged data (processed):', err);
       return [];
     }
   }, []);

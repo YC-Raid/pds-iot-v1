@@ -11,6 +11,7 @@ import { EnhancedSensorChart, SensorConfig, DataPoint } from "@/components/dashb
 import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
 
 import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
+import { toZonedTime, formatInTimeZone } from "date-fns-tz";
 
 const SensorDetail = () => {
   const { sensorType } = useParams();
@@ -109,30 +110,33 @@ const SensorDetail = () => {
         let data: any[] = [];
 
         if (hours === 24 && !['acceleration', 'rotation'].includes(sensorType)) {
-          // Use hourly averaged data from sensor_data table for 24h single-value sensors
+          // Use hourly averaged data from processed_sensor_readings for 24h single-value sensors
           const hourlyData = await getHourlyAveragedData(sensorType);
           
-          // Generate full 24-hour range and fill with data
-          const now = new Date();
-          const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-          const fullRange = [];
-          
-          for (let i = 0; i < 24; i++) {
-            const hourTime = new Date(twentyFourHoursAgo.getTime() + (i * 60 * 60 * 1000));
-            const hourKey = hourTime.toISOString().substring(0, 13) + ':00:00';
-            const matchingData = Array.isArray(hourlyData) ? hourlyData.find(d => d.hour_bucket.startsWith(hourKey.substring(0, 13))) : null;
-            
-            const timeLabel = `${hourTime.getDate()} ${hourTime.toLocaleDateString('en', {month: 'short'})} ${hourTime.getHours().toString().padStart(2, '0')}:00`;
-            
+          // Generate full 24-hour range aligned to Asia/Singapore hours
+          const endUtc = new Date();
+          const endSg = toZonedTime(endUtc, 'Asia/Singapore');
+          endSg.setMinutes(0, 0, 0); // Round down to current hour
+          const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
+
+          const fullRange: any[] = [];
+          for (let i = 0; i <= 24; i++) { // inclusive of start and end hour
+            const bucketDate = new Date(startSg.getTime() + i * 60 * 60 * 1000);
+            const hourKey = formatInTimeZone(bucketDate, 'Asia/Singapore', 'yyyy-MM-dd HH:00:00');
+            const timeLabel = formatInTimeZone(bucketDate, 'Asia/Singapore', 'd MMM HH:mm');
+            const matchingData = Array.isArray(hourlyData)
+              ? hourlyData.find((d: any) => d.hour_bucket === hourKey)
+              : null;
+
             fullRange.push({
               time: timeLabel,
               value: matchingData ? Number(matchingData.avg_value) : null,
-              timestamp: hourTime.toISOString(),
+              timestamp: hourKey,
               hour_bucket: hourKey,
-              reading_count: matchingData ? matchingData.reading_count : 0
+              reading_count: matchingData ? matchingData.reading_count : 0,
             });
           }
-          
+
           setChartData(fullRange);
           setIsLoading(false);
           return;
