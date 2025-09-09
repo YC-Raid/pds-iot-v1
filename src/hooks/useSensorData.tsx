@@ -138,24 +138,22 @@ export function useSensorData() {
       const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
       console.log(`📊 [DEBUG] Using sensor column: ${sensorColumn}`);
       
-      // Compute SG time window: current SG hour minus 24h to current SG hour
-      const nowUtc = new Date();
-      const nowSg = toZonedTime(nowUtc, 'Asia/Singapore');
-      // Round down to current hour, then subtract exactly 24 hours
-      const endSg = new Date(nowSg);
-      endSg.setMinutes(0, 0, 0); // Round to current hour
-      const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
+      // Calculate 24h window: data is already in Singapore time
+      const now = new Date();
+      const currentHour = new Date(now);
+      currentHour.setMinutes(0, 0, 0); // Round to current hour
+      const startTime = new Date(currentHour.getTime() - 24 * 60 * 60 * 1000);
 
-      console.log(`⏰ [DEBUG] SG Time window: ${startSg.toISOString()} to ${endSg.toISOString()}`);
+      console.log(`⏰ [DEBUG] Time window (treating as SG time): ${startTime.toISOString()} to ${currentHour.toISOString()}`);
 
-      // Fetch readings from processed_sensor_readings within 26 hours to be safe, then filter client-side by SG window
+      // Fetch readings from processed_sensor_readings
       const { data: rawData, error } = await supabase
         .from('processed_sensor_readings')
         .select(`recorded_at, ${sensorColumn}`)
         .not(sensorColumn, 'is', null)
-        .gte('recorded_at', new Date(nowUtc.getTime() - 26 * 60 * 60 * 1000).toISOString())
-        .order('recorded_at', { ascending: true })
-        .limit(50000);
+        .gte('recorded_at', startTime.toISOString())
+        .lte('recorded_at', currentHour.toISOString())
+        .order('recorded_at', { ascending: true });
 
       if (error) throw error;
 
@@ -165,32 +163,23 @@ export function useSensorData() {
         console.log(`📈 [DEBUG] Last raw data:`, rawData.slice(-2));
       }
 
-      // Group by SG hour buckets
+      // Group by hour buckets - data is already in Singapore time
       const hourlyData = new Map<string, { values: number[]; hour_bucket: string }>();
-      let totalProcessed = 0;
-      let withinWindow = 0;
 
       rawData?.forEach((row: any) => {
-        totalProcessed++;
-        const utcDate = new Date(row.recorded_at);
-        const sgDate = toZonedTime(utcDate, 'Asia/Singapore');
-        
-        // Debug first few records
-        if (totalProcessed <= 3) {
-          console.log(`🔍 [DEBUG] Record ${totalProcessed}: UTC=${utcDate.toISOString()}, SG=${sgDate.toISOString()}, within window=${sgDate >= startSg && sgDate <= endSg}`);
+        const recordTime = new Date(row.recorded_at);
+        // Create hour bucket key (already in Singapore time)
+        const hourKey = recordTime.getFullYear() + '-' + 
+                       (recordTime.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                       recordTime.getDate().toString().padStart(2, '0') + ' ' + 
+                       recordTime.getHours().toString().padStart(2, '0') + ':00:00';
+                       
+        if (!hourlyData.has(hourKey)) {
+          hourlyData.set(hourKey, { values: [], hour_bucket: hourKey });
         }
-        
-        if (sgDate >= startSg && sgDate <= endSg) {
-          withinWindow++;
-          const hourKey = formatInTimeZone(sgDate, 'Asia/Singapore', 'yyyy-MM-dd HH:00:00');
-          if (!hourlyData.has(hourKey)) {
-            hourlyData.set(hourKey, { values: [], hour_bucket: hourKey });
-          }
-          hourlyData.get(hourKey)!.values.push(Number(row[sensorColumn]));
-        }
+        hourlyData.get(hourKey)!.values.push(Number(row[sensorColumn]));
       });
 
-      console.log(`🗂️ [DEBUG] Processed ${totalProcessed} records, ${withinWindow} within time window`);
       console.log(`🗂️ [DEBUG] Hour buckets created: ${hourlyData.size}`);
       console.log(`🗂️ [DEBUG] Hour bucket keys:`, Array.from(hourlyData.keys()).sort());
 
@@ -205,12 +194,12 @@ export function useSensorData() {
 
       console.log(`✅ [DEBUG] Returning ${result.length} hourly averages`);
       if (result.length > 0) {
-        console.log(`📊 [DEBUG] Sample result:`, result.slice(0, 2));
+        console.log(`📊 [DEBUG] Sample result:`, result.slice(0, 3));
       }
 
       return result;
     } catch (err) {
-      console.error('❌ [DEBUG] Failed to fetch hourly averaged data (processed):', err);
+      console.error('❌ [DEBUG] Failed to fetch hourly averaged data:', err);
       return [];
     }
   }, []);

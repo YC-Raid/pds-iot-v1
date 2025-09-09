@@ -115,20 +115,26 @@ const SensorDetail = () => {
           const hourlyData = await getHourlyAveragedData(sensorType);
           console.log(`📊 [DEBUG] Hourly data received:`, hourlyData);
           
-          // Generate full 24-hour range: current hour minus 24h to current hour
-          const nowUtc = new Date();
-          const nowSg = toZonedTime(nowUtc, 'Asia/Singapore');
-          const endSg = new Date(nowSg);
-          endSg.setMinutes(0, 0, 0); // Round down to current hour
-          const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
+          // Generate full 24-hour range: data is already in Singapore time
+          const now = new Date();
+          const currentHour = new Date(now);
+          currentHour.setMinutes(0, 0, 0); // Round down to current hour
+          const startTime = new Date(currentHour.getTime() - 24 * 60 * 60 * 1000);
 
-          console.log(`⏰ [DEBUG] Time range: ${startSg.toISOString()} to ${endSg.toISOString()}`);
+          console.log(`⏰ [DEBUG] Time range (SG time): ${startTime.toISOString()} to ${currentHour.toISOString()}`);
 
           const fullRange: any[] = [];
           for (let i = 0; i <= 24; i++) { // 25 data points: start hour to current hour inclusive
-            const bucketDate = new Date(startSg.getTime() + i * 60 * 60 * 1000);
-            const hourKey = formatInTimeZone(bucketDate, 'Asia/Singapore', 'yyyy-MM-dd HH:00:00');
-            const timeLabel = formatInTimeZone(bucketDate, 'Asia/Singapore', 'd MMM HH:mm');
+            const bucketDate = new Date(startTime.getTime() + i * 60 * 60 * 1000);
+            const hourKey = bucketDate.getFullYear() + '-' + 
+                           (bucketDate.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                           bucketDate.getDate().toString().padStart(2, '0') + ' ' + 
+                           bucketDate.getHours().toString().padStart(2, '0') + ':00:00';
+            
+            const timeLabel = bucketDate.getDate() + ' ' + 
+                            bucketDate.toLocaleDateString('en', {month: 'short'}) + ' ' + 
+                            bucketDate.getHours().toString().padStart(2, '0') + ':00';
+                            
             const matchingData = Array.isArray(hourlyData)
               ? hourlyData.find((d: any) => d.hour_bucket === hourKey)
               : null;
