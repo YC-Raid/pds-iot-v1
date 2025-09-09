@@ -138,14 +138,13 @@ export function useSensorData() {
       const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
       console.log(`📊 [DEBUG] Using sensor column: ${sensorColumn}`);
       
-      // Compute SG time window: from current SG hour minus 24h to current SG hour
+      // Compute SG time window: from current SG time minus exactly 24h to current SG time  
       const nowUtc = new Date();
       const nowSg = toZonedTime(nowUtc, 'Asia/Singapore');
-      const endSg = new Date(nowSg);
-      endSg.setMinutes(0, 0, 0); // round down to hour
-      const startSg = new Date(endSg.getTime() - 24 * 60 * 60 * 1000);
+      // Don't round - use exact current time minus 24 hours
+      const startSg = new Date(nowSg.getTime() - 24 * 60 * 60 * 1000);
 
-      console.log(`⏰ [DEBUG] SG Time window: ${startSg.toISOString()} to ${endSg.toISOString()}`);
+      console.log(`⏰ [DEBUG] SG Time window: ${startSg.toISOString()} to ${nowSg.toISOString()}`);
 
       // Fetch readings from processed_sensor_readings within 26 hours to be safe, then filter client-side by SG window
       const { data: rawData, error } = await supabase
@@ -161,6 +160,7 @@ export function useSensorData() {
       console.log(`📈 [DEBUG] Raw data fetched: ${rawData?.length || 0} records`);
       if (rawData && rawData.length > 0) {
         console.log(`📈 [DEBUG] Sample raw data:`, rawData.slice(0, 2));
+        console.log(`📈 [DEBUG] Last raw data:`, rawData.slice(-2));
       }
 
       // Group by SG hour buckets
@@ -168,7 +168,7 @@ export function useSensorData() {
 
       rawData?.forEach((row: any) => {
         const sgDate = toZonedTime(new Date(row.recorded_at), 'Asia/Singapore');
-        if (sgDate >= startSg && sgDate <= endSg) {
+        if (sgDate >= startSg && sgDate <= nowSg) {
           const hourKey = formatInTimeZone(sgDate, 'Asia/Singapore', 'yyyy-MM-dd HH:00:00');
           if (!hourlyData.has(hourKey)) {
             hourlyData.set(hourKey, { values: [], hour_bucket: hourKey });
@@ -178,6 +178,7 @@ export function useSensorData() {
       });
 
       console.log(`🗂️ [DEBUG] Hour buckets created: ${hourlyData.size}`);
+      console.log(`🗂️ [DEBUG] Hour bucket keys:`, Array.from(hourlyData.keys()).sort());
 
       // Return sorted buckets
       const result = Array.from(hourlyData.values())
