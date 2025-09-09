@@ -38,15 +38,19 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
   const anomalies = useMemo(() => {
     if (data.length < 10) return [];
 
+    // Filter out null values for statistical calculations
+    const validData = data.filter(d => d.value !== null && d.value !== undefined);
+    if (validData.length < 10) return [];
+
     // Simple statistical anomaly detection using z-score
-    const values = data.map(d => d.value);
+    const values = validData.map(d => d.value);
     const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
     const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
     const stdDev = Math.sqrt(variance);
 
     const threshold = 2.5; // Z-score threshold
     
-    return data.map((point, index) => {
+    return validData.map((point, index) => {
       const zScore = Math.abs((point.value - mean) / stdDev);
       const isAnomalous = zScore > threshold;
       
@@ -140,12 +144,12 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
                             {anomaly.severity.toUpperCase()}
                           </Badge>
                           <Badge variant="outline" className="text-xs">
-                            Score: {anomaly.anomalyScore.toFixed(2)}
+                            Score: {anomaly.anomalyScore?.toFixed(2) || 'N/A'}
                           </Badge>
                         </div>
                       </div>
                       <p className="text-sm font-medium mb-1">
-                        Value: {anomaly.value.toFixed(2)}
+                        Value: {anomaly.value?.toFixed(2) || 'N/A'}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {anomaly.recommendation}
