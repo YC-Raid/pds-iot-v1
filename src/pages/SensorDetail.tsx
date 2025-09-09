@@ -538,12 +538,22 @@ const SensorDetail = () => {
                       };
                     }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
                   } else if (hours === 720) {
-                    // 1 month: aggregated by week
-                    formatted = data.map((reading, index) => ({
-                      time: `Week ${index + 1}`,
-                      value: Number(reading[valueColumn]) || null,
-                      timestamp: reading.time_bucket
-                    }));
+                    // 1 month: aggregated by week - show actual week dates
+                    formatted = data.map(reading => {
+                      const bucketDate = new Date(reading.time_bucket);
+                      // Calculate week start and end dates
+                      const weekStart = new Date(bucketDate);
+                      weekStart.setDate(bucketDate.getDate() - bucketDate.getDay()); // Start of week (Sunday)
+                      const weekEnd = new Date(weekStart);
+                      weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
+                      
+                      const timeLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                      return {
+                        time: timeLabel,
+                        value: Number(reading[valueColumn]) || null,
+                        timestamp: reading.time_bucket
+                      };
+                    }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
                   } else {
                     // Other periods: use existing raw data logic
                     const maxPoints = 200;
@@ -586,17 +596,24 @@ const SensorDetail = () => {
                     });
                     
                   } else if (hours === 720) {
-                    // 1 month: Group by week
+                    // 1 month: Group by week with actual date ranges
                     const weekGroups = new Map();
-                    const currentDate = new Date();
                     
                     data.forEach(reading => {
                       const readingDate = new Date(reading.recorded_at);
-                      const weeksDiff = Math.floor((currentDate.getTime() - readingDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-                      const weekLabel = `Week ${Math.max(1, 4 - weeksDiff)}`;
+                      // Get start of week (Sunday)
+                      const weekStart = new Date(readingDate);
+                      weekStart.setDate(readingDate.getDate() - readingDate.getDay());
+                      weekStart.setHours(0, 0, 0, 0);
+                      
+                      // Get end of week (Saturday)
+                      const weekEnd = new Date(weekStart);
+                      weekEnd.setDate(weekStart.getDate() + 6);
+                      
+                      const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
                       
                       if (!weekGroups.has(weekLabel)) {
-                        weekGroups.set(weekLabel, { values: [], timestamp: reading.recorded_at });
+                        weekGroups.set(weekLabel, { values: [], timestamp: reading.recorded_at, sortKey: weekStart.getTime() });
                       }
                       const value = Number(reading[dataKey]) || 0;
                       weekGroups.get(weekLabel).values.push(value);
@@ -606,7 +623,11 @@ const SensorDetail = () => {
                       time: timeLabel,
                       value: group.values.length > 0 ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length : null,
                       timestamp: group.timestamp
-                    })).sort((a, b) => a.time.localeCompare(b.time));
+                    })).sort((a, b) => {
+                      const aGroup = weekGroups.get(a.time);
+                      const bGroup = weekGroups.get(b.time);
+                      return aGroup.sortKey - bGroup.sortKey;
+                    });
                     
                   } else {
                     // Other periods: use existing logic with downsampling  
