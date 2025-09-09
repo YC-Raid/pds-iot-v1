@@ -161,24 +161,40 @@ const SensorDetail = () => {
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data
           console.log(`📊 [DEBUG] Trying aggregated data for 1 week view`);
-          const aggregatedData = await getAggregatedSensorData('day', 7);
-          if (aggregatedData && aggregatedData.length > 0) {
-            console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated day records`);
-            data = aggregatedData;
-          } else {
-            console.log(`⚠️ [DEBUG] No aggregated data, falling back to raw data for 1 week`);
+          try {
+            const aggregatedData = await getAggregatedSensorData('day', 7);
+            console.log(`📊 [DEBUG] Aggregated data result:`, aggregatedData?.length || 0, 'records');
+            if (aggregatedData && aggregatedData.length > 0) {
+              console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated day records`);
+              data = aggregatedData;
+            } else {
+              console.log(`⚠️ [DEBUG] No aggregated data, falling back to raw data for 1 week`);
+              data = await getSensorReadingsByTimeRange(hours);
+              console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
+            }
+          } catch (error) {
+            console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
             data = await getSensorReadingsByTimeRange(hours);
+            console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
         } else if (hours === 720) {
           // 1 month: Try aggregated data first, fallback to raw data
           console.log(`📊 [DEBUG] Trying aggregated data for 1 month view`);
-          const aggregatedData = await getAggregatedSensorData('week', 4);
-          if (aggregatedData && aggregatedData.length > 0) {
-            console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated week records`);
-            data = aggregatedData;
-          } else {
-            console.log(`⚠️ [DEBUG] No aggregated data, falling back to raw data for 1 month`);
+          try {
+            const aggregatedData = await getAggregatedSensorData('week', 4);
+            console.log(`📊 [DEBUG] Aggregated data result:`, aggregatedData?.length || 0, 'records');
+            if (aggregatedData && aggregatedData.length > 0) {
+              console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated week records`);
+              data = aggregatedData;
+            } else {
+              console.log(`⚠️ [DEBUG] No aggregated data, falling back to raw data for 1 month`);
+              data = await getSensorReadingsByTimeRange(hours);
+              console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
+            }
+          } catch (error) {
+            console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
             data = await getSensorReadingsByTimeRange(hours);
+            console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
         }
         
