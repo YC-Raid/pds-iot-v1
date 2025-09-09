@@ -378,10 +378,11 @@ const SensorDetail = () => {
                // 24 hours: Group by hour using Singapore local time
                const hourGroups = new Map();
                
-               console.log(`📊 Processing 24h data: ${data.length} records for temperature sensor`);
+               console.log(`📊 Processing 24h data: ${data.length} records for ${sensorType} sensor`);
                
                 data.forEach(reading => {
-                  if (!reading[dataKey] && !reading[`avg_${dataKey}`]) return; // Skip null/undefined readings
+                  // Check if reading has the required data field
+                  if (!reading[dataKey] || reading[dataKey] === null || reading[dataKey] === undefined) return;
                   
                   // recorded_at is already in Singapore timezone in the database
                   const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
@@ -390,11 +391,17 @@ const SensorDetail = () => {
                   if (!hourGroups.has(singaporeHour)) {
                     hourGroups.set(singaporeHour, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
                   }
-                  const value = Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0;
-                  if (value > 0) { // Only include valid readings
+                  
+                  const value = Number(reading[dataKey]);
+                  // Include all valid numeric readings (including 0, which can be valid for some sensors)
+                  if (!isNaN(value) && isFinite(value)) {
                     hourGroups.get(singaporeHour).values.push(value);
                   }
                 });
+               
+               console.log(`📊 Hour groups created: ${hourGroups.size} unique hours`);
+               console.log(`📊 Sample hour groups:`, Array.from(hourGroups.entries()).slice(0, 3).map(([hour, group]) => 
+                 `${hour}: ${group.values.length} readings`));
                
                formatted = Array.from(hourGroups.entries())
                  .filter(([_, group]) => group.values.length > 0) // Only include hours with valid data
