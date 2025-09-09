@@ -100,36 +100,17 @@ export function useSensorData() {
 
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
-      // First, get the latest record to determine the most recent data timestamp
-      const { data: latestData, error: latestError } = await supabase
-        .from('processed_sensor_readings')
-        .select('recorded_at')
-        .order('recorded_at', { ascending: false })
-        .limit(1);
-
-      if (latestError) {
-        console.error('Error fetching latest record:', latestError);
-        throw latestError;
-      }
-
-      let startTime: Date;
-      if (latestData && latestData.length > 0) {
-        // Calculate start time based on the latest available data
-        const latestTimestamp = new Date(latestData[0].recorded_at);
-        startTime = new Date(latestTimestamp.getTime() - (hours * 60 * 60 * 1000));
-        console.log(`🔍 Using latest data timestamp: ${latestTimestamp.toISOString()}`);
-        console.log(`🔍 Fetching data from ${startTime.toISOString()} to ${latestTimestamp.toISOString()}`);
-      } else {
-        // Fallback to current time if no data found
-        const now = new Date();
-        startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
-        console.log(`🔍 No data found, using current time fallback`);
-      }
+      // Always calculate from current time backwards (not from latest data timestamp)
+      const now = new Date();
+      const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+      
+      console.log(`🔍 Fetching ${hours}h data from ${startTime.toISOString()} to ${now.toISOString()}`);
       
       const { data, error } = await supabase
         .from('processed_sensor_readings')
         .select('*')
         .gte('recorded_at', startTime.toISOString())
+        .lte('recorded_at', now.toISOString())
         .order('recorded_at', { ascending: true })
         .limit(50000);
 
@@ -151,16 +132,19 @@ export function useSensorData() {
         const timeSpanHours = (new Date(lastRecord.recorded_at).getTime() - new Date(firstRecord.recorded_at).getTime()) / (1000 * 60 * 60);
         console.log(`🔍 Actual data time span: ${timeSpanHours.toFixed(2)} hours`);
         
-        // Count records per hour for debugging
-        const recordsByHour: { [key: string]: number } = {};
+        // Count records per 4-hour blocks for debugging
+        const recordsByBlock: { [key: string]: number } = {};
         
         data.forEach(record => {
           const recordTime = new Date(record.recorded_at);
-          const hourKey = recordTime.toISOString().substring(0, 13) + ':00'; // YYYY-MM-DDTHH:00
-          recordsByHour[hourKey] = (recordsByHour[hourKey] || 0) + 1;
+          const hoursFromStart = Math.floor((recordTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
+          const blockKey = `Hours ${Math.floor(hoursFromStart / 4) * 4}-${Math.floor(hoursFromStart / 4) * 4 + 3}`;
+          recordsByBlock[blockKey] = (recordsByBlock[blockKey] || 0) + 1;
         });
         
-        console.log('🔍 Records by hour:', recordsByHour);
+        console.log('🔍 Records by 4-hour blocks:', recordsByBlock);
+      } else {
+        console.log('🔍 No records found in the specified time range');
       }
       
       return data || [];
