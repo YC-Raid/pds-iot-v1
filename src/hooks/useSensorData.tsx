@@ -100,25 +100,19 @@ export function useSensorData() {
 
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
-      // Calculate time range in Singapore time since recorded_at is already Singapore time
+      // Calculate time range in UTC but know that recorded_at represents Singapore local time
       const now = new Date();
-      // Convert to Singapore time by adding 8 hours offset
-      const singaporeNow = new Date(now.getTime() + (8 * 60 * 60 * 1000));
-      const singaporeStart = new Date(singaporeNow.getTime() - (hours * 60 * 60 * 1000));
-      
-      console.log(`🔍 Fetching ${hours} hours of data`);
-      console.log(`Singapore time range: ${singaporeStart.toISOString()} to ${singaporeNow.toISOString()}`);
+      const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
       
       const { data, error } = await supabase
         .from('processed_sensor_readings')
         .select('*')
-        .gte('recorded_at', singaporeStart.toISOString())
-        .lte('recorded_at', singaporeNow.toISOString())
+        .gte('recorded_at', startTime.toISOString())
+        .lte('recorded_at', now.toISOString())
         .order('recorded_at', { ascending: true })
         .limit(50000);
 
       if (error) throw error;
-      console.log(`📊 Found ${data?.length || 0} records in Singapore time range`);
       return data || [];
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
@@ -251,58 +245,6 @@ export function useSensorData() {
     };
   }, []);
 
-  // New method to fetch raw sensor data for 24-hour analysis
-  const getRawSensorData24Hours = async (): Promise<any[]> => {
-    try {
-      setIsLoading(true);
-      
-      // Get current Singapore time and 24 hours ago
-      const now = new Date();
-      const singaporeNow = new Date(now.getTime() + (8 * 60 * 60 * 1000));
-      const past24Hours = new Date(singaporeNow);
-      past24Hours.setHours(past24Hours.getHours() - 24);
-      
-      // Convert to date and time strings for filtering
-      const startDate = past24Hours.toISOString().split('T')[0];
-      const endDate = singaporeNow.toISOString().split('T')[0];
-      
-      console.log('🔍 Fetching raw sensor data for past 24 hours in Singapore timezone');
-      console.log('Date range:', startDate, 'to', endDate);
-      
-      // Query sensor_data table with date range
-      const { data, error } = await supabase
-        .from('sensor_data')
-        .select('*')
-        .gte('local_date', startDate)
-        .lte('local_date', endDate)
-        .order('local_date', { ascending: true })
-        .order('local_time', { ascending: true });
-      
-      if (error) {
-        console.error('Error fetching raw sensor data:', error);
-        throw error;
-      }
-      
-      // Filter by time for edge cases where we cross midnight
-      const filteredData = data?.filter(reading => {
-        if (!reading.local_date || !reading.local_time) return false;
-        
-        const readingDateTime = new Date(`${reading.local_date}T${reading.local_time}`);
-        return readingDateTime >= past24Hours && readingDateTime <= singaporeNow;
-      }) || [];
-      
-      console.log('✅ Fetched', filteredData.length, 'raw sensor readings');
-      return filteredData;
-      
-    } catch (error) {
-      console.error('Error in getRawSensorData24Hours:', error);
-      setError('Failed to fetch raw sensor data');
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return {
     sensorReadings,
     dashboardData,
@@ -314,6 +256,5 @@ export function useSensorData() {
     getSensorReadingsByTimeRange,
     getAnomalousSensorReadings,
     getAggregatedSensorData,
-    getRawSensorData24Hours,
   };
 }
