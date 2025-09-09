@@ -112,10 +112,10 @@ const SensorDetail = () => {
           // Use raw data for 1h/24h views
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
-          // 1 week: Use raw data and aggregate manually for better consistency
+          // 1 week: Use raw data and group by day - same pattern as other timeframes
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 720) {
-          // 1 month: Use raw data and aggregate manually for better consistency  
+          // 1 month: Use raw data and group by day - same pattern as other timeframes  
           data = await getSensorReadingsByTimeRange(hours);
         }
         
