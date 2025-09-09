@@ -125,7 +125,7 @@ const SensorDetail = () => {
         let data: any[] = [];
 
         if (hours <= 24) {
-          // Use raw data for 1h/24h views
+          // Use raw data for 1h/24h views - fetch ALL data without limit
           data = await getSensorReadingsByTimeRange(hours);
           console.log(`📊 Fetched ${data.length} records for ${sensorType} - Time range: ${hours} hours`);
           
@@ -134,6 +134,28 @@ const SensorDetail = () => {
             const firstTime = new Date(data[0].recorded_at).toISOString();
             const lastTime = new Date(data[data.length - 1].recorded_at).toISOString();
             console.log(`📊 Data time range: ${firstTime} to ${lastTime}`);
+          }
+          
+          // Additional debug: Show how many records per hour
+          if (data.length > 0) {
+            const now = new Date();
+            const hoursBack = Math.min(hours, 24);
+            const startTime = new Date(now.getTime() - (hoursBack * 60 * 60 * 1000));
+            const recordsInTimeRange = data.filter(reading => 
+              new Date(reading.recorded_at) >= startTime
+            );
+            console.log(`📊 Records in last ${hoursBack} hours: ${recordsInTimeRange.length} (avg ${(recordsInTimeRange.length / hoursBack).toFixed(1)} per hour)`);
+            
+            // Show hourly breakdown for debugging
+            for (let i = 0; i < hoursBack; i++) {
+              const hourStart = new Date(now.getTime() - ((i + 1) * 60 * 60 * 1000));
+              const hourEnd = new Date(now.getTime() - (i * 60 * 60 * 1000));
+              const hourlyCount = data.filter(reading => {
+                const readingTime = new Date(reading.recorded_at);
+                return readingTime >= hourStart && readingTime < hourEnd;
+              }).length;
+              console.log(`📊 Hour ${i + 1} ago (${hourStart.toISOString().split('T')[1].substring(0, 5)} - ${hourEnd.toISOString().split('T')[1].substring(0, 5)}): ${hourlyCount} records`);
+            }
           }
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data

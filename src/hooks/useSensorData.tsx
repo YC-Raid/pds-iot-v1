@@ -103,16 +103,41 @@ export function useSensorData() {
       const startTime = new Date();
       startTime.setHours(startTime.getHours() - hours);
       
-       const { data, error } = await supabase
-         .from('processed_sensor_readings')
-         .select('*')
-         .gte('recorded_at', startTime.toISOString())
-         .order('recorded_at', { ascending: true })
-         .limit(50000);
+      console.log(`🔍 Fetching data from ${startTime.toISOString()} to ${new Date().toISOString()}`);
+      
+      const { data, error } = await supabase
+        .from('processed_sensor_readings')
+        .select('*')
+        .gte('recorded_at', startTime.toISOString())
+        .order('recorded_at', { ascending: true })
+        .limit(50000);
 
       if (error) {
         console.error('Supabase query error:', error);
         throw error;
+      }
+      
+      console.log(`🔍 Raw query returned ${data?.length || 0} records`);
+      
+      // Log the actual time range of returned data
+      if (data && data.length > 0) {
+        const firstRecord = data[0];
+        const lastRecord = data[data.length - 1];
+        console.log(`🔍 First record: ${firstRecord.recorded_at}`);
+        console.log(`🔍 Last record: ${lastRecord.recorded_at}`);
+        
+        // Count records per hour for debugging
+        const now = new Date();
+        const recordsByHour: { [key: string]: number } = {};
+        
+        data.forEach(record => {
+          const recordTime = new Date(record.recorded_at);
+          const hoursAgo = Math.floor((now.getTime() - recordTime.getTime()) / (1000 * 60 * 60));
+          const hourKey = `${hoursAgo}h ago`;
+          recordsByHour[hourKey] = (recordsByHour[hourKey] || 0) + 1;
+        });
+        
+        console.log('🔍 Records by hour:', recordsByHour);
       }
       
       return data || [];
