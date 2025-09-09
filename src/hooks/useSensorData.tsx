@@ -153,7 +153,8 @@ export function useSensorData() {
         .not(sensorColumn, 'is', null)
         .gte('recorded_at', startTime.toISOString())
         .lte('recorded_at', currentHour.toISOString())
-        .order('recorded_at', { ascending: true });
+        .order('recorded_at', { ascending: true })
+        .limit(50000); // Add explicit limit to get all records
 
       if (error) throw error;
 
