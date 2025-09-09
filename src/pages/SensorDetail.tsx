@@ -384,35 +384,40 @@ const SensorDetail = () => {
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-              // 24 hours: Group by date + hour to handle multi-day data properly
+              // 24 hours: Group by hour only (simpler approach)
               const hourGroups = new Map();
+              
+              console.log(`🔍 Processing ${data.length} readings for ${dataKey} over 24 hours`);
+              console.log('Sample data:', data.slice(0, 3));
               
               data.forEach(reading => {
                 // recorded_at is already Singapore time, use it directly
                 const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                const dateStr = singaporeDate.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric' 
-                });
                 const hourStr = singaporeDate.getHours().toString().padStart(2, '0') + ':00';
-                const timeKey = `${dateStr} ${hourStr}`;
                 
-                if (!hourGroups.has(timeKey)) {
-                  hourGroups.set(timeKey, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp, sortKey: singaporeDate.getTime() });
+                if (!hourGroups.has(hourStr)) {
+                  hourGroups.set(hourStr, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
                 }
-                const group = hourGroups.get(timeKey);
-                group.values.push(Number(reading[dataKey]) || 0);
+                const group = hourGroups.get(hourStr);
+                const value = Number(reading[dataKey]) || 0;
+                if (value > 0) { // Only add non-zero temperature values
+                  group.values.push(value);
+                }
               });
               
-              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
-                time: timeLabel,
-                value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
-                timestamp: group.timestamp
-              })).sort((a, b) => {
-                const aGroup = hourGroups.get(a.time);
-                const bGroup = hourGroups.get(b.time);
-                return aGroup.sortKey - bGroup.sortKey;
-              });
+              console.log(`📊 Created ${hourGroups.size} hour groups for ${dataKey}`);
+              
+              formatted = Array.from(hourGroups.entries())
+                .filter(([_, group]) => group.values.length > 0) // Only include hours with data
+                .map(([timeLabel, group]) => ({
+                  time: timeLabel,
+                  value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
+                  timestamp: group.timestamp
+                }))
+                .sort((a, b) => a.time.localeCompare(b.time));
+              
+              console.log(`✅ Formatted ${formatted.length} data points for chart`);
+              console.log('Formatted sample:', formatted.slice(0, 3));
               
              } else {
                // Longer periods: use existing logic with downsampling  
