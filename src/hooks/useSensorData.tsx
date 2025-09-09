@@ -108,7 +108,7 @@ export function useSensorData() {
          .select('*')
          .gte('recorded_at', startTime.toISOString())
          .order('recorded_at', { ascending: true })
-         .limit(10000);
+         .limit(50000);
 
       if (error) {
         console.error('Supabase query error:', error);

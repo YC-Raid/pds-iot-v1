@@ -127,7 +127,14 @@ const SensorDetail = () => {
         if (hours <= 24) {
           // Use raw data for 1h/24h views
           data = await getSensorReadingsByTimeRange(hours);
-          console.log(`📊 Fetched ${data.length} records for ${sensorType}`);
+          console.log(`📊 Fetched ${data.length} records for ${sensorType} - Time range: ${hours} hours`);
+          
+          // Debug: Show time range of actual data
+          if (data.length > 0) {
+            const firstTime = new Date(data[0].recorded_at).toISOString();
+            const lastTime = new Date(data[data.length - 1].recorded_at).toISOString();
+            console.log(`📊 Data time range: ${firstTime} to ${lastTime}`);
+          }
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data
           data = await getAggregatedSensorData('day', 7);
