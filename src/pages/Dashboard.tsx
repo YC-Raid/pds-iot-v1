@@ -6,6 +6,7 @@ import { AirQualityPanel } from "@/components/dashboard/AirQualityPanel";
 import { MaintenanceCalendar } from "@/components/dashboard/MaintenanceCalendar";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { CriticalAlertsPanel } from "@/components/dashboard/CriticalAlertsPanel";
+import { AnomalyAlertsPanel } from "@/components/dashboard/AnomalyAlertsPanel";
 import { AnalyticsPanel } from "@/components/dashboard/AnalyticsPanel";
 import { HangarStatus } from "@/components/dashboard/HangarStatus";
 import CriticalAlertsOverview from "@/components/dashboard/CriticalAlertsOverview";
@@ -103,6 +104,7 @@ const Dashboard = () => {
       icon: <Bell className="h-4 w-4" />,
       content: (
         <div className="space-y-6">
+          <AnomalyAlertsPanel />
           <AlertsPanel />
         </div>
       ),
