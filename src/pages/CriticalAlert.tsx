@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { QRCodeGenerator } from "@/components/ui/qr-code-generator";
 import { SEO } from "@/components/seo/SEO";
+import { supabase } from "@/integrations/supabase/client";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 interface AlertData {
@@ -35,21 +36,6 @@ interface AlertData {
   resolved: boolean;
 }
 
-const mockAlertData: AlertData = {
-  id: "ALERT-001",
-  title: "Critical Temperature Threshold Exceeded",
-  type: "critical",
-  message: "Temperature sensor TempSensor-003 has exceeded critical threshold",
-  sensorType: "Temperature",
-  sensorId: "TempSensor-003",
-  value: 45.2,
-  threshold: 40.0,
-  unit: "°C",
-  location: "Zone A - Storage Bay 3",
-  timestamp: "2024-01-15T14:30:00Z",
-  resolved: false
-};
-
 export default function CriticalAlert() {
   const { alertId } = useParams();
   const navigate = useNavigate();
@@ -57,8 +43,45 @@ export default function CriticalAlert() {
   const [showQR, setShowQR] = useState(false);
 
   useEffect(() => {
-    // In real implementation, fetch alert data by alertId
-    setAlertData(mockAlertData);
+    const fetchAlert = async () => {
+      if (!alertId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('alerts')
+          .select('*')
+          .eq('id', alertId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching alert:', error);
+          return;
+        }
+
+        if (data) {
+          const transformedAlert: AlertData = {
+            id: data.id,
+            title: data.title,
+            type: data.severity === 'critical' ? 'critical' : 
+                  data.severity === 'high' ? 'warning' : 'info',
+            message: data.description,
+            sensorType: data.sensor_type || 'Unknown',
+            sensorId: data.sensor || 'Unknown',
+            value: parseFloat(data.value) || 0,
+            threshold: parseFloat(data.threshold_value?.toString() || '0') || 0,
+            unit: data.unit || '',
+            location: data.location || 'Unknown',
+            timestamp: data.created_at,
+            resolved: data.status === 'resolved'
+          };
+          setAlertData(transformedAlert);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+    fetchAlert();
   }, [alertId]);
 
   const getSeverityIcon = (type: string) => {

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Clock, MapPin, Thermometer, Droplets, Wind, Activity, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CriticalAlert {
   id: string;
@@ -19,64 +20,48 @@ interface CriticalAlert {
   status: 'active' | 'acknowledged' | 'resolved';
 }
 
-const mockCriticalAlerts: CriticalAlert[] = [
-  {
-    id: '1',
-    title: 'Temperature Critical Threshold Exceeded',
-    description: 'Storage area temperature has exceeded safe operating limits',
-    severity: 'critical',
-    sensor: 'Temperature',
-    location: 'Storage Zone A',
-    timestamp: new Date(Date.now() - 15 * 60000), // 15 minutes ago
-    value: 45.2,
-    unit: '°C',
-    threshold: 40,
-    status: 'active'
-  },
-  {
-    id: '2',
-    title: 'Vibration Anomaly Detected',
-    description: 'Unusual vibration patterns detected in equipment',
-    severity: 'high',
-    sensor: 'Vibration',
-    location: 'Equipment Bay 2',
-    timestamp: new Date(Date.now() - 45 * 60000), // 45 minutes ago
-    value: 8.7,
-    unit: 'mm/s',
-    threshold: 5.0,
-    status: 'acknowledged'
-  },
-  {
-    id: '3',
-    title: 'Humidity Level Warning',
-    description: 'Humidity levels approaching critical threshold',
-    severity: 'medium',
-    sensor: 'Humidity',
-    location: 'Storage Zone B',
-    timestamp: new Date(Date.now() - 2 * 60 * 60000), // 2 hours ago
-    value: 78.5,
-    unit: '%',
-    threshold: 80,
-    status: 'resolved'
-  },
-  {
-    id: '4',
-    title: 'Air Quality Degradation',
-    description: 'Air quality index indicates poor conditions',
-    severity: 'high',
-    sensor: 'Air Quality',
-    location: 'Main Storage',
-    timestamp: new Date(Date.now() - 30 * 60000), // 30 minutes ago
-    value: 185,
-    unit: 'AQI',
-    threshold: 150,
-    status: 'active'
-  }
-];
-
 export function CriticalAlertsPanel() {
-  const [alerts, setAlerts] = useState<CriticalAlert[]>(mockCriticalAlerts);
+  const [alerts, setAlerts] = useState<CriticalAlert[]>([]);
   const [filter, setFilter] = useState<'all' | 'active' | 'acknowledged' | 'resolved'>('all');
+
+  // Fetch real alerts from Supabase
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('alerts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error('Error fetching alerts:', error);
+          return;
+        }
+
+        if (data) {
+          const transformedAlerts: CriticalAlert[] = data.map(alert => ({
+            id: alert.id,
+            title: alert.title,
+            description: alert.description,
+            severity: alert.severity as 'critical' | 'high' | 'medium',
+            sensor: alert.sensor || alert.sensor_type || 'Unknown',
+            location: alert.location || 'Unknown',
+            timestamp: new Date(alert.created_at),
+            value: parseFloat(alert.value) || 0,
+            unit: alert.unit || '',
+            threshold: parseFloat(alert.threshold_value?.toString() || '0') || 0,
+            status: alert.status as 'active' | 'acknowledged' | 'resolved'
+          }));
+          setAlerts(transformedAlerts);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+    fetchAlerts();
+  }, []);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
