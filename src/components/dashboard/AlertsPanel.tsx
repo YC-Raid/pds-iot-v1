@@ -128,8 +128,7 @@ const AlertsPanel = () => {
         
         if (alertsError) {
           console.error('Error fetching alerts:', alertsError);
-          // Fall back to demo data if database is empty
-          setAlerts(getDemoAlerts());
+          setAlerts([]);
           return;
         }
 
@@ -152,12 +151,12 @@ const AlertsPanel = () => {
           );
           setAlerts(alertsWithNotes);
         } else {
-          // If no alerts in database, use demo data
-          setAlerts(getDemoAlerts());
+          // No alerts in database
+          setAlerts([]);
         }
       } catch (error) {
         console.error('Error:', error);
-        setAlerts(getDemoAlerts());
+        setAlerts([]);
       }
     };
 
@@ -174,37 +173,6 @@ const AlertsPanel = () => {
       default: return AlertTriangle;
     }
   };
-
-  const getDemoAlerts = () => [
-    {
-      id: "demo-1",
-      title: "Critical Temperature Threshold Breach",
-      description: "Temperature sensor reading exceeds maximum safe operating range. Equipment protection systems may activate.",
-      severity: "critical",
-      category: "environmental",
-      equipment: "HVAC System A",
-      location: "North Storage Zone",
-      sensor: "Temperature Sensor #2",
-      created_at: "2024-01-15T14:30:00Z",
-      status: "active",
-      value: "42.5°C",
-      threshold: "40°C",
-      unit: "°C",
-      duration: 25,
-      impact: "Equipment damage risk",
-      assigned_to: null,
-      acknowledged_by: null,
-      acknowledged_at: null,
-      resolved_by: null,
-      resolved_at: null,
-      notes: [],
-      escalated: false,
-      root_cause: null,
-      corrective_actions: [],
-      icon: Thermometer,
-      priority: "P1"
-    }
-  ];
 
   // Use real technicians from Supabase profiles
   const technicians = profiles.length > 0 ? profiles.map(p => p.nickname || `User ${p.user_id.slice(0, 8)}`) : [
