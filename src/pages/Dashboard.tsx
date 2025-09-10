@@ -51,7 +51,7 @@ const Dashboard = () => {
       icon: <Building className="h-4 w-4" />,
       content: (
         <div className="space-y-6">
-          <CriticalAlertsOverview />
+          <AlertsPanel />
           <HangarStatus />
         </div>
       ),
