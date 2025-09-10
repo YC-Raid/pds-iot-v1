@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatCurrency } from "@/lib/utils";
+
 import {
   Dialog,
   DialogContent,
@@ -93,7 +93,7 @@ const AlertsPanel = () => {
   const [exportTimeframe, setExportTimeframe] = useState("1week");
   const [pendingImpact, setPendingImpact] = useState("");
   const [pendingPriority, setPendingPriority] = useState("");
-  const [pendingCost, setPendingCost] = useState<string>("");
+  
 
   // Fetch user profiles from Supabase
   useEffect(() => {
@@ -579,34 +579,6 @@ const AlertsPanel = () => {
     }
   };
 
-  const updateAlertCost = async (alertId: string, cost: number) => {
-    try {
-      const { error } = await supabase
-        .from('alerts')
-        .update({ cost })
-        .eq('id', alertId);
-
-      if (error) throw error;
-
-      setAlerts(prev => prev.map(alert => 
-        alert.id === alertId 
-          ? { ...alert, cost }
-          : alert
-      ));
-
-      toast({
-        title: 'Cost Updated',
-        description: 'Alert cost has been updated.'
-      });
-    } catch (error) {
-      console.error('Error updating cost:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update alert cost.',
-        variant: 'destructive'
-      });
-    }
-  };
 
   const dismissAlert = async (alertId: string) => {
     const userName = profile?.nickname || "Current User";
@@ -741,14 +713,10 @@ const AlertsPanel = () => {
       if (pendingAssignment && pendingAssignment !== selectedAlert.assigned_to) {
         await assignAlert(selectedAlert.id, pendingAssignment);
       }
-      const costNum = pendingCost === "" ? (selectedAlert.cost || 0) : parseFloat(pendingCost);
-      if (!isNaN(costNum) && costNum !== (selectedAlert.cost || 0)) {
-        await updateAlertCost(selectedAlert.id, costNum);
-      }
       setPendingAssignment("");
       setPendingImpact("");
       setPendingPriority("");
-      setPendingCost("");
+      
       setIsDialogOpen(false);
     }
   };
@@ -802,10 +770,6 @@ const AlertsPanel = () => {
                   <Clock className="h-3 w-3" />
                   <span className="font-medium">Duration:</span>
                   <span>{formatDuration(computeAlertDurationMinutes(alert))}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="font-medium">Cost:</span>
-                  <span>{formatCurrency(Number(alert.cost || 0))}</span>
                 </div>
               </div>
 
@@ -938,7 +902,7 @@ const AlertsPanel = () => {
                 setPendingAssignment(alert.assigned_to || "");
                 setPendingImpact(alert.impact || "");
                 setPendingPriority(alert.priority || "P4");
-                setPendingCost(String(alert.cost ?? 0));
+                
                 setIsDialogOpen(true);
               }}
             >
@@ -1459,16 +1423,6 @@ const AlertsPanel = () => {
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Alert Cost (SGD)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={pendingCost}
-                onChange={(e) => setPendingCost(e.target.value)}
-              />
-            </div>
 
             <div className="grid gap-2">
               <Label htmlFor="note">Add Note</Label>
