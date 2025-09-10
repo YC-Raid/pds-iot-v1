@@ -100,11 +100,38 @@ export function useSensorData() {
 
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
-      // Calculate time range in UTC but know that recorded_at represents Singapore local time
-      const now = new Date();
-      const startTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+      let startTime: Date;
+      let endTime: Date;
       
-      console.log(`🔍 [DEBUG] Fetching sensor readings for ${hours} hours (${startTime.toISOString()} to ${now.toISOString()})`);
+      if (hours === 1) {
+        // For 1-hour view, get the most recent data and go back 1 hour from there
+        console.log(`🔍 [DEBUG] Getting most recent data for 1-hour view`);
+        
+        // First, get the most recent timestamp
+        const { data: recentData, error: recentError } = await supabase
+          .from('processed_sensor_readings')
+          .select('recorded_at')
+          .order('recorded_at', { ascending: false })
+          .limit(1);
+          
+        if (recentError) throw recentError;
+        
+        if (!recentData || recentData.length === 0) {
+          console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
+          return [];
+        }
+        
+        const mostRecentTime = new Date(recentData[0].recorded_at);
+        endTime = mostRecentTime;
+        startTime = new Date(mostRecentTime.getTime() - (60 * 60 * 1000)); // 1 hour back
+        
+        console.log(`🔍 [DEBUG] Fetching 1-hour data from most recent: ${startTime.toISOString()} to ${endTime.toISOString()}`);
+      } else {
+        // For other periods, use current time as before
+        endTime = new Date();
+        startTime = new Date(endTime.getTime() - (hours * 60 * 60 * 1000));
+        console.log(`🔍 [DEBUG] Fetching sensor readings for ${hours} hours (${startTime.toISOString()} to ${endTime.toISOString()})`);
+      }
       
       // For longer periods, use pagination to ensure we get all data
       if (hours > 24) {
@@ -118,7 +145,7 @@ export function useSensorData() {
             .from('processed_sensor_readings')
             .select('*')
             .gte('recorded_at', startTime.toISOString())
-            .lte('recorded_at', now.toISOString())
+            .lte('recorded_at', endTime.toISOString())
             .order('recorded_at', { ascending: true })
             .range(from, to);
 
@@ -144,7 +171,7 @@ export function useSensorData() {
           .from('processed_sensor_readings')
           .select('*')
           .gte('recorded_at', startTime.toISOString())
-          .lte('recorded_at', now.toISOString())
+          .lte('recorded_at', endTime.toISOString())
           .order('recorded_at', { ascending: true })
           .limit(10000);
 
