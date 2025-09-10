@@ -207,10 +207,9 @@ const SensorDetail = () => {
           const isAggregated = data[0] && data[0].hasOwnProperty('avg_temperature');
           console.log(`📊 [DEBUG] Data type: ${isAggregated ? 'aggregated' : 'raw'}, sample:`, data[0]);
           
-          if (sensorType === 'acceleration') {
-            const maxPoints = hours === 1 ? 60 : 200;
-            const step = Math.max(1, Math.ceil(data.length / maxPoints));
-            if (hours === 1) {
+          // Handle 1-hour view first (per-minute grouping) for all sensor types
+          if (hours === 1) {
+            if (sensorType === 'acceleration') {
               // 1 hour: Group by minute and average accelerometer data
               const minuteGroups = new Map();
               
@@ -244,8 +243,41 @@ const SensorDetail = () => {
                 z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
                 magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
               })).sort((a, b) => a.time.localeCompare(b.time));
+            } else {
+              // 1 hour: Group by minute and average for single-value sensors
+              const minuteGroups = new Map();
+              const dataKey = {
+                'temperature': 'temperature',
+                'humidity': 'humidity',
+                'pressure': 'pressure', 
+                'gas': 'gas_resistance',
+                'pm1': 'pm1_0',
+                'pm25': 'pm2_5',
+                'pm10': 'pm10'
+              }[sensorType] || 'temperature';
               
-            } else if (hours === 24) {
+              data.forEach(reading => {
+                // recorded_at is already in Singapore timezone in the database
+                const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
+                
+                if (!minuteGroups.has(singaporeTime)) {
+                  minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                }
+                minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
+              });
+              
+              formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
+                time: timeLabel,
+                value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
+                timestamp: group.timestamp
+              })).sort((a, b) => a.time.localeCompare(b.time));
+            }
+           } else if (sensorType === 'acceleration') {
+            const maxPoints = 200;
+            const step = Math.max(1, Math.ceil(data.length / maxPoints));
+            
+            if (hours === 24) {
               // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
               const hourGroups = new Map();
               
