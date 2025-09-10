@@ -156,7 +156,7 @@ const SensorDetail = () => {
           setIsLoading(false);
           return;
         } else if (hours <= 24) {
-          // Use raw data for 1h views and multi-axis sensors
+          // Use raw data from processed_sensor_readings for 1h and 24h views
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data
@@ -209,69 +209,87 @@ const SensorDetail = () => {
           
           // Handle 1-hour view first (per-minute grouping) for all sensor types
           if (hours === 1) {
+            console.log(`📊 [DEBUG] Processing 1-hour view with ${data.length} records from processed_sensor_readings`);
+            
+            if (data.length === 0) {
+              console.log(`⚠️ [DEBUG] No data found for last hour, chart will be empty`);
+              setChartData([]);
+              setIsLoading(false);
+              return;
+            }
+            
             if (sensorType === 'acceleration') {
               // 1 hour: Group by minute and average accelerometer data
               const minuteGroups = new Map();
               
               data.forEach(reading => {
-                // For sensor_data, use local_time field directly (already Singapore time)
-                // For processed_sensor_readings, recorded_at is already Singapore time
-                let singaporeTime;
-                if (reading.local_time) {
-                  // sensor_data table - already has Singapore local time
-                  singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
-                } else {
-                  // processed_sensor_readings table - already in Singapore time
-                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                  singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                }
+                const recordedDate = new Date(reading.recorded_at);
+                const minute = `${recordedDate.getHours().toString().padStart(2, '0')}:${recordedDate.getMinutes().toString().padStart(2, '0')}`;
                 
-                if (!minuteGroups.has(singaporeTime)) {
-                  minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                if (!minuteGroups.has(minute)) {
+                  minuteGroups.set(minute, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
                 }
-                const group = minuteGroups.get(singaporeTime);
-                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
-                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
-                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+                const group = minuteGroups.get(minute);
+                
+                if (reading.accel_x !== null && reading.accel_x !== undefined) {
+                  group.x.push(Number(reading.accel_x));
+                }
+                if (reading.accel_y !== null && reading.accel_y !== undefined) {
+                  group.y.push(Number(reading.accel_y));
+                }
+                if (reading.accel_z !== null && reading.accel_z !== undefined) {
+                  group.z.push(Number(reading.accel_z));
+                }
+                if (reading.accel_magnitude !== null && reading.accel_magnitude !== undefined) {
+                  group.mag.push(Number(reading.accel_magnitude));
+                }
               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
-                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
-                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
-                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
-                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
+                x_axis: group.x.length > 0 ? group.x.reduce((sum, val) => sum + val, 0) / group.x.length : 0,
+                y_axis: group.y.length > 0 ? group.y.reduce((sum, val) => sum + val, 0) / group.y.length : 0,
+                z_axis: group.z.length > 0 ? group.z.reduce((sum, val) => sum + val, 0) / group.z.length : 0,
+                magnitude: group.mag.length > 0 ? group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length : 0
               })).sort((a, b) => a.time.localeCompare(b.time));
+              
+              console.log(`📊 [DEBUG] 1-hour acceleration data grouped into ${formatted.length} minute buckets`);
             } else {
-              // 1 hour: Group by minute and average for single-value sensors
+              // 1 hour: Group by minute and average for single-value sensors  
               const minuteGroups = new Map();
               const dataKey = {
                 'temperature': 'temperature',
-                'humidity': 'humidity',
-                'pressure': 'pressure', 
+                'humidity': 'humidity', 
+                'pressure': 'pressure',
                 'gas': 'gas_resistance',
                 'pm1': 'pm1_0',
                 'pm25': 'pm2_5',
                 'pm10': 'pm10'
               }[sensorType] || 'temperature';
               
+              console.log(`📊 [DEBUG] Processing 1-hour ${sensorType} data using column: ${dataKey}`);
+              
               data.forEach(reading => {
-                // recorded_at is already in Singapore timezone in the database
-                const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
+                const recordedDate = new Date(reading.recorded_at);
+                const minute = `${recordedDate.getHours().toString().padStart(2, '0')}:${recordedDate.getMinutes().toString().padStart(2, '0')}`;
                 
-                if (!minuteGroups.has(singaporeTime)) {
-                  minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                const value = reading[dataKey];
+                if (value !== null && value !== undefined && !isNaN(Number(value))) {
+                  if (!minuteGroups.has(minute)) {
+                    minuteGroups.set(minute, { values: [], timestamp: reading.recorded_at });
+                  }
+                  minuteGroups.get(minute).values.push(Number(value));
                 }
-                minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
-                value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
+                value: group.values.length > 0 ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length : 0,
                 timestamp: group.timestamp
               })).sort((a, b) => a.time.localeCompare(b.time));
+              
+              console.log(`📊 [DEBUG] 1-hour ${sensorType} data grouped into ${formatted.length} minute buckets`);
+              console.log(`📊 [DEBUG] Sample minute data:`, formatted.slice(0, 3));
             }
            } else if (sensorType === 'acceleration') {
             const maxPoints = 200;
