@@ -208,8 +208,8 @@ const SensorDetail = () => {
           console.log(`📊 [DEBUG] Data type: ${isAggregated ? 'aggregated' : 'raw'}, sample:`, data[0]);
           
           // Handle 1-hour view first (per-minute grouping) for all sensor types
-          if (hours === 1) {
-            console.log(`📊 [DEBUG] Processing 1-hour view with ${data.length} records from processed_sensor_readings`);
+          if (hours === 24) {
+            console.log(`📊 [DEBUG] Processing 24-hour view with ${data.length} records from processed_sensor_readings`);
             
             if (data.length === 0) {
               console.log(`⚠️ [DEBUG] No data found for last hour, chart will be empty`);
@@ -219,17 +219,17 @@ const SensorDetail = () => {
             }
             
             if (sensorType === 'acceleration') {
-              // 1 hour: Group by minute and average accelerometer data
-              const minuteGroups = new Map();
+              // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
+              const hourGroups = new Map();
               
               data.forEach(reading => {
                 const recordedDate = new Date(reading.recorded_at);
-                const minute = `${recordedDate.getHours().toString().padStart(2, '0')}:${recordedDate.getMinutes().toString().padStart(2, '0')}`;
+                const singaporeHour = `${recordedDate.getHours().toString().padStart(2, '0')}:00`;
                 
-                if (!minuteGroups.has(minute)) {
-                  minuteGroups.set(minute, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                if (!hourGroups.has(singaporeHour)) {
+                  hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
                 }
-                const group = minuteGroups.get(minute);
+                const group = hourGroups.get(singaporeHour);
                 
                 if (reading.accel_x !== null && reading.accel_x !== undefined) {
                   group.x.push(Number(reading.accel_x));
@@ -245,18 +245,18 @@ const SensorDetail = () => {
                 }
               });
               
-              formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
+              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
-                x_axis: group.x.length > 0 ? group.x.reduce((sum, val) => sum + val, 0) / group.x.length : 0,
-                y_axis: group.y.length > 0 ? group.y.reduce((sum, val) => sum + val, 0) / group.y.length : 0,
-                z_axis: group.z.length > 0 ? group.z.reduce((sum, val) => sum + val, 0) / group.z.length : 0,
-                magnitude: group.mag.length > 0 ? group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length : 0
+                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
+                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
+                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
+                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
               })).sort((a, b) => a.time.localeCompare(b.time));
               
-              console.log(`📊 [DEBUG] 1-hour acceleration data grouped into ${formatted.length} minute buckets`);
+              console.log(`📊 [DEBUG] 24-hour acceleration data grouped into ${formatted.length} hour buckets`);
             } else {
-              // 1 hour: Group by minute and average for single-value sensors  
-              const minuteGroups = new Map();
+              // 24 hours: Group by hour and average for single-value sensors  
+              const hourGroups = new Map();
               const dataKey = {
                 'temperature': 'temperature',
                 'humidity': 'humidity', 
@@ -267,29 +267,29 @@ const SensorDetail = () => {
                 'pm10': 'pm10'
               }[sensorType] || 'temperature';
               
-              console.log(`📊 [DEBUG] Processing 1-hour ${sensorType} data using column: ${dataKey}`);
+              console.log(`📊 [DEBUG] Processing 24-hour ${sensorType} data using column: ${dataKey}`);
               
               data.forEach(reading => {
                 const recordedDate = new Date(reading.recorded_at);
-                const minute = `${recordedDate.getHours().toString().padStart(2, '0')}:${recordedDate.getMinutes().toString().padStart(2, '0')}`;
+                const hour = `${recordedDate.getHours().toString().padStart(2, '0')}:00`;
                 
                 const value = reading[dataKey];
                 if (value !== null && value !== undefined && !isNaN(Number(value))) {
-                  if (!minuteGroups.has(minute)) {
-                    minuteGroups.set(minute, { values: [], timestamp: reading.recorded_at });
+                  if (!hourGroups.has(hour)) {
+                    hourGroups.set(hour, { values: [], timestamp: reading.recorded_at });
                   }
-                  minuteGroups.get(minute).values.push(Number(value));
+                  hourGroups.get(hour).values.push(Number(value));
                 }
               });
               
-              formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
+              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
                 value: group.values.length > 0 ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length : 0,
                 timestamp: group.timestamp
               })).sort((a, b) => a.time.localeCompare(b.time));
               
-              console.log(`📊 [DEBUG] 1-hour ${sensorType} data grouped into ${formatted.length} minute buckets`);
-              console.log(`📊 [DEBUG] Sample minute data:`, formatted.slice(0, 3));
+              console.log(`📊 [DEBUG] 24-hour ${sensorType} data grouped into ${formatted.length} hour buckets`);
+              console.log(`📊 [DEBUG] Sample hour data:`, formatted.slice(0, 3));
             }
            } else if (sensorType === 'acceleration') {
             const maxPoints = 200;

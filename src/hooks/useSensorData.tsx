@@ -103,35 +103,29 @@ export function useSensorData() {
       let startTime: Date;
       let endTime: Date;
       
-      if (hours === 1) {
-        // For 1-hour view, get the most recent data and go back 1 hour from there
-        console.log(`🔍 [DEBUG] Getting most recent data for 1-hour view`);
+      // Use consistent "latest data and go back" approach for both 1h and 24h
+      console.log(`🔍 [DEBUG] Getting most recent data for ${hours}-hour view`);
+      
+      // First, get the most recent timestamp
+      const { data: recentData, error: recentError } = await supabase
+        .from('processed_sensor_readings')
+        .select('recorded_at')
+        .order('recorded_at', { ascending: false })
+        .limit(1);
         
-        // First, get the most recent timestamp
-        const { data: recentData, error: recentError } = await supabase
-          .from('processed_sensor_readings')
-          .select('recorded_at')
-          .order('recorded_at', { ascending: false })
-          .limit(1);
-          
-        if (recentError) throw recentError;
-        
-        if (!recentData || recentData.length === 0) {
-          console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
-          return [];
-        }
-        
-        const mostRecentTime = new Date(recentData[0].recorded_at);
-        endTime = mostRecentTime;
-        startTime = new Date(mostRecentTime.getTime() - (60 * 60 * 1000)); // 1 hour back
-        
-        console.log(`🔍 [DEBUG] Fetching 1-hour data from most recent: ${startTime.toISOString()} to ${endTime.toISOString()}`);
-      } else {
-        // For other periods, use current time as before
-        endTime = new Date();
-        startTime = new Date(endTime.getTime() - (hours * 60 * 60 * 1000));
-        console.log(`🔍 [DEBUG] Fetching sensor readings for ${hours} hours (${startTime.toISOString()} to ${endTime.toISOString()})`);
+      if (recentError) throw recentError;
+      
+      if (!recentData || recentData.length === 0) {
+        console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
+        return [];
       }
+      
+      const mostRecentTime = new Date(recentData[0].recorded_at);
+      endTime = mostRecentTime;
+      startTime = new Date(mostRecentTime.getTime() - (hours * 60 * 60 * 1000));
+      
+      console.log(`🔍 [DEBUG] Fetching ${hours}-hour data from most recent: ${startTime.toISOString()} to ${endTime.toISOString()}`);
+      
       
       // For longer periods, use pagination to ensure we get all data
       if (hours > 24) {
@@ -203,13 +197,25 @@ export function useSensorData() {
       const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
       console.log(`📊 [DEBUG] Using sensor column: ${sensorColumn}`);
       
-      // Calculate 24h window: data is already in Singapore time
-      const now = new Date();
-      const currentHour = new Date(now);
-      currentHour.setMinutes(0, 0, 0); // Round to current hour
-      const startTime = new Date(currentHour.getTime() - 24 * 60 * 60 * 1000);
+      // Use same approach as getSensorReadingsByTimeRange - get most recent and go back 24h
+      const { data: recentData, error: recentError } = await supabase
+        .from('processed_sensor_readings')
+        .select('recorded_at')
+        .order('recorded_at', { ascending: false })
+        .limit(1);
+        
+      if (recentError) throw recentError;
+      
+      if (!recentData || recentData.length === 0) {
+        console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
+        return [];
+      }
+      
+      const mostRecentTime = new Date(recentData[0].recorded_at);
+      const endTime = mostRecentTime;
+      const startTime = new Date(mostRecentTime.getTime() - 24 * 60 * 60 * 1000);
 
-      console.log(`⏰ [DEBUG] Time window (treating as SG time): ${startTime.toISOString()} to ${currentHour.toISOString()}`);
+      console.log(`⏰ [DEBUG] Time window (treating as SG time): ${startTime.toISOString()} to ${endTime.toISOString()}`);
 
       // Fetch readings from processed_sensor_readings with pagination (PostgREST default limit ~1000)
       const pageSize = 1000;
@@ -223,7 +229,7 @@ export function useSensorData() {
           .select(`recorded_at, ${sensorColumn}`)
           .not(sensorColumn, 'is', null)
           .gte('recorded_at', startTime.toISOString())
-          .lte('recorded_at', currentHour.toISOString())
+          .lte('recorded_at', endTime.toISOString())
           .order('recorded_at', { ascending: true })
           .range(from, to);
 
