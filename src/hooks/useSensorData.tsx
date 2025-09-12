@@ -103,29 +103,35 @@ export function useSensorData() {
       let startTime: Date;
       let endTime: Date;
       
-      // Use consistent "latest data and go back" approach for both 1h and 24h
-      console.log(`🔍 [DEBUG] Getting most recent data for ${hours}-hour view`);
-      
-      // First, get the most recent timestamp
-      const { data: recentData, error: recentError } = await supabase
-        .from('processed_sensor_readings')
-        .select('recorded_at')
-        .order('recorded_at', { ascending: false })
-        .limit(1);
+      // For 1-hour view, use current time window (now -> now - 1h)
+      if (hours <= 1) {
+        endTime = new Date();
+        startTime = new Date(endTime.getTime() - hours * 60 * 60 * 1000);
+        console.log(`⏱️ [DEBUG] 1h window (now): ${startTime.toISOString()} to ${endTime.toISOString()}`);
+      } else {
+        // For longer periods, anchor to most recent reading in DB
+        console.log(`🔍 [DEBUG] Getting most recent data for ${hours}-hour view`);
         
-      if (recentError) throw recentError;
-      
-      if (!recentData || recentData.length === 0) {
-        console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
-        return [];
+        // First, get the most recent timestamp
+        const { data: recentData, error: recentError } = await supabase
+          .from('processed_sensor_readings')
+          .select('recorded_at')
+          .order('recorded_at', { ascending: false })
+          .limit(1);
+          
+        if (recentError) throw recentError;
+        
+        if (!recentData || recentData.length === 0) {
+          console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
+          return [];
+        }
+        
+        const mostRecentTime = new Date(recentData[0].recorded_at);
+        endTime = mostRecentTime;
+        startTime = new Date(mostRecentTime.getTime() - hours * 60 * 60 * 1000);
+        
+        console.log(`🔍 [DEBUG] Fetching ${hours}-hour data from most recent: ${startTime.toISOString()} to ${endTime.toISOString()}`);
       }
-      
-      const mostRecentTime = new Date(recentData[0].recorded_at);
-      endTime = mostRecentTime;
-      startTime = new Date(mostRecentTime.getTime() - (hours * 60 * 60 * 1000));
-      
-      console.log(`🔍 [DEBUG] Fetching ${hours}-hour data from most recent: ${startTime.toISOString()} to ${endTime.toISOString()}`);
-      
       
       // For longer periods, use pagination to ensure we get all data
       if (hours > 24) {
