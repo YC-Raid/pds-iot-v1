@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { SEO } from "@/components/seo/SEO";
 import SettingsTab from "@/components/settings/SettingsTab";
+import VibrationThresholdSettings from "@/components/settings/VibrationThresholdSettings";
 
 export default function Settings() {
   return (
@@ -14,6 +15,7 @@ export default function Settings() {
         <Card className="p-0 border-0 shadow-none">
           <SettingsTab />
         </Card>
+        <VibrationThresholdSettings />
       </div>
     </>
   );

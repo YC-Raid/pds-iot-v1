@@ -638,6 +638,39 @@ export type Database = {
         }
         Relationships: []
       }
+      vibration_monitoring_settings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          foundation_stress_threshold: number
+          id: string
+          location: string
+          roof_stability_threshold: number
+          updated_at: string
+          wall_integrity_threshold: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          foundation_stress_threshold?: number
+          id?: string
+          location?: string
+          roof_stability_threshold?: number
+          updated_at?: string
+          wall_integrity_threshold?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          foundation_stress_threshold?: number
+          id?: string
+          location?: string
+          roof_stability_threshold?: number
+          updated_at?: string
+          wall_integrity_threshold?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       sensor_dashboard_live: {

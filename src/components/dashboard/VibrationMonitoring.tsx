@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const VibrationMonitoring = () => {
   const { sensorReadings, isLoading, getSensorReadingsByTimeRange } = useSensorData();
@@ -25,6 +26,11 @@ const VibrationMonitoring = () => {
     wallIntegrity: 100,
     roofStability: 100,
     overallHealth: 100
+  });
+  const [thresholds, setThresholds] = useState({
+    foundation_stress_threshold: 2.0,
+    wall_integrity_threshold: 1.5,
+    roof_stability_threshold: 1.0
   });
 
   // Calculate proper acceleration magnitude accounting for gravity
@@ -62,17 +68,14 @@ const VibrationMonitoring = () => {
       return sum + Math.sqrt(Math.pow(reading.accel_x || 0, 2) + Math.pow(reading.accel_z || 0, 2));
     }, 0) / data.length;
 
-    // Calculate foundation stress (0-100%, higher vibration = higher stress)
-    // Adjusted threshold to 5.0 m/s² to account for realistic sensor data ranges
-    const foundationStress = Math.min(100, (avgAccelMagnitude / 5.0) * 100);
+    // Calculate foundation stress using configurable threshold
+    const foundationStress = Math.min(100, (avgAccelMagnitude / thresholds.foundation_stress_threshold) * 100);
 
-    // Calculate wall integrity damage (0-100%, higher lateral forces = higher damage)
-    // Adjusted threshold to 3.0 m/s² for lateral forces
-    const wallDamage = Math.min(100, (avgLateralForce / 3.0) * 100);
+    // Calculate wall integrity damage using configurable threshold
+    const wallDamage = Math.min(100, (avgLateralForce / thresholds.wall_integrity_threshold) * 100);
 
-    // Calculate roof stability damage (0-100%, higher rotation = higher damage)  
-    // Adjusted threshold to 2.0 °/s for gyroscope readings
-    const roofDamage = Math.min(100, (avgGyroMagnitude / 2.0) * 100);
+    // Calculate roof stability damage using configurable threshold
+    const roofDamage = Math.min(100, (avgGyroMagnitude / thresholds.roof_stability_threshold) * 100);
 
     // Overall health: 100% minus weighted damage components
     const overallHealth = Math.max(0, 100 - (
@@ -92,6 +95,27 @@ const VibrationMonitoring = () => {
       overallHealth: Math.round(overallHealth)
     });
   };
+
+  // Fetch vibration monitoring thresholds
+  useEffect(() => {
+    const fetchThresholds = async () => {
+      const { data, error } = await supabase
+        .from('vibration_monitoring_settings')
+        .select('*')
+        .eq('location', 'hangar_01')
+        .maybeSingle();
+      
+      if (data && !error) {
+        setThresholds({
+          foundation_stress_threshold: data.foundation_stress_threshold,
+          wall_integrity_threshold: data.wall_integrity_threshold,
+          roof_stability_threshold: data.roof_stability_threshold
+        });
+      }
+    };
+
+    fetchThresholds();
+  }, []);
 
   useEffect(() => {
     const loadVibrationData = async () => {
