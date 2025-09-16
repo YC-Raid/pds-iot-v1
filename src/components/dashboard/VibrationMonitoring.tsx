@@ -20,38 +20,121 @@ const VibrationMonitoring = () => {
   const { sensorReadings, isLoading, getSensorReadingsByTimeRange } = useSensorData();
   const [accelerometerData, setAccelerometerData] = useState([]);
   const [gyroscopeData, setGyroscopeData] = useState([]);
+  const [structuralHealth, setStructuralHealth] = useState({
+    foundationStress: 0,
+    wallIntegrity: 100,
+    roofStability: 100,
+    overallHealth: 100
+  });
+
+  // Calculate proper acceleration magnitude accounting for gravity
+  const calculateCorrectedAccelMagnitude = (x: number, y: number, z: number) => {
+    // Remove gravity component (assuming Z-axis is vertical)
+    const correctedZ = z - 9.81;
+    return Math.sqrt(x * x + y * y + correctedZ * correctedZ);
+  };
+
+  // Calculate structural health metrics based on vibration data
+  const calculateStructuralHealth = (data: any[]) => {
+    if (!data || data.length === 0) return;
+
+    // Calculate average values for the last 24 hours
+    const avgAccelMagnitude = data.reduce((sum, reading) => {
+      const correctedMag = calculateCorrectedAccelMagnitude(
+        reading.accel_x || 0, 
+        reading.accel_y || 0, 
+        reading.accel_z || 0
+      );
+      return sum + correctedMag;
+    }, 0) / data.length;
+
+    const avgGyroMagnitude = data.reduce((sum, reading) => {
+      const gyroMag = Math.sqrt(
+        Math.pow(reading.gyro_x || 0, 2) + 
+        Math.pow(reading.gyro_y || 0, 2) + 
+        Math.pow(reading.gyro_z || 0, 2)
+      );
+      return sum + gyroMag;
+    }, 0) / data.length;
+
+    const avgLateralForce = data.reduce((sum, reading) => {
+      return sum + Math.sqrt(Math.pow(reading.accel_x || 0, 2) + Math.pow(reading.accel_y || 0, 2));
+    }, 0) / data.length;
+
+    // Calculate foundation stress (0-100%, higher vibration = higher stress)
+    const foundationStress = Math.min(100, (avgAccelMagnitude / 0.5) * 100);
+
+    // Calculate wall integrity (100-0%, higher lateral forces = lower integrity)
+    const wallIntegrity = Math.max(0, 100 - (avgLateralForce / 0.3) * 100);
+
+    // Calculate roof stability (100-0%, higher rotation = lower stability)
+    const roofStability = Math.max(0, 100 - (avgGyroMagnitude / 0.2) * 100);
+
+    // Overall health is weighted average (foundation 40%, walls 30%, roof 30%)
+    const overallHealth = (
+      (100 - foundationStress) * 0.4 + 
+      wallIntegrity * 0.3 + 
+      roofStability * 0.3
+    );
+
+    setStructuralHealth({
+      foundationStress: Math.round(foundationStress),
+      wallIntegrity: Math.round(wallIntegrity),
+      roofStability: Math.round(roofStability),
+      overallHealth: Math.round(overallHealth)
+    });
+  };
 
   useEffect(() => {
     const loadVibrationData = async () => {
       const data = await getSensorReadingsByTimeRange(24);
       
-      // Process accelerometer data (ground vibration)
-      const accelData = data.map(reading => ({
-        time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false 
-        }),
-        amplitude: reading.accel_magnitude || 0,
-        x: reading.accel_x || 0,
-        y: reading.accel_y || 0,
-        z: reading.accel_z || 0,
-        severity: reading.accel_magnitude > 0.3 ? "high" : reading.accel_magnitude > 0.15 ? "medium" : "low"
-      })).slice(-20);
+      // Calculate structural health from raw data
+      calculateStructuralHealth(data);
       
-      // Process gyroscope data (rotational vibration)  
-      const gyroData = data.map(reading => ({
-        time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false 
-        }),
-        amplitude: reading.gyro_magnitude || 0,
-        x: reading.gyro_x || 0,
-        y: reading.gyro_y || 0,
-        z: reading.gyro_z || 0,
-        severity: reading.gyro_magnitude > 0.2 ? "high" : reading.gyro_magnitude > 0.1 ? "medium" : "low"
-      })).slice(-20);
+      // Process accelerometer data with corrected magnitudes
+      const accelData = data.map(reading => {
+        const correctedMagnitude = calculateCorrectedAccelMagnitude(
+          reading.accel_x || 0, 
+          reading.accel_y || 0, 
+          reading.accel_z || 0
+        );
+        
+        return {
+          time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          }),
+          amplitude: correctedMagnitude,
+          x: reading.accel_x || 0,
+          y: reading.accel_y || 0,
+          z: reading.accel_z || 0,
+          severity: correctedMagnitude > 0.3 ? "high" : correctedMagnitude > 0.15 ? "medium" : "low"
+        };
+      }).slice(-20);
+      
+      // Process gyroscope data with proper magnitude calculation
+      const gyroData = data.map(reading => {
+        const gyroMagnitude = Math.sqrt(
+          Math.pow(reading.gyro_x || 0, 2) + 
+          Math.pow(reading.gyro_y || 0, 2) + 
+          Math.pow(reading.gyro_z || 0, 2)
+        );
+        
+        return {
+          time: new Date(reading.recorded_at).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          }),
+          amplitude: gyroMagnitude,
+          x: reading.gyro_x || 0,
+          y: reading.gyro_y || 0,
+          z: reading.gyro_z || 0,
+          severity: gyroMagnitude > 0.2 ? "high" : gyroMagnitude > 0.1 ? "medium" : "low"
+        };
+      }).slice(-20);
 
       setAccelerometerData(accelData);
       setGyroscopeData(gyroData);
@@ -62,15 +145,19 @@ const VibrationMonitoring = () => {
     }
   }, [getSensorReadingsByTimeRange, isLoading]);
 
-  // Get latest readings for current status
+  // Get latest readings for current status and calculate corrected values
   const latestReading = sensorReadings[0];
-
-  const structuralImpact = {
-    foundationStress: 23, // percentage
-    wallIntegrity: 94,
-    roofStability: 87,
-    overallHealth: 88
-  };
+  const latestCorrectedAccelMag = latestReading ? calculateCorrectedAccelMagnitude(
+    latestReading.accel_x || 0,
+    latestReading.accel_y || 0, 
+    latestReading.accel_z || 0
+  ) : 0;
+  
+  const latestCorrectedGyroMag = latestReading ? Math.sqrt(
+    Math.pow(latestReading.gyro_x || 0, 2) +
+    Math.pow(latestReading.gyro_y || 0, 2) +
+    Math.pow(latestReading.gyro_z || 0, 2)
+  ) : 0;
 
   const chartConfig = {
     amplitude: { label: "Amplitude (m/s²)", color: "#ef4444" },
@@ -103,17 +190,17 @@ const VibrationMonitoring = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {latestReading?.accel_magnitude?.toFixed(2) || "0.00"} m/s²
+              {latestCorrectedAccelMag.toFixed(2)} m/s²
             </div>
             <p className="text-xs text-muted-foreground">
-              Current acceleration magnitude
+              Ground acceleration (gravity corrected)
             </p>
             <Badge className={`mt-2 ${getSeverityColor(
-              latestReading?.accel_magnitude > 0.3 ? "high" : 
-              latestReading?.accel_magnitude > 0.15 ? "medium" : "low"
+              latestCorrectedAccelMag > 0.3 ? "high" : 
+              latestCorrectedAccelMag > 0.15 ? "medium" : "low"
             )}`}>
-              {latestReading?.accel_magnitude > 0.3 ? "High" : 
-               latestReading?.accel_magnitude > 0.15 ? "Medium" : "Low"} Impact
+              {latestCorrectedAccelMag > 0.3 ? "High" : 
+               latestCorrectedAccelMag > 0.15 ? "Medium" : "Low"} Impact
             </Badge>
           </CardContent>
         </Card>
@@ -125,17 +212,17 @@ const VibrationMonitoring = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {latestReading?.gyro_magnitude?.toFixed(2) || "0.00"} °/s
+              {latestCorrectedGyroMag.toFixed(2)} °/s
             </div>
             <p className="text-xs text-muted-foreground">
-              Current gyroscope magnitude
+              Angular velocity magnitude
             </p>
             <Badge className={`mt-2 ${getSeverityColor(
-              latestReading?.gyro_magnitude > 0.2 ? "high" : 
-              latestReading?.gyro_magnitude > 0.1 ? "medium" : "low"
+              latestCorrectedGyroMag > 0.2 ? "high" : 
+              latestCorrectedGyroMag > 0.1 ? "medium" : "low"
             )}`}>
-              {latestReading?.gyro_magnitude > 0.2 ? "High" : 
-               latestReading?.gyro_magnitude > 0.1 ? "Medium" : "Low"} Impact
+              {latestCorrectedGyroMag > 0.2 ? "High" : 
+               latestCorrectedGyroMag > 0.1 ? "Medium" : "Low"} Impact
             </Badge>
           </CardContent>
         </Card>
@@ -146,11 +233,11 @@ const VibrationMonitoring = () => {
             <AlertTriangle className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{structuralImpact.foundationStress}%</div>
+            <div className="text-2xl font-bold">{structuralHealth.foundationStress}%</div>
             <p className="text-xs text-muted-foreground">
-              Stress level
+              Based on ground vibration data
             </p>
-            <Progress value={structuralImpact.foundationStress} className="mt-2" />
+            <Progress value={structuralHealth.foundationStress} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -160,13 +247,13 @@ const VibrationMonitoring = () => {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getHealthColor(structuralImpact.overallHealth)}`}>
-              {structuralImpact.overallHealth}%
+            <div className={`text-2xl font-bold ${getHealthColor(structuralHealth.overallHealth)}`}>
+              {structuralHealth.overallHealth}%
             </div>
             <p className="text-xs text-muted-foreground">
-              Overall condition
+              Calculated from vibration metrics
             </p>
-            <Progress value={structuralImpact.overallHealth} className="mt-2" />
+            <Progress value={structuralHealth.overallHealth} className="mt-2" />
           </CardContent>
         </Card>
       </div>
@@ -255,9 +342,9 @@ const VibrationMonitoring = () => {
                 <p className="text-sm text-muted-foreground">Ground vibration impact on foundation</p>
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={100 - structuralImpact.foundationStress} className="w-20" />
-                <span className={`text-sm font-medium ${getHealthColor(100 - structuralImpact.foundationStress)}`}>
-                  {100 - structuralImpact.foundationStress}%
+                <Progress value={100 - structuralHealth.foundationStress} className="w-20" />
+                <span className={`text-sm font-medium ${getHealthColor(100 - structuralHealth.foundationStress)}`}>
+                  {100 - structuralHealth.foundationStress}%
                 </span>
               </div>
             </div>
@@ -268,9 +355,9 @@ const VibrationMonitoring = () => {
                 <p className="text-sm text-muted-foreground">Lateral force resistance</p>
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={structuralImpact.wallIntegrity} className="w-20" />
-                <span className={`text-sm font-medium ${getHealthColor(structuralImpact.wallIntegrity)}`}>
-                  {structuralImpact.wallIntegrity}%
+                <Progress value={structuralHealth.wallIntegrity} className="w-20" />
+                <span className={`text-sm font-medium ${getHealthColor(structuralHealth.wallIntegrity)}`}>
+                  {structuralHealth.wallIntegrity}%
                 </span>
               </div>
             </div>
@@ -281,9 +368,9 @@ const VibrationMonitoring = () => {
                 <p className="text-sm text-muted-foreground">Wind load and air vibration resistance</p>
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={structuralImpact.roofStability} className="w-20" />
-                <span className={`text-sm font-medium ${getHealthColor(structuralImpact.roofStability)}`}>
-                  {structuralImpact.roofStability}%
+                <Progress value={structuralHealth.roofStability} className="w-20" />
+                <span className={`text-sm font-medium ${getHealthColor(structuralHealth.roofStability)}`}>
+                  {structuralHealth.roofStability}%
                 </span>
               </div>
             </div>
