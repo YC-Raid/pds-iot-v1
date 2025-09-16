@@ -63,13 +63,16 @@ const VibrationMonitoring = () => {
     }, 0) / data.length;
 
     // Calculate foundation stress (0-100%, higher vibration = higher stress)
-    const foundationStress = Math.min(100, (avgAccelMagnitude / 0.5) * 100);
+    // Adjusted threshold to 5.0 m/s² to account for realistic sensor data ranges
+    const foundationStress = Math.min(100, (avgAccelMagnitude / 5.0) * 100);
 
     // Calculate wall integrity damage (0-100%, higher lateral forces = higher damage)
-    const wallDamage = Math.min(100, (avgLateralForce / 0.3) * 100);
+    // Adjusted threshold to 3.0 m/s² for lateral forces
+    const wallDamage = Math.min(100, (avgLateralForce / 3.0) * 100);
 
     // Calculate roof stability damage (0-100%, higher rotation = higher damage)  
-    const roofDamage = Math.min(100, (avgGyroMagnitude / 0.2) * 100);
+    // Adjusted threshold to 2.0 °/s for gyroscope readings
+    const roofDamage = Math.min(100, (avgGyroMagnitude / 2.0) * 100);
 
     // Overall health: 100% minus weighted damage components
     const overallHealth = Math.max(0, 100 - (
