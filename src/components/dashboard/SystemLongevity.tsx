@@ -11,35 +11,41 @@ import {
   Calendar,
   AlertCircle,
   Target,
-  Timer
+  Timer,
+  Loader2
 } from "lucide-react";
+import { useLongevityMetrics } from "@/hooks/useLongevityMetrics";
+import { format } from 'date-fns';
 
 const SystemLongevity = () => {
-  const uptimeData = [
-    { month: "Jul", uptime: 99.2, downtime: 0.8, incidents: 3 },
-    { month: "Aug", uptime: 98.7, downtime: 1.3, incidents: 5 },
-    { month: "Sep", uptime: 99.8, downtime: 0.2, incidents: 1 },
-    { month: "Oct", uptime: 99.4, downtime: 0.6, incidents: 2 },
-    { month: "Nov", uptime: 99.1, downtime: 0.9, incidents: 4 },
-    { month: "Dec", uptime: 99.6, downtime: 0.4, incidents: 2 }
-  ];
+  const { 
+    currentUptime, 
+    longevityMetrics, 
+    componentLifespan, 
+    monthlyUptimeData,
+    isLoading, 
+    error 
+  } = useLongevityMetrics();
 
-  const longevityMetrics = {
-    expectedLifespan: 25, // years
-    currentAge: 8, // years
-    degradationRate: 2.3, // % per year
-    predictedRemainingLife: 15.2, // years
-    maintenanceEfficiency: 87, // %
-    costEfficiency: 94 // %
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Loading longevity metrics...</span>
+      </div>
+    );
+  }
 
-  const componentLifespan = [
-    { component: "HVAC System", current: 12, expected: 15, health: 80 },
-    { component: "Structural Steel", current: 8, expected: 50, health: 95 },
-    { component: "Electrical Systems", current: 6, expected: 20, health: 88 },
-    { component: "Sensors Network", current: 3, expected: 10, health: 92 },
-    { component: "Door Mechanisms", current: 8, expected: 12, health: 67 },
-  ];
+  if (error) {
+    return (
+      <Card className="p-6">
+        <div className="flex items-center text-destructive">
+          <AlertCircle className="h-5 w-5 mr-2" />
+          <span>Error loading longevity data: {error}</span>
+        </div>
+      </Card>
+    );
+  }
 
   const chartConfig = {
     uptime: { label: "Uptime (%)", color: "#22c55e" },
@@ -67,12 +73,14 @@ const SystemLongevity = () => {
             <Zap className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">99.6%</div>
+            <div className="text-2xl font-bold text-green-600">{currentUptime.uptime.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               Last 30 days
             </p>
-            <Badge className="mt-2 text-green-600 bg-green-100">
-              Excellent
+            <Badge className={`mt-2 ${currentUptime.uptime >= 99 ? 'text-green-600 bg-green-100' : 
+              currentUptime.uptime >= 95 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100'}`}>
+              {currentUptime.uptime >= 99 ? 'Excellent' : 
+               currentUptime.uptime >= 95 ? 'Good' : 'Needs Attention'}
             </Badge>
           </CardContent>
         </Card>
@@ -83,12 +91,13 @@ const SystemLongevity = () => {
             <AlertCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">2.8h</div>
+            <div className="text-2xl font-bold text-red-600">{currentUptime.totalDowntimeHours.toFixed(1)}h</div>
             <p className="text-xs text-muted-foreground">
-              This month
+              Last 30 days
             </p>
-            <Badge className="mt-2 text-yellow-600 bg-yellow-100">
-              2 incidents
+            <Badge className={`mt-2 ${currentUptime.incidents <= 2 ? 'text-green-600 bg-green-100' : 
+              currentUptime.incidents <= 5 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100'}`}>
+              {currentUptime.incidents} incident{currentUptime.incidents !== 1 ? 's' : ''}
             </Badge>
           </CardContent>
         </Card>
@@ -138,7 +147,7 @@ const SystemLongevity = () => {
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={uptimeData}>
+              <LineChart data={monthlyUptimeData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
@@ -229,8 +238,11 @@ const SystemLongevity = () => {
               </div>
               <Progress value={longevityMetrics.costEfficiency} />
             </div>
-            <Badge className="w-full justify-center text-green-600 bg-green-100">
-              Optimal maintenance schedule detected
+            <Badge className={`w-full justify-center ${longevityMetrics.maintenanceEfficiency >= 85 ? 
+              'text-green-600 bg-green-100' : 'text-yellow-600 bg-yellow-100'}`}>
+              {longevityMetrics.maintenanceEfficiency >= 85 ? 
+                'Optimal maintenance schedule detected' : 
+                'Maintenance schedule needs optimization'}
             </Badge>
           </CardContent>
         </Card>
