@@ -13,6 +13,13 @@ import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
 import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 import { toZonedTime, formatInTimeZone } from "date-fns-tz";
 
+// Calculate proper acceleration magnitude accounting for gravity
+const calculateCorrectedAccelMagnitude = (x: number, y: number, z: number) => {
+  // Remove gravity component (Y-axis is vertical based on sensor data)
+  const correctedY = y + 9.81; // Add 9.81 since sensor shows -9.6 at rest (negative gravity)
+  return Math.sqrt(x * x + correctedY * correctedY + z * z);
+};
+
 const SensorDetail = () => {
   const { sensorType } = useParams();
   const navigate = useNavigate();
@@ -34,6 +41,16 @@ const SensorDetail = () => {
       case 'pm1': return latestReading.pm1_0;
       case 'pm25': return latestReading.pm2_5;
       case 'pm10': return latestReading.pm10;
+      case 'acceleration': {
+        if (latestReading.accel_x !== null && latestReading.accel_y !== null && latestReading.accel_z !== null) {
+          return calculateCorrectedAccelMagnitude(
+            latestReading.accel_x,
+            latestReading.accel_y,
+            latestReading.accel_z
+          );
+        }
+        return null;
+      }
       default: return latestReading.temperature;
     }
   }, [latestReading, sensorType]);
@@ -240,8 +257,15 @@ const SensorDetail = () => {
                 if (reading.accel_z !== null && reading.accel_z !== undefined) {
                   group.z.push(Number(reading.accel_z));
                 }
-                if (reading.accel_magnitude !== null && reading.accel_magnitude !== undefined) {
-                  group.mag.push(Number(reading.accel_magnitude));
+                if (reading.accel_x !== null && reading.accel_x !== undefined &&
+                    reading.accel_y !== null && reading.accel_y !== undefined &&
+                    reading.accel_z !== null && reading.accel_z !== undefined) {
+                  const correctedMagnitude = calculateCorrectedAccelMagnitude(
+                    Number(reading.accel_x),
+                    Number(reading.accel_y), 
+                    Number(reading.accel_z)
+                  );
+                  group.mag.push(correctedMagnitude);
                 }
               });
               
@@ -310,7 +334,12 @@ const SensorDetail = () => {
                 group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
                 group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
                 group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+                // Calculate corrected magnitude from individual components instead of raw magnitude
+                const accelX = Number(reading.accel_x || reading.avg_accel_x) || 0;
+                const accelY = Number(reading.accel_y || reading.avg_accel_y) || 0;
+                const accelZ = Number(reading.accel_z || reading.avg_accel_z) || 0;
+                const correctedMag = calculateCorrectedAccelMagnitude(accelX, accelY, accelZ);
+                group.mag.push(correctedMag);
               });
               
               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
@@ -336,7 +365,12 @@ const SensorDetail = () => {
                 group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
                 group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
                 group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+                // Calculate corrected magnitude from individual components instead of raw magnitude
+                const accelX = Number(reading.accel_x || reading.avg_accel_x) || 0;
+                const accelY = Number(reading.accel_y || reading.avg_accel_y) || 0;
+                const accelZ = Number(reading.accel_z || reading.avg_accel_z) || 0;
+                const correctedMag = calculateCorrectedAccelMagnitude(accelX, accelY, accelZ);
+                group.mag.push(correctedMag);
               });
               
               formatted = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
@@ -364,7 +398,12 @@ const SensorDetail = () => {
                 group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
                 group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
                 group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                group.mag.push(Number(reading.accel_magnitude || reading.avg_accel_magnitude) || 0);
+                // Calculate corrected magnitude from individual components instead of raw magnitude
+                const accelX = Number(reading.accel_x || reading.avg_accel_x) || 0;
+                const accelY = Number(reading.accel_y || reading.avg_accel_y) || 0;
+                const accelZ = Number(reading.accel_z || reading.avg_accel_z) || 0;
+                const correctedMag = calculateCorrectedAccelMagnitude(accelX, accelY, accelZ);
+                group.mag.push(correctedMag);
               });
               
               formatted = Array.from(weekGroups.entries()).map(([timeLabel, group]) => ({
