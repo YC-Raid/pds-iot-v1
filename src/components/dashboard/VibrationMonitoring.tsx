@@ -29,9 +29,9 @@ const VibrationMonitoring = () => {
 
   // Calculate proper acceleration magnitude accounting for gravity
   const calculateCorrectedAccelMagnitude = (x: number, y: number, z: number) => {
-    // Remove gravity component (assuming Z-axis is vertical)
-    const correctedZ = z - 9.81;
-    return Math.sqrt(x * x + y * y + correctedZ * correctedZ);
+    // Remove gravity component (Y-axis is vertical based on sensor data)
+    const correctedY = y + 9.81; // Add 9.81 since sensor shows -9.6 at rest (negative gravity)
+    return Math.sqrt(x * x + correctedY * correctedY + z * z);
   };
 
   // Calculate structural health metrics based on vibration data
@@ -58,7 +58,7 @@ const VibrationMonitoring = () => {
     }, 0) / data.length;
 
     const avgLateralForce = data.reduce((sum, reading) => {
-      return sum + Math.sqrt(Math.pow(reading.accel_x || 0, 2) + Math.pow(reading.accel_y || 0, 2));
+      return sum + Math.sqrt(Math.pow(reading.accel_x || 0, 2) + Math.pow(reading.accel_z || 0, 2));
     }, 0) / data.length;
 
     // Calculate foundation stress (0-100%, higher vibration = higher stress)
@@ -70,7 +70,7 @@ const VibrationMonitoring = () => {
     // Calculate roof stability (100-0%, higher rotation = lower stability)
     const roofStability = Math.max(0, 100 - (avgGyroMagnitude / 0.2) * 100);
 
-    // Overall health is weighted average (foundation 40%, walls 30%, roof 30%)
+    // Overall health is weighted average of all health components
     const overallHealth = (
       (100 - foundationStress) * 0.4 + 
       wallIntegrity * 0.3 + 
