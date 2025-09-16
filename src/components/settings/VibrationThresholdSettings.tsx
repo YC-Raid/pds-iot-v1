@@ -68,8 +68,18 @@ const VibrationThresholdSettings = () => {
   };
 
   const handleInputChange = (field: string, value: string) => {
+    // Allow empty string for clearing the field
+    if (value === '') {
+      setThresholds(prev => ({
+        ...prev,
+        [field]: 0
+      }));
+      return;
+    }
+    
     const numValue = parseFloat(value);
-    if (!isNaN(numValue) && numValue > 0) {
+    // Allow any valid number input, including while typing
+    if (!isNaN(numValue)) {
       setThresholds(prev => ({
         ...prev,
         [field]: numValue
