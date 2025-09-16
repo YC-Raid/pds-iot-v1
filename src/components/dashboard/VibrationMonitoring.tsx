@@ -57,6 +57,7 @@ const VibrationMonitoring = () => {
       return sum + gyroMag;
     }, 0) / data.length;
 
+    // Calculate lateral forces (X and Z axis only, excluding gravity-affected Y axis)
     const avgLateralForce = data.reduce((sum, reading) => {
       return sum + Math.sqrt(Math.pow(reading.accel_x || 0, 2) + Math.pow(reading.accel_z || 0, 2));
     }, 0) / data.length;
@@ -64,18 +65,22 @@ const VibrationMonitoring = () => {
     // Calculate foundation stress (0-100%, higher vibration = higher stress)
     const foundationStress = Math.min(100, (avgAccelMagnitude / 0.5) * 100);
 
-    // Calculate wall integrity (100-0%, higher lateral forces = lower integrity)
-    const wallIntegrity = Math.max(0, 100 - (avgLateralForce / 0.3) * 100);
+    // Calculate wall integrity damage (0-100%, higher lateral forces = higher damage)
+    const wallDamage = Math.min(100, (avgLateralForce / 0.3) * 100);
 
-    // Calculate roof stability (100-0%, higher rotation = lower stability)
-    const roofStability = Math.max(0, 100 - (avgGyroMagnitude / 0.2) * 100);
+    // Calculate roof stability damage (0-100%, higher rotation = higher damage)  
+    const roofDamage = Math.min(100, (avgGyroMagnitude / 0.2) * 100);
 
-    // Overall health is weighted average of all health components
-    const overallHealth = (
-      (100 - foundationStress) * 0.4 + 
-      wallIntegrity * 0.3 + 
-      roofStability * 0.3
-    );
+    // Overall health: 100% minus weighted damage components
+    const overallHealth = Math.max(0, 100 - (
+      foundationStress * 0.4 + 
+      wallDamage * 0.3 + 
+      roofDamage * 0.3
+    ));
+
+    // Convert damage back to integrity percentages for display
+    const wallIntegrity = 100 - wallDamage;
+    const roofStability = 100 - roofDamage;
 
     setStructuralHealth({
       foundationStress: Math.round(foundationStress),
