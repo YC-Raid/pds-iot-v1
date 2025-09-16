@@ -9,7 +9,11 @@ import { Settings, Save } from "lucide-react";
 
 const VibrationThresholdSettings = () => {
   const { toast } = useToast();
-  const [thresholds, setThresholds] = useState({
+  const [thresholds, setThresholds] = useState<{
+    foundation_stress_threshold: number | '';
+    wall_integrity_threshold: number | '';
+    roof_stability_threshold: number | '';
+  }>({
     foundation_stress_threshold: 2.0,
     wall_integrity_threshold: 1.5,
     roof_stability_threshold: 1.0
@@ -40,14 +44,17 @@ const VibrationThresholdSettings = () => {
   const handleSave = async () => {
     setLoading(true);
     
+    // Convert empty strings to default values for saving
+    const saveData = {
+      location: 'hangar_01' as const,
+      foundation_stress_threshold: thresholds.foundation_stress_threshold === '' ? 0.1 : Number(thresholds.foundation_stress_threshold),
+      wall_integrity_threshold: thresholds.wall_integrity_threshold === '' ? 0.1 : Number(thresholds.wall_integrity_threshold),
+      roof_stability_threshold: thresholds.roof_stability_threshold === '' ? 0.1 : Number(thresholds.roof_stability_threshold)
+    };
+    
     const { error } = await supabase
       .from('vibration_monitoring_settings')
-      .upsert({
-        location: 'hangar_01',
-        foundation_stress_threshold: thresholds.foundation_stress_threshold,
-        wall_integrity_threshold: thresholds.wall_integrity_threshold,
-        roof_stability_threshold: thresholds.roof_stability_threshold
-      }, {
+      .upsert(saveData, {
         onConflict: 'location'
       });
 
@@ -67,12 +74,12 @@ const VibrationThresholdSettings = () => {
     setLoading(false);
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof typeof thresholds, value: string) => {
     // Allow empty string for clearing the field
     if (value === '') {
       setThresholds(prev => ({
         ...prev,
-        [field]: 0
+        [field]: ''
       }));
       return;
     }
