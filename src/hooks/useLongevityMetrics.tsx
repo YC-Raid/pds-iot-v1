@@ -109,26 +109,19 @@ export const useLongevityMetrics = () => {
       // Calculate monthly uptime data starting from August 2025
       const monthlyUptimeData: MonthlyUptimeData[] = [];
       
-      // Calculate number of months since system launch
-      const monthsSinceLaunch = Math.max(1, Math.ceil(
-        (currentDate.getTime() - systemStartDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
-      ));
+      // Start from August 2025 and go up to current month
+      let currentMonth = new Date(systemStartDate);
       
-      // Generate data for each month since launch, up to 12 months max
-      const monthsToShow = Math.min(monthsSinceLaunch, 12);
-      
-      for (let i = monthsToShow - 1; i >= 0; i--) {
-        const monthStart = subMonths(currentDate, i + 1);
-        const monthEnd = subMonths(currentDate, i);
+      while (currentMonth <= currentDate) {
+        const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59);
         
-        // Don't show months before system launch
-        if (monthStart < systemStartDate) {
-          continue;
-        }
+        // If monthEnd is in the future, use current date as end
+        const actualMonthEnd = monthEnd > currentDate ? currentDate : monthEnd;
         
         const monthReadings = (sensorReadings || []).filter(reading => {
           const readingDate = new Date(reading.recorded_at);
-          return readingDate >= monthStart && readingDate < monthEnd;
+          return readingDate >= monthStart && readingDate <= actualMonthEnd;
         });
 
         const monthMetrics = calculateUptimeMetrics(monthReadings, 30);
@@ -139,6 +132,12 @@ export const useLongevityMetrics = () => {
           downtime: monthMetrics.downtime,
           incidents: monthMetrics.incidents
         });
+        
+        // Move to next month
+        currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+        
+        // Safety limit - don't show more than 12 months
+        if (monthlyUptimeData.length >= 12) break;
       }
 
       const longevityMetrics: LongevityMetrics = {
