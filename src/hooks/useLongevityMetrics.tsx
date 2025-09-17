@@ -87,8 +87,8 @@ export const useLongevityMetrics = () => {
       // Calculate component lifespan
       const componentLifespan = calculateComponentLifespan(sensorReadings || [], alerts || []);
 
-      // Calculate system age from August 1, 2025
-      const systemStartDate = new Date(2025, 7, 1); // August 1, 2025 (month is 0-indexed)
+      // Calculate system age from August 1, 2025 in Asia/Singapore timezone
+      const systemStartDate = new Date('2025-08-01T00:00:00+08:00'); // August 1, 2025 in Singapore time
       const currentDate = new Date();
       const daysSinceStart = differenceInDays(currentDate, systemStartDate);
       const currentAge = Math.max(0, daysSinceStart / 365.25); // Convert days to years
