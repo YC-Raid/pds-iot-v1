@@ -10,7 +10,7 @@ import {
   type LongevityMetrics,
   type ComponentLifespan
 } from '@/utils/longevityCalculations';
-import { subMonths, format } from 'date-fns';
+import { subMonths, format, differenceInDays } from 'date-fns';
 
 interface MonthlyUptimeData {
   month: string;
@@ -32,10 +32,10 @@ export const useLongevityMetrics = () => {
   const [data, setData] = useState<LongevityData>({
     currentUptime: { uptime: 0, downtime: 0, totalDowntimeHours: 0, incidents: 0 },
     longevityMetrics: {
-      expectedLifespan: 25,
-      currentAge: 8,
+      expectedLifespan: 1,
+      currentAge: 0,
       degradationRate: 2.5,
-      predictedRemainingLife: 15,
+      predictedRemainingLife: 1,
       maintenanceEfficiency: 85,
       costEfficiency: 90
     },
@@ -87,9 +87,14 @@ export const useLongevityMetrics = () => {
       // Calculate component lifespan
       const componentLifespan = calculateComponentLifespan(sensorReadings || [], alerts || []);
 
-      // Calculate predicted remaining life
-      const currentAge = 8; // This could be stored in a settings table
-      const expectedLifespan = 25; // This could be configurable per system type
+      // Calculate system age from August 1, 2025
+      const systemStartDate = new Date(2025, 7, 1); // August 1, 2025 (month is 0-indexed)
+      const currentDate = new Date();
+      const daysSinceStart = differenceInDays(currentDate, systemStartDate);
+      const currentAge = Math.max(0, daysSinceStart / 365.25); // Convert days to years
+      
+      // Set expected lifespan to 1 year
+      const expectedLifespan = 1;
       const predictedRemainingLife = calculatePredictedRemainingLife(
         currentAge,
         expectedLifespan,
