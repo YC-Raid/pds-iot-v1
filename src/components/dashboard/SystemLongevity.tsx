@@ -78,7 +78,7 @@ const SystemLongevity = () => {
     }
   };
 
-  const getFactorColor = (level: string): string => {
+  const getFactorColor = (level: string) => {
     switch (level) {
       case 'Low':
         return 'text-green-600 bg-green-100';
