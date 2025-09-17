@@ -106,11 +106,25 @@ export const useLongevityMetrics = () => {
         sensorReadings // Pass sensor readings for anomaly-based calculation
       );
 
-      // Calculate monthly uptime data for the chart
+      // Calculate monthly uptime data starting from August 2025
       const monthlyUptimeData: MonthlyUptimeData[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const monthStart = subMonths(new Date(), i + 1);
-        const monthEnd = subMonths(new Date(), i);
+      
+      // Calculate number of months since system launch
+      const monthsSinceLaunch = Math.max(1, Math.ceil(
+        (currentDate.getTime() - systemStartDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+      ));
+      
+      // Generate data for each month since launch, up to 12 months max
+      const monthsToShow = Math.min(monthsSinceLaunch, 12);
+      
+      for (let i = monthsToShow - 1; i >= 0; i--) {
+        const monthStart = subMonths(currentDate, i + 1);
+        const monthEnd = subMonths(currentDate, i);
+        
+        // Don't show months before system launch
+        if (monthStart < systemStartDate) {
+          continue;
+        }
         
         const monthReadings = (sensorReadings || []).filter(reading => {
           const readingDate = new Date(reading.recorded_at);
