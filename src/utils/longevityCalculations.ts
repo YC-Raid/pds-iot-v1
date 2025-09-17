@@ -29,6 +29,18 @@ export interface LongevityMetrics {
     level: 'Low' | 'Normal' | 'High' | 'Very High';
     score: number;
   };
+  environmentalConditions: {
+    level: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Critical';
+    score: number;
+  };
+  structuralIntegrity: {
+    level: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Critical';
+    score: number;
+  };
+  maintenanceQuality: {
+    level: 'Excellent' | 'High' | 'Good' | 'Fair' | 'Poor';
+    score: number;
+  };
 }
 
 // Calculate uptime/downtime from sensor readings
@@ -457,4 +469,174 @@ export function calculateUsageIntensity(
   else level = 'Low';
 
   return { level, score: intensityScore };
+}
+
+// Calculate environmental conditions based on sensor data
+export function calculateEnvironmentalConditions(
+  sensorReadings: Array<{
+    temperature?: number;
+    humidity?: number;
+    pm2_5?: number;
+    pm10?: number;
+    recorded_at: string;
+  }>
+): { level: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Critical'; score: number } {
+  if (sensorReadings.length === 0) {
+    return { level: 'Good', score: 75 };
+  }
+
+  const recentReadings = sensorReadings.slice(-200); // Last 200 readings
+  let totalScore = 0;
+  
+  // Temperature stability (ideal range 20-28°C) - 35% weight
+  const tempReadings = recentReadings.filter(r => r.temperature != null);
+  let tempScore = 20;
+  if (tempReadings.length > 0) {
+    const optimalTempCount = tempReadings.filter(r => r.temperature! >= 20 && r.temperature! <= 28).length;
+    tempScore = (optimalTempCount / tempReadings.length) * 35;
+  }
+  
+  // Humidity control (ideal range 40-60%) - 35% weight
+  const humidityReadings = recentReadings.filter(r => r.humidity != null);
+  let humidityScore = 20;
+  if (humidityReadings.length > 0) {
+    const optimalHumidityCount = humidityReadings.filter(r => r.humidity! >= 40 && r.humidity! <= 60).length;
+    humidityScore = (optimalHumidityCount / humidityReadings.length) * 35;
+  }
+  
+  // Air quality (PM2.5 should be < 25 μg/m³) - 30% weight
+  const pm25Readings = recentReadings.filter(r => r.pm2_5 != null);
+  let airQualityScore = 20;
+  if (pm25Readings.length > 0) {
+    const goodAirQualityCount = pm25Readings.filter(r => r.pm2_5! < 25).length;
+    airQualityScore = (goodAirQualityCount / pm25Readings.length) * 30;
+  }
+  
+  totalScore = tempScore + humidityScore + airQualityScore;
+  
+  let level: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Critical';
+  if (totalScore >= 85) level = 'Excellent';
+  else if (totalScore >= 70) level = 'Good';
+  else if (totalScore >= 50) level = 'Fair';
+  else if (totalScore >= 30) level = 'Poor';
+  else level = 'Critical';
+  
+  return { level, score: Math.round(totalScore) };
+}
+
+// Calculate structural integrity based on vibration and stability
+export function calculateStructuralIntegrity(
+  sensorReadings: Array<{
+    accel_magnitude?: number;
+    gyro_magnitude?: number;
+    temperature?: number;
+    pressure?: number;
+    recorded_at: string;
+  }>
+): { level: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Critical'; score: number } {
+  if (sensorReadings.length === 0) {
+    return { level: 'Excellent', score: 90 };
+  }
+
+  const recentReadings = sensorReadings.slice(-300); // Last 300 readings
+  let totalScore = 0;
+  
+  // Vibration stability (low vibration = good structural integrity) - 40% weight
+  const vibrationReadings = recentReadings.filter(r => r.accel_magnitude != null || r.gyro_magnitude != null);
+  let vibrationScore = 35;
+  if (vibrationReadings.length > 0) {
+    const highVibrationCount = vibrationReadings.filter(r => 
+      (r.accel_magnitude || 0) > 2.0 || (r.gyro_magnitude || 0) > 1.5
+    ).length;
+    vibrationScore = Math.max(5, 40 - (highVibrationCount / vibrationReadings.length) * 40);
+  }
+  
+  // Temperature stability (consistent readings indicate good structure) - 35% weight
+  const tempReadings = recentReadings.filter(r => r.temperature != null).map(r => r.temperature!);
+  let stabilityScore = 30;
+  if (tempReadings.length > 10) {
+    const tempVariance = calculateVariance(tempReadings);
+    stabilityScore = Math.max(5, 35 - Math.min(tempVariance * 2, 30));
+  }
+  
+  // Pressure stability (atmospheric pressure should be stable) - 25% weight
+  const pressureReadings = recentReadings.filter(r => r.pressure != null).map(r => r.pressure!);
+  let pressureScore = 20;
+  if (pressureReadings.length > 10) {
+    const pressureVariance = calculateVariance(pressureReadings);
+    pressureScore = Math.max(5, 25 - Math.min(pressureVariance / 100, 20));
+  }
+  
+  totalScore = vibrationScore + stabilityScore + pressureScore;
+  
+  let level: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Critical';
+  if (totalScore >= 90) level = 'Excellent';
+  else if (totalScore >= 75) level = 'Good';
+  else if (totalScore >= 60) level = 'Fair';
+  else if (totalScore >= 40) level = 'Poor';
+  else level = 'Critical';
+  
+  return { level, score: Math.round(totalScore) };
+}
+
+// Calculate maintenance quality based on alert resolution and task completion
+export function calculateMaintenanceQualityScore(
+  alerts: Array<{ 
+    resolved_at?: string; 
+    created_at: string; 
+    severity: string;
+  }>,
+  maintenanceTasks: Array<{
+    status: string;
+    task_type: string;
+    due_date: string;
+    completed_at?: string;
+  }>
+): { level: 'Excellent' | 'High' | 'Good' | 'Fair' | 'Poor'; score: number } {
+  let totalScore = 0;
+  
+  // Alert resolution efficiency (40% weight)
+  let alertScore = 25;
+  if (alerts.length > 0) {
+    const resolvedAlerts = alerts.filter(alert => alert.resolved_at != null);
+    const resolutionRate = resolvedAlerts.length / alerts.length;
+    alertScore = resolutionRate * 40;
+  }
+  
+  // Maintenance task completion (35% weight)
+  let taskScore = 20;
+  if (maintenanceTasks.length > 0) {
+    const completedTasks = maintenanceTasks.filter(task => task.status === 'completed');
+    const completionRate = completedTasks.length / maintenanceTasks.length;
+    taskScore = completionRate * 35;
+  }
+  
+  // Preventive vs reactive maintenance ratio (25% weight)
+  let preventiveScore = 15;
+  if (maintenanceTasks.length > 0) {
+    const preventiveTasks = maintenanceTasks.filter(task => 
+      task.task_type === 'preventive' || task.task_type === 'routine'
+    );
+    const preventiveRatio = preventiveTasks.length / maintenanceTasks.length;
+    preventiveScore = preventiveRatio * 25;
+  }
+  
+  totalScore = alertScore + taskScore + preventiveScore;
+  
+  let level: 'Excellent' | 'High' | 'Good' | 'Fair' | 'Poor';
+  if (totalScore >= 85) level = 'Excellent';
+  else if (totalScore >= 70) level = 'High';
+  else if (totalScore >= 55) level = 'Good';
+  else if (totalScore >= 40) level = 'Fair';
+  else level = 'Poor';
+  
+  return { level, score: Math.round(totalScore) };
+}
+
+// Helper function to calculate variance
+function calculateVariance(values: number[]): number {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+  const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
+  return squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
 }

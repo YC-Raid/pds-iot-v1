@@ -8,6 +8,9 @@ import {
   calculatePredictedRemainingLife,
   calculateEquipmentWear,
   calculateUsageIntensity,
+  calculateEnvironmentalConditions,
+  calculateStructuralIntegrity,
+  calculateMaintenanceQualityScore,
   type UptimeMetrics,
   type LongevityMetrics,
   type ComponentLifespan
@@ -41,7 +44,10 @@ export const useLongevityMetrics = () => {
       maintenanceEfficiency: 85,
       costEfficiency: 90,
       equipmentWear: { level: 'Moderate', score: 50 },
-      usageIntensity: { level: 'Normal', score: 50 }
+      usageIntensity: { level: 'Normal', score: 50 },
+      environmentalConditions: { level: 'Good', score: 75 },
+      structuralIntegrity: { level: 'Excellent', score: 90 },
+      maintenanceQuality: { level: 'High', score: 78 },
     },
     componentLifespan: [],
     monthlyUptimeData: [],
@@ -53,11 +59,11 @@ export const useLongevityMetrics = () => {
     try {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Fetch sensor readings for the last 6 months
+      // Fetch sensor readings with additional fields needed for new calculations
       const sixMonthsAgo = subMonths(new Date(), 6);
       const { data: sensorReadings, error: sensorError } = await supabase
         .from('processed_sensor_readings')
-        .select('recorded_at, quality_score, anomaly_score, temperature, humidity, pressure, accel_magnitude, gyro_magnitude')
+        .select('recorded_at, quality_score, anomaly_score, temperature, humidity, pressure, accel_magnitude, gyro_magnitude, pm2_5, pm10')
         .gte('recorded_at', sixMonthsAgo.toISOString())
         .order('recorded_at', { ascending: true });
 
@@ -74,7 +80,7 @@ export const useLongevityMetrics = () => {
       // Fetch alerts for component health calculation
       const { data: alerts, error: alertsError } = await supabase
         .from('alerts')
-        .select('sensor, severity, created_at')
+        .select('sensor, severity, created_at, resolved_at')
         .gte('created_at', sixMonthsAgo.toISOString());
 
       if (alertsError) throw alertsError;
@@ -152,6 +158,11 @@ export const useLongevityMetrics = () => {
         alerts || []
       );
 
+      // Calculate new longevity factors
+      const environmentalConditions = calculateEnvironmentalConditions(sensorReadings || []);
+      const structuralIntegrity = calculateStructuralIntegrity(sensorReadings || []);
+      const maintenanceQuality = calculateMaintenanceQualityScore(alerts || [], maintenanceTasks || []);
+
       const longevityMetrics: LongevityMetrics = {
         expectedLifespan,
         currentAge,
@@ -160,7 +171,10 @@ export const useLongevityMetrics = () => {
         maintenanceEfficiency: efficiency,
         costEfficiency,
         equipmentWear,
-        usageIntensity
+        usageIntensity,
+        environmentalConditions,
+        structuralIntegrity,
+        maintenanceQuality
       };
 
       // Debug logging for troubleshooting

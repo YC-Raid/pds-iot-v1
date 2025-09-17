@@ -287,11 +287,15 @@ const SystemLongevity = () => {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span>Environmental Conditions</span>
-              <Badge className="text-green-600 bg-green-100">Good</Badge>
+              <Badge className={`${getFactorColor(longevityMetrics.environmentalConditions.level)}`}>
+                {longevityMetrics.environmentalConditions.level}
+              </Badge>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Structural Integrity</span>
-              <Badge className="text-green-600 bg-green-100">Excellent</Badge>
+              <Badge className={`${getFactorColor(longevityMetrics.structuralIntegrity.level)}`}>
+                {longevityMetrics.structuralIntegrity.level}
+              </Badge>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Equipment Wear</span>
@@ -301,7 +305,9 @@ const SystemLongevity = () => {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Maintenance Quality</span>
-              <Badge className="text-green-600 bg-green-100">High</Badge>
+              <Badge className={`${getFactorColor(longevityMetrics.maintenanceQuality.level)}`}>
+                {longevityMetrics.maintenanceQuality.level}
+              </Badge>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Usage Intensity</span>
