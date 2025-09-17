@@ -63,6 +63,21 @@ const SystemLongevity = () => {
     return Math.round((current / expected) * 100);
   };
 
+  const formatRemainingLife = (remainingYears: number) => {
+    const years = Math.floor(remainingYears);
+    const months = Math.round((remainingYears - years) * 12);
+    
+    if (years === 0 && months === 0) {
+      return "< 1 month";
+    } else if (years === 0) {
+      return `${months} month${months !== 1 ? 's' : ''}`;
+    } else if (months === 0) {
+      return `${years} year${years !== 1 ? 's' : ''}`;
+    } else {
+      return `${years}y ${months}m`;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* System Overview */}
@@ -108,7 +123,7 @@ const SystemLongevity = () => {
             <Calendar className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{longevityMetrics.predictedRemainingLife}y</div>
+            <div className="text-2xl font-bold text-blue-600">{formatRemainingLife(longevityMetrics.predictedRemainingLife)}</div>
             <p className="text-xs text-muted-foreground">
               Remaining operational life
             </p>
