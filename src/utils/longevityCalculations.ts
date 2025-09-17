@@ -268,7 +268,8 @@ export function calculatePredictedRemainingLife(
   const degradationAdjustment = (5 - degradationRate) / 5; // Normalize degradation rate
   
   // Adjust based on maintenance efficiency (better maintenance = longer life)
-  const maintenanceAdjustment = maintenanceEfficiency / 100;
+  // Use minimum of 30% to avoid unrealistic zero predictions
+  const maintenanceAdjustment = Math.max(0.3, maintenanceEfficiency / 100);
   
   const adjustedRemainingLife = baseRemainingLife * degradationAdjustment * maintenanceAdjustment;
   
