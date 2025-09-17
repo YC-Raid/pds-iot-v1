@@ -132,6 +132,16 @@ export const useLongevityMetrics = () => {
         costEfficiency
       };
 
+      // Debug logging for troubleshooting
+      console.log('Longevity Debug:', {
+        currentAge,
+        expectedLifespan,
+        degradationRate,
+        efficiency,
+        predictedRemainingLife,
+        baseRemainingLife: expectedLifespan - currentAge
+      });
+
       setData({
         currentUptime,
         longevityMetrics,
