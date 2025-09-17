@@ -102,7 +102,8 @@ export const useLongevityMetrics = () => {
         currentAge,
         expectedLifespan,
         degradationRate,
-        efficiency
+        efficiency,
+        sensorReadings // Pass sensor readings for anomaly-based calculation
       );
 
       // Calculate monthly uptime data for the chart

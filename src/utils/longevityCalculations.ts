@@ -287,23 +287,54 @@ export function calculateComponentLifespan(
   });
 }
 
-// Calculate predicted remaining life
+// Calculate predicted remaining life with simplified logic for new systems
 export function calculatePredictedRemainingLife(
   currentAge: number,
   expectedLifespan: number,
   degradationRate: number,
-  maintenanceEfficiency: number
+  maintenanceEfficiency: number,
+  sensorReadings?: Array<{ anomaly_score?: number; quality_score?: number }>
 ): number {
   // Base remaining life
   const baseRemainingLife = expectedLifespan - currentAge;
   
-  // Adjust based on degradation rate (higher degradation = shorter life)
-  const degradationAdjustment = (5 - degradationRate) / 5; // Normalize degradation rate
+  // For new systems (less than 6 months old), use simplified calculation
+  if (currentAge < 0.5) {
+    // Primary factor: anomaly-based adjustment for new systems
+    if (sensorReadings && sensorReadings.length > 0) {
+      const recentReadings = sensorReadings.slice(-500); // Last 500 readings
+      
+      // Calculate average anomaly score (0-1 scale)
+      const avgAnomalyScore = recentReadings.reduce((sum, reading) => 
+        sum + (reading.anomaly_score || 0), 0
+      ) / recentReadings.length;
+      
+      // Calculate average quality score (0-100 scale)
+      const avgQualityScore = recentReadings.reduce((sum, reading) => 
+        sum + (reading.quality_score || 100), 0
+      ) / recentReadings.length;
+      
+      // Anomaly adjustment: higher anomalies reduce remaining life
+      // Scale: 0.7 (high anomalies) to 1.0 (no anomalies)
+      const anomalyAdjustment = Math.max(0.7, 1 - (avgAnomalyScore * 0.3));
+      
+      // Quality adjustment: lower quality reduces remaining life
+      // Scale: 0.8 (poor quality) to 1.0 (perfect quality)
+      const qualityAdjustment = Math.max(0.8, avgQualityScore / 100);
+      
+      // Combine both adjustments
+      const adjustedRemainingLife = baseRemainingLife * anomalyAdjustment * qualityAdjustment;
+      
+      return Math.max(0.1, Math.round(adjustedRemainingLife * 10) / 10);
+    }
+    
+    // Fallback for new systems without sensor data: just use base remaining life
+    return Math.max(0.1, Math.round(baseRemainingLife * 10) / 10);
+  }
   
-  // Adjust based on maintenance efficiency (better maintenance = longer life)
-  // Use minimum of 25% to avoid unrealistic zero predictions
-  const maintenanceAdjustment = Math.max(0.25, maintenanceEfficiency / 100);
-  
+  // For mature systems (6+ months), use complex calculation with maintenance efficiency
+  const degradationAdjustment = (5 - degradationRate) / 5;
+  const maintenanceAdjustment = Math.max(0.3, maintenanceEfficiency / 100);
   const adjustedRemainingLife = baseRemainingLife * degradationAdjustment * maintenanceAdjustment;
   
   return Math.max(0, Math.round(adjustedRemainingLife * 10) / 10);
