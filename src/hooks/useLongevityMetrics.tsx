@@ -6,6 +6,8 @@ import {
   calculateMaintenanceEfficiency,
   calculateComponentLifespan,
   calculatePredictedRemainingLife,
+  calculateEquipmentWear,
+  calculateUsageIntensity,
   type UptimeMetrics,
   type LongevityMetrics,
   type ComponentLifespan
@@ -37,7 +39,9 @@ export const useLongevityMetrics = () => {
       degradationRate: 2.5,
       predictedRemainingLife: 1,
       maintenanceEfficiency: 85,
-      costEfficiency: 90
+      costEfficiency: 90,
+      equipmentWear: { level: 'Moderate', score: 50 },
+      usageIntensity: { level: 'Normal', score: 50 }
     },
     componentLifespan: [],
     monthlyUptimeData: [],
@@ -140,13 +144,23 @@ export const useLongevityMetrics = () => {
         if (monthlyUptimeData.length >= 12) break;
       }
 
+      // Calculate equipment wear and usage intensity
+      const equipmentWear = calculateEquipmentWear(sensorReadings || [], alerts || []);
+      const usageIntensity = calculateUsageIntensity(
+        sensorReadings || [], 
+        maintenanceTasks || [], 
+        alerts || []
+      );
+
       const longevityMetrics: LongevityMetrics = {
         expectedLifespan,
         currentAge,
         degradationRate,
         predictedRemainingLife,
         maintenanceEfficiency: efficiency,
-        costEfficiency
+        costEfficiency,
+        equipmentWear,
+        usageIntensity
       };
 
       // Debug logging for troubleshooting

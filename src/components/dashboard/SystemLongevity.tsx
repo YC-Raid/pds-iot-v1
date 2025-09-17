@@ -78,6 +78,23 @@ const SystemLongevity = () => {
     }
   };
 
+  const getFactorColor = (level: string): string => {
+    switch (level) {
+      case 'Low':
+        return 'text-green-600 bg-green-100';
+      case 'Normal':
+      case 'Moderate':
+        return 'text-blue-600 bg-blue-100';
+      case 'High':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'Critical':
+      case 'Very High':
+        return 'text-red-600 bg-red-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* System Overview */}
@@ -278,7 +295,9 @@ const SystemLongevity = () => {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Equipment Wear</span>
-              <Badge className="text-yellow-600 bg-yellow-100">Moderate</Badge>
+              <Badge className={`${getFactorColor(longevityMetrics.equipmentWear.level)}`}>
+                {longevityMetrics.equipmentWear.level}
+              </Badge>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Maintenance Quality</span>
@@ -286,7 +305,9 @@ const SystemLongevity = () => {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Usage Intensity</span>
-              <Badge className="text-blue-600 bg-blue-100">Normal</Badge>
+              <Badge className={`${getFactorColor(longevityMetrics.usageIntensity.level)}`}>
+                {longevityMetrics.usageIntensity.level}
+              </Badge>
             </div>
           </CardContent>
         </Card>

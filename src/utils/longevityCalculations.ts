@@ -21,6 +21,14 @@ export interface LongevityMetrics {
   predictedRemainingLife: number;
   maintenanceEfficiency: number;
   costEfficiency: number;
+  equipmentWear: {
+    level: 'Low' | 'Moderate' | 'High' | 'Critical';
+    score: number;
+  };
+  usageIntensity: {
+    level: 'Low' | 'Normal' | 'High' | 'Very High';
+    score: number;
+  };
 }
 
 // Calculate uptime/downtime from sensor readings
@@ -338,4 +346,115 @@ export function calculatePredictedRemainingLife(
   const adjustedRemainingLife = baseRemainingLife * degradationAdjustment * maintenanceAdjustment;
   
   return Math.max(0, Math.round(adjustedRemainingLife * 10) / 10);
+}
+
+// Calculate equipment wear based on sensor data and alerts
+export function calculateEquipmentWear(
+  sensorReadings: Array<{
+    accel_magnitude?: number;
+    gyro_magnitude?: number;
+    temperature?: number;
+    humidity?: number;
+    recorded_at: string;
+  }>,
+  alerts: Array<{ severity: string; sensor: string; created_at: string }>
+): { level: 'Low' | 'Moderate' | 'High' | 'Critical'; score: number } {
+  if (sensorReadings.length === 0) {
+    return { level: 'Moderate', score: 50 };
+  }
+
+  let wearScore = 0;
+  const recentReadings = sensorReadings.slice(-1000); // Last 1000 readings
+
+  // Vibration impact (40% of score)
+  const avgVibration = recentReadings.reduce((sum, r) => 
+    sum + Math.sqrt((r.accel_magnitude || 0) ** 2 + (r.gyro_magnitude || 0) ** 2), 0
+  ) / recentReadings.length;
+  
+  if (avgVibration > 3) wearScore += 40;
+  else if (avgVibration > 2) wearScore += 30;
+  else if (avgVibration > 1) wearScore += 20;
+  else wearScore += 10;
+
+  // Temperature stress (25% of score)
+  const avgTemp = recentReadings.reduce((sum, r) => sum + (r.temperature || 25), 0) / recentReadings.length;
+  const tempVariation = Math.max(...recentReadings.map(r => r.temperature || 25)) - 
+                       Math.min(...recentReadings.map(r => r.temperature || 25));
+  
+  if (avgTemp > 35 || avgTemp < 10 || tempVariation > 20) wearScore += 25;
+  else if (avgTemp > 30 || avgTemp < 15 || tempVariation > 15) wearScore += 15;
+  else wearScore += 5;
+
+  // Alert frequency (35% of score)
+  const recentAlerts = alerts.filter(alert => {
+    const alertDate = new Date(alert.created_at);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    return alertDate > thirtyDaysAgo;
+  });
+  
+  const criticalAlerts = recentAlerts.filter(a => a.severity === 'critical').length;
+  const highAlerts = recentAlerts.filter(a => a.severity === 'high').length;
+  
+  if (criticalAlerts > 5 || highAlerts > 10) wearScore += 35;
+  else if (criticalAlerts > 2 || highAlerts > 5) wearScore += 25;
+  else if (criticalAlerts > 0 || highAlerts > 2) wearScore += 15;
+  else wearScore += 5;
+
+  // Determine level based on score
+  let level: 'Low' | 'Moderate' | 'High' | 'Critical';
+  if (wearScore >= 80) level = 'Critical';
+  else if (wearScore >= 60) level = 'High';
+  else if (wearScore >= 40) level = 'Moderate';
+  else level = 'Low';
+
+  return { level, score: wearScore };
+}
+
+// Calculate usage intensity based on data patterns
+export function calculateUsageIntensity(
+  sensorReadings: Array<{ recorded_at: string }>,
+  maintenanceTasks: Array<{ created_at: string; status: string }>,
+  alerts: Array<{ created_at: string }>
+): { level: 'Low' | 'Normal' | 'High' | 'Very High'; score: number } {
+  if (sensorReadings.length === 0) {
+    return { level: 'Normal', score: 50 };
+  }
+
+  let intensityScore = 0;
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  
+  // Data collection frequency (40% of score)
+  const recentReadings = sensorReadings.filter(r => new Date(r.recorded_at) > thirtyDaysAgo);
+  const dailyAverage = recentReadings.length / 30;
+  
+  if (dailyAverage > 2000) intensityScore += 40;
+  else if (dailyAverage > 1000) intensityScore += 30;
+  else if (dailyAverage > 500) intensityScore += 20;
+  else intensityScore += 10;
+
+  // Maintenance activity (30% of score)
+  const recentMaintenance = maintenanceTasks.filter(t => new Date(t.created_at) > thirtyDaysAgo);
+  const completedMaintenance = recentMaintenance.filter(t => t.status === 'completed').length;
+  
+  if (completedMaintenance > 10) intensityScore += 30;
+  else if (completedMaintenance > 5) intensityScore += 20;
+  else if (completedMaintenance > 2) intensityScore += 15;
+  else intensityScore += 5;
+
+  // Alert generation (30% of score)
+  const recentAlerts = alerts.filter(a => new Date(a.created_at) > thirtyDaysAgo);
+  
+  if (recentAlerts.length > 50) intensityScore += 30;
+  else if (recentAlerts.length > 25) intensityScore += 20;
+  else if (recentAlerts.length > 10) intensityScore += 15;
+  else intensityScore += 5;
+
+  // Determine level based on score
+  let level: 'Low' | 'Normal' | 'High' | 'Very High';
+  if (intensityScore >= 80) level = 'Very High';
+  else if (intensityScore >= 60) level = 'High';
+  else if (intensityScore >= 40) level = 'Normal';
+  else level = 'Low';
+
+  return { level, score: intensityScore };
 }
