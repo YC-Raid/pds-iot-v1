@@ -81,8 +81,11 @@ export const useLongevityMetrics = () => {
       // Calculate degradation rate
       const degradationRate = calculateDegradationRate(sensorReadings || []);
 
-      // Calculate maintenance efficiency
-      const { efficiency, costEfficiency } = calculateMaintenanceEfficiency(maintenanceTasks || []);
+      // Calculate maintenance efficiency using both tasks and sensor data
+      const { efficiency, costEfficiency } = calculateMaintenanceEfficiency(
+        maintenanceTasks || [],
+        sensorReadings // Pass sensor readings for anomaly-based efficiency calculation
+      );
 
       // Calculate component lifespan
       const componentLifespan = calculateComponentLifespan(sensorReadings || [], alerts || []);

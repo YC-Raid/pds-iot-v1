@@ -138,45 +138,78 @@ export function calculateDegradationRate(
   return Math.round(degradationRate * 10) / 10;
 }
 
-// Calculate maintenance efficiency from maintenance tasks
+// Calculate maintenance efficiency from sensor data anomalies and maintenance tasks
 export function calculateMaintenanceEfficiency(
   maintenanceTasks: Array<{
     status: string;
     due_date: string;
     completed_at?: string;
     task_type: string;
+  }>,
+  sensorReadings?: Array<{ 
+    recorded_at: string; 
+    anomaly_score?: number;
+    quality_score?: number;
   }>
 ): { efficiency: number; costEfficiency: number } {
-  if (!maintenanceTasks || maintenanceTasks.length === 0) {
-    return { efficiency: 85, costEfficiency: 90 }; // Default values
+  let efficiency = 75; // Base efficiency
+  let costEfficiency = 80; // Base cost efficiency
+
+  // Factor 1: Sensor-based efficiency (60% weight)
+  if (sensorReadings && sensorReadings.length > 0) {
+    const recentReadings = sensorReadings.slice(-1000); // Last 1000 readings
+    
+    // Calculate anomaly rate (higher anomalies = lower efficiency)
+    const anomalyCount = recentReadings.filter(reading => 
+      (reading.anomaly_score || 0) > 0.3
+    ).length;
+    const anomalyRate = anomalyCount / recentReadings.length;
+    
+    // Calculate average quality score
+    const avgQualityScore = recentReadings.reduce((sum, reading) => 
+      sum + (reading.quality_score || 100), 0
+    ) / recentReadings.length;
+    
+    // Efficiency based on sensor health (25-95% range)
+    const sensorEfficiency = Math.max(25, Math.min(95, 
+      avgQualityScore - (anomalyRate * 50)
+    ));
+    
+    efficiency = Math.round(efficiency * 0.4 + sensorEfficiency * 0.6);
   }
 
-  const completedTasks = maintenanceTasks.filter(task => task.status === 'completed');
-  const overdueTasks = maintenanceTasks.filter(task => {
-    if (task.status !== 'completed') {
-      return new Date(task.due_date) < new Date();
-    }
-    return false;
-  });
+  // Factor 2: Maintenance task performance (40% weight if tasks exist)
+  if (maintenanceTasks && maintenanceTasks.length > 0) {
+    const completedTasks = maintenanceTasks.filter(task => task.status === 'completed');
+    const overdueTasks = maintenanceTasks.filter(task => {
+      if (task.status !== 'completed') {
+        return new Date(task.due_date) < new Date();
+      }
+      return false;
+    });
 
-  const onTimeTasks = completedTasks.filter(task => {
-    if (!task.completed_at) return false;
-    return new Date(task.completed_at) <= new Date(task.due_date);
-  });
+    const onTimeTasks = completedTasks.filter(task => {
+      if (!task.completed_at) return false;
+      return new Date(task.completed_at) <= new Date(task.due_date);
+    });
 
-  const preventiveTasks = maintenanceTasks.filter(task => 
-    task.task_type === 'preventive' || task.task_type === 'routine'
-  );
-  
-  const efficiency = Math.round((onTimeTasks.length / Math.max(1, maintenanceTasks.length)) * 100);
-  
-  // Cost efficiency based on preventive vs corrective maintenance ratio
-  const preventiveRatio = preventiveTasks.length / Math.max(1, maintenanceTasks.length);
-  const costEfficiency = Math.round(Math.min(100, 60 + (preventiveRatio * 40)));
+    const preventiveTasks = maintenanceTasks.filter(task => 
+      task.task_type === 'preventive' || task.task_type === 'routine'
+    );
+    
+    const taskEfficiency = Math.round((onTimeTasks.length / Math.max(1, maintenanceTasks.length)) * 100);
+    
+    // Blend sensor efficiency with task efficiency
+    efficiency = Math.round(efficiency * 0.6 + taskEfficiency * 0.4);
+    
+    // Cost efficiency based on preventive vs corrective maintenance ratio
+    const preventiveRatio = preventiveTasks.length / Math.max(1, maintenanceTasks.length);
+    costEfficiency = Math.round(Math.min(100, 60 + (preventiveRatio * 40)));
+  }
 
   return {
-    efficiency: Math.max(0, Math.min(100, efficiency)),
-    costEfficiency: Math.max(0, Math.min(100, costEfficiency))
+    efficiency: Math.max(25, Math.min(100, efficiency)), // Minimum 25% safety net
+    costEfficiency: Math.max(25, Math.min(100, costEfficiency))
   };
 }
 
@@ -268,8 +301,8 @@ export function calculatePredictedRemainingLife(
   const degradationAdjustment = (5 - degradationRate) / 5; // Normalize degradation rate
   
   // Adjust based on maintenance efficiency (better maintenance = longer life)
-  // Use minimum of 30% to avoid unrealistic zero predictions
-  const maintenanceAdjustment = Math.max(0.3, maintenanceEfficiency / 100);
+  // Use minimum of 25% to avoid unrealistic zero predictions
+  const maintenanceAdjustment = Math.max(0.25, maintenanceEfficiency / 100);
   
   const adjustedRemainingLife = baseRemainingLife * degradationAdjustment * maintenanceAdjustment;
   
