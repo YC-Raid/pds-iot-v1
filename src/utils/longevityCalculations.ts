@@ -471,7 +471,7 @@ export function calculateUsageIntensity(
   return { level, score: intensityScore };
 }
 
-// Calculate environmental conditions based on sensor data
+// Calculate environmental conditions based on sensor data with dynamic ranges
 export function calculateEnvironmentalConditions(
   sensorReadings: Array<{
     temperature?: number;
@@ -485,26 +485,56 @@ export function calculateEnvironmentalConditions(
     return { level: 'Good', score: 75 };
   }
 
-  const recentReadings = sensorReadings.slice(-200); // Last 200 readings
+  const recentReadings = sensorReadings.slice(-500); // Use more data for better statistics
   let totalScore = 0;
-  
-  // Temperature stability (ideal range 20-28°C) - 35% weight
-  const tempReadings = recentReadings.filter(r => r.temperature != null);
+
+  // Calculate dynamic temperature range based on historical data - 35% weight
+  const tempReadings = recentReadings.filter(r => r.temperature != null).map(r => r.temperature!);
   let tempScore = 20;
-  if (tempReadings.length > 0) {
-    const optimalTempCount = tempReadings.filter(r => r.temperature! >= 20 && r.temperature! <= 28).length;
-    tempScore = (optimalTempCount / tempReadings.length) * 35;
+  if (tempReadings.length > 10) {
+    const sortedTemps = tempReadings.sort((a, b) => a - b);
+    const q1 = sortedTemps[Math.floor(sortedTemps.length * 0.25)];
+    const q3 = sortedTemps[Math.floor(sortedTemps.length * 0.75)];
+    const iqr = q3 - q1;
+    const optimalMin = q1 - (iqr * 0.5); // Slightly expand the middle range
+    const optimalMax = q3 + (iqr * 0.5);
+    
+    // Calculate temperature stability (consistency within the derived optimal range)
+    const stableReadings = tempReadings.filter(temp => temp >= optimalMin && temp <= optimalMax);
+    const stabilityRatio = stableReadings.length / tempReadings.length;
+    
+    // Also consider temperature variation (lower variation = better)
+    const mean = tempReadings.reduce((a, b) => a + b, 0) / tempReadings.length;
+    const variance = tempReadings.reduce((sum, temp) => sum + Math.pow(temp - mean, 2), 0) / tempReadings.length;
+    const variationScore = Math.max(0, 1 - (Math.sqrt(variance) / 10)); // Penalize high variation
+    
+    tempScore = (stabilityRatio * 0.7 + variationScore * 0.3) * 35;
   }
   
-  // Humidity control (ideal range 40-60%) - 35% weight
-  const humidityReadings = recentReadings.filter(r => r.humidity != null);
+  // Calculate dynamic humidity range based on historical data - 35% weight
+  const humidityReadings = recentReadings.filter(r => r.humidity != null).map(r => r.humidity!);
   let humidityScore = 20;
-  if (humidityReadings.length > 0) {
-    const optimalHumidityCount = humidityReadings.filter(r => r.humidity! >= 40 && r.humidity! <= 60).length;
-    humidityScore = (optimalHumidityCount / humidityReadings.length) * 35;
+  if (humidityReadings.length > 10) {
+    const sortedHumidity = humidityReadings.sort((a, b) => a - b);
+    const q1 = sortedHumidity[Math.floor(sortedHumidity.length * 0.25)];
+    const q3 = sortedHumidity[Math.floor(sortedHumidity.length * 0.75)];
+    const iqr = q3 - q1;
+    const optimalMin = Math.max(30, q1 - (iqr * 0.5)); // Don't go below 30% humidity
+    const optimalMax = Math.min(70, q3 + (iqr * 0.5)); // Don't go above 70% humidity
+    
+    // Calculate humidity control (consistency within the derived optimal range)
+    const controlledReadings = humidityReadings.filter(hum => hum >= optimalMin && hum <= optimalMax);
+    const controlRatio = controlledReadings.length / humidityReadings.length;
+    
+    // Also consider humidity variation
+    const mean = humidityReadings.reduce((a, b) => a + b, 0) / humidityReadings.length;
+    const variance = humidityReadings.reduce((sum, hum) => sum + Math.pow(hum - mean, 2), 0) / humidityReadings.length;
+    const variationScore = Math.max(0, 1 - (Math.sqrt(variance) / 15)); // Penalize high variation
+    
+    humidityScore = (controlRatio * 0.7 + variationScore * 0.3) * 35;
   }
   
-  // Air quality (PM2.5 should be < 25 μg/m³) - 30% weight
+  // Air quality remains with standard thresholds (PM2.5 < 25 μg/m³) - 30% weight
   const pm25Readings = recentReadings.filter(r => r.pm2_5 != null);
   let airQualityScore = 20;
   if (pm25Readings.length > 0) {
@@ -593,10 +623,16 @@ export function calculateMaintenanceQualityScore(
     completed_at?: string;
   }>
 ): { level: 'Excellent' | 'High' | 'Good' | 'Fair' | 'Poor'; score: number } {
+  // Handle edge case: no maintenance activity
+  if (maintenanceTasks.length === 0 && alerts.length === 0) {
+    // No maintenance tasks or alerts means baseline score - neutral starting point
+    return { level: 'Good', score: 70 };
+  }
+  
   let totalScore = 0;
   
   // Alert resolution efficiency (40% weight)
-  let alertScore = 25;
+  let alertScore = 30; // Default when no alerts (good baseline)
   if (alerts.length > 0) {
     const resolvedAlerts = alerts.filter(alert => alert.resolved_at != null);
     const resolutionRate = resolvedAlerts.length / alerts.length;
@@ -604,21 +640,30 @@ export function calculateMaintenanceQualityScore(
   }
   
   // Maintenance task completion (35% weight)
-  let taskScore = 20;
+  let taskScore = 25; // Default when no tasks (neutral baseline)
   if (maintenanceTasks.length > 0) {
     const completedTasks = maintenanceTasks.filter(task => task.status === 'completed');
     const completionRate = completedTasks.length / maintenanceTasks.length;
     taskScore = completionRate * 35;
+  } else {
+    // If no maintenance tasks exist, this indicates either:
+    // 1. New system (good - no issues requiring maintenance)
+    // 2. Lack of maintenance planning (poor - reactive approach)
+    // Use neutral score but indicate room for improvement
+    taskScore = 20;
   }
   
   // Preventive vs reactive maintenance ratio (25% weight)
-  let preventiveScore = 15;
+  let preventiveScore = 15; // Default when no tasks
   if (maintenanceTasks.length > 0) {
     const preventiveTasks = maintenanceTasks.filter(task => 
       task.task_type === 'preventive' || task.task_type === 'routine'
     );
     const preventiveRatio = preventiveTasks.length / maintenanceTasks.length;
     preventiveScore = preventiveRatio * 25;
+  } else {
+    // No preventive maintenance scheduled indicates poor planning
+    preventiveScore = 10;
   }
   
   totalScore = alertScore + taskScore + preventiveScore;
