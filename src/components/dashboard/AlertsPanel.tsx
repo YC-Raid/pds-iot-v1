@@ -67,7 +67,11 @@ import {
   Pause,
   Users,
   Timer,
-  MapPin
+  MapPin,
+  CheckSquare,
+  Square,
+  Trash2,
+  ArrowRight
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -93,6 +97,10 @@ const AlertsPanel = () => {
   const [exportTimeframe, setExportTimeframe] = useState("1week");
   const [pendingImpact, setPendingImpact] = useState("");
   const [pendingPriority, setPendingPriority] = useState("");
+  
+  // Bulk selection state
+  const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
   
 
   // Fetch user profiles from Supabase
@@ -580,6 +588,122 @@ const AlertsPanel = () => {
     }
   };
 
+  // Bulk selection functions
+  const toggleAlertSelection = (alertId: string) => {
+    setSelectedAlerts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(alertId)) {
+        newSet.delete(alertId);
+      } else {
+        newSet.add(alertId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedAlerts(new Set());
+      setIsAllSelected(false);
+    } else {
+      setSelectedAlerts(new Set(filteredAlerts.map(alert => alert.id)));
+      setIsAllSelected(true);
+    }
+  };
+
+  // Bulk status update function
+  const updateBulkStatus = async (status: string) => {
+    if (selectedAlerts.size === 0) return;
+    
+    const userName = profile?.nickname || "Current User";
+    const selectedIds = Array.from(selectedAlerts);
+    
+    try {
+      const updateData: any = { status };
+      
+      if (status === 'acknowledged') {
+        updateData.acknowledged_by = userName;
+        updateData.acknowledged_at = new Date().toISOString();
+      } else if (status === 'resolved') {
+        updateData.resolved_by = userName;
+        updateData.resolved_at = new Date().toISOString();
+      } else if (status === 'escalated') {
+        updateData.escalated = true;
+      }
+
+      const { error } = await supabase
+        .from('alerts')
+        .update(updateData)
+        .in('id', selectedIds);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        selectedIds.includes(alert.id) 
+          ? { ...alert, ...updateData }
+          : alert
+      ));
+
+      setSelectedAlerts(new Set());
+      setIsAllSelected(false);
+
+      toast({
+        title: "Bulk Update Complete",
+        description: `${selectedIds.length} alerts updated to ${status.replace('-', ' ')}.`
+      });
+    } catch (error) {
+      console.error('Error updating alerts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update alerts.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Bulk delete function
+  const deleteBulkAlerts = async () => {
+    if (selectedAlerts.size === 0) return;
+    
+    const selectedIds = Array.from(selectedAlerts);
+    
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .delete()
+        .in('id', selectedIds);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.filter(alert => !selectedIds.includes(alert.id)));
+      setSelectedAlerts(new Set());
+      setIsAllSelected(false);
+
+      toast({
+        title: "Alerts Deleted",
+        description: `${selectedIds.length} alerts have been permanently deleted.`
+      });
+    } catch (error) {
+      console.error('Error deleting alerts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete alerts.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Status progression helper
+  const getNextStatus = (currentStatus: string): string => {
+    const statusProgression = {
+      'active': 'acknowledged',
+      'acknowledged': 'in_progress',
+      'in_progress': 'escalated',
+      'escalated': 'resolved'
+    };
+    return statusProgression[currentStatus as keyof typeof statusProgression] || 'resolved';
+  };
+
   // Enhanced export functions with timeframe filtering
   const exportAlertData = async () => {
     setIsExporting(true);
@@ -691,13 +815,26 @@ const AlertsPanel = () => {
 
   const AlertCard = ({ alert }: { alert: any }) => {
     const IconComponent = alert.icon || AlertTriangle;
+    const isSelected = selectedAlerts.has(alert.id);
     
     return (
-      <Card className="p-4 space-y-4">
+      <Card className={`p-4 space-y-4 ${isSelected ? 'ring-2 ring-primary' : ''}`}>
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1">
-            <div className={`p-2 rounded-lg ${getSeverityColor(alert.severity)}`}>
-              <IconComponent className="h-5 w-5" />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleAlertSelection(alert.id)}
+                className="p-1 hover:bg-muted rounded"
+              >
+                {isSelected ? (
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                ) : (
+                  <Square className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+              <div className={`p-2 rounded-lg ${getSeverityColor(alert.severity)}`}>
+                <IconComponent className="h-5 w-5" />
+              </div>
             </div>
             <div className="space-y-2 flex-1">
               <div className="flex items-start justify-between">
@@ -1213,12 +1350,34 @@ const AlertsPanel = () => {
       {/* Alert List */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            Industrial Alert Management System
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Industrial Alert Management System
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={toggleSelectAll}
+                className="flex items-center gap-1"
+              >
+                {isAllSelected ? (
+                  <>
+                    <CheckSquare className="h-3 w-3" />
+                    Deselect All
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-3 w-3" />
+                    Select All
+                  </>
+                )}
+              </Button>
+            </div>
           </CardTitle>
           <CardDescription>
-            Comprehensive IIOT alert monitoring, investigation, and resolution tracking
+            Comprehensive IIOT alert monitoring, investigation, and resolution tracking with bulk selection
           </CardDescription>
         </CardHeader>
         <CardContent>
