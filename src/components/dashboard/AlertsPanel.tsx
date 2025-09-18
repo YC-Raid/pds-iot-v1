@@ -1381,6 +1381,87 @@ const AlertsPanel = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Bulk Actions Toolbar */}
+          {selectedAlerts.size > 0 && (
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    {selectedAlerts.size} alert{selectedAlerts.size > 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateBulkStatus('acknowledged')}
+                    className="border-green-300 text-green-700 hover:bg-green-50"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    Acknowledge
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateBulkStatus('in_progress')}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    In Progress
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateBulkStatus('escalated')}
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    Escalate
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateBulkStatus('resolved')}
+                    className="border-green-300 text-green-700 hover:bg-green-50"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Resolve
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Selected Alerts</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete {selectedAlerts.size} selected alert{selectedAlerts.size > 1 ? 's' : ''} from the system.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={deleteBulkAlerts}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Delete {selectedAlerts.size} Alert{selectedAlerts.size > 1 ? 's' : ''}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </div>
+          )}
+
           <Tabs defaultValue="all" className="space-y-4">
             <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="all" className="flex items-center gap-2">
