@@ -14,6 +14,9 @@ interface SensorData {
   vibration?: number;
   sensor_location?: string;
   timestamp?: string;
+  accel_x?: number;
+  accel_y?: number;
+  accel_z?: number;
 }
 
 // Priority mapping and impact generation for different alert types
@@ -104,10 +107,18 @@ const handler = async (req: Request): Promise<Response> => {
     const sensorData: SensorData = await req.json();
     console.log('Received sensor data:', sensorData);
 
-    // Get all users' notification settings to check alert thresholds
+    // Get all users' notification settings and vibration thresholds
     const { data: settings, error: settingsError } = await supabase
       .from('notification_settings')
       .select('user_id, alert_threshold_temp, alert_threshold_humidity, email_enabled');
+
+    const { data: vibrationSettings, error: vibrationError } = await supabase
+      .from('vibration_monitoring_settings')
+      .select('foundation_stress_threshold')
+      .eq('location', sensorData.sensor_location || 'hangar_01')
+      .maybeSingle();
+
+    const vibrationThreshold = vibrationSettings?.foundation_stress_threshold || 10;
 
     if (settingsError) {
       console.error('Error fetching notification settings:', settingsError);
@@ -199,16 +210,28 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Check vibration alerts (critical threshold)
-    if (sensorData.vibration !== undefined && sensorData.vibration > 10) {
+    // Calculate corrected vibration magnitude (gravity-corrected accelerometer)
+    let correctedVibration = sensorData.vibration || 0;
+    if (sensorData.accel_x !== undefined && sensorData.accel_y !== undefined && sensorData.accel_z !== undefined) {
+      // Remove gravity component (Y-axis is vertical, sensor shows -9.6 at rest)
+      const correctedY = sensorData.accel_y + 9.81;
+      correctedVibration = Math.sqrt(
+        Math.pow(sensorData.accel_x, 2) + 
+        Math.pow(correctedY, 2) + 
+        Math.pow(sensorData.accel_z, 2)
+      );
+    }
+
+    // Check vibration alerts using user-configurable threshold
+    if (correctedVibration > vibrationThreshold) {
       for (const setting of settings) {
-        const { priority, type } = getPriorityAndType('vibration', sensorData.vibration, 10);
+        const { priority, type } = getPriorityAndType('vibration', correctedVibration, vibrationThreshold);
         const shouldEmailP1P2 = (priority === 'P1' || priority === 'P2') && setting.email_enabled;
         
         const alertData = {
           user_id: setting.user_id,
           title: `${priority} Vibration Alert`,
-          message: `Dangerous vibration level detected: ${sensorData.vibration} units at ${sensorData.sensor_location || 'unknown location'}. ${priority === 'P1' ? 'IMMEDIATE INSPECTION REQUIRED!' : 'Urgent inspection required.'}`,
+          message: `Dangerous vibration level detected: ${correctedVibration.toFixed(4)} m/s² (threshold: ${vibrationThreshold}) at ${sensorData.sensor_location || 'unknown location'}. ${priority === 'P1' ? 'IMMEDIATE INSPECTION REQUIRED!' : 'Urgent inspection required.'}`,
           type: type,
           send_email: shouldEmailP1P2
         };
@@ -222,18 +245,18 @@ const handler = async (req: Request): Promise<Response> => {
           priority: priority,
           sensor_type: 'vibration',
           sensor_location: sensorData.sensor_location || 'Unknown',
-          sensor_value: sensorData.vibration,
-          threshold_value: 10,
+          sensor_value: correctedVibration,
+          threshold_value: vibrationThreshold,
           status: 'active',
           severity: priority === 'P1' ? 'critical' : priority === 'P2' ? 'high' : 'medium',
           category: 'equipment',
           equipment: 'Vibration Sensor',
           location: sensorData.sensor_location || 'Unknown',
           sensor: `Vib-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
-          value: sensorData.vibration.toString(),
-          threshold: '10',
-          unit: 'units',
-          impact: generateImpact('vibration', sensorData.vibration, 10, priority)
+          value: correctedVibration.toFixed(4),
+          threshold: vibrationThreshold.toString(),
+          unit: 'm/s²',
+          impact: generateImpact('vibration', correctedVibration, vibrationThreshold, priority)
         });
       }
     }
