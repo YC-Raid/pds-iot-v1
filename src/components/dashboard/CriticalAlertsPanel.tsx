@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Clock, MapPin, Thermometer, Droplets, Wind, Activity, CheckCircle, XCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertTriangle, Clock, MapPin, Thermometer, Droplets, Wind, Activity, CheckCircle, XCircle, Trash2, ArrowRight, CheckSquare, AlertCircle, PlayCircle } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface CriticalAlert {
   id: string;
@@ -17,12 +19,14 @@ interface CriticalAlert {
   value: number;
   unit: string;
   threshold: number;
-  status: 'active' | 'acknowledged' | 'resolved';
+  status: 'active' | 'acknowledged' | 'in_progress' | 'escalated' | 'resolved';
 }
 
 export function CriticalAlertsPanel() {
   const [alerts, setAlerts] = useState<CriticalAlert[]>([]);
-  const [filter, setFilter] = useState<'all' | 'active' | 'acknowledged' | 'resolved'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'acknowledged' | 'in_progress' | 'escalated' | 'resolved'>('all');
+  const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
 
   // Fetch real alerts from Supabase
   useEffect(() => {
@@ -51,7 +55,7 @@ export function CriticalAlertsPanel() {
             value: parseFloat(alert.value) || 0,
             unit: alert.unit || '',
             threshold: parseFloat(alert.threshold_value?.toString() || '0') || 0,
-            status: alert.status as 'active' | 'acknowledged' | 'resolved'
+            status: alert.status as 'active' | 'acknowledged' | 'in_progress' | 'escalated' | 'resolved'
           }));
           setAlerts(transformedAlerts);
         }
@@ -82,6 +86,10 @@ export function CriticalAlertsPanel() {
         return 'destructive';
       case 'acknowledged':
         return 'secondary';
+      case 'in_progress':
+        return 'default';
+      case 'escalated':
+        return 'destructive';
       case 'resolved':
         return 'default';
       default:
@@ -110,25 +118,96 @@ export function CriticalAlertsPanel() {
         return <CheckCircle className="h-4 w-4" />;
       case 'acknowledged':
         return <Clock className="h-4 w-4" />;
+      case 'in_progress':
+        return <PlayCircle className="h-4 w-4" />;
+      case 'escalated':
+        return <AlertCircle className="h-4 w-4" />;
       default:
         return <XCircle className="h-4 w-4" />;
     }
   };
 
-  const handleAcknowledge = (alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { ...alert, status: 'acknowledged' as const }
-        : alert
-    ));
+  const updateAlertStatus = async (alertIds: string[], newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ status: newStatus })
+        .in('id', alertIds);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.map(alert => 
+        alertIds.includes(alert.id) 
+          ? { ...alert, status: newStatus as any }
+          : alert
+      ));
+
+      toast({
+        title: "Status Updated",
+        description: `${alertIds.length} alert(s) updated to ${newStatus.replace('_', ' ')}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update alert status. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleResolve = (alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId 
-        ? { ...alert, status: 'resolved' as const }
-        : alert
-    ));
+  const deleteAlerts = async (alertIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .delete()
+        .in('id', alertIds);
+
+      if (error) throw error;
+
+      setAlerts(prev => prev.filter(alert => !alertIds.includes(alert.id)));
+      setSelectedAlerts(new Set());
+
+      toast({
+        title: "Alerts Deleted",
+        description: `${alertIds.length} alert(s) deleted successfully`,
+      });
+    } catch (error) {
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete alerts. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSelectAlert = (alertId: string, checked: boolean) => {
+    const newSelected = new Set(selectedAlerts);
+    if (checked) {
+      newSelected.add(alertId);
+    } else {
+      newSelected.delete(alertId);
+    }
+    setSelectedAlerts(newSelected);
+    setIsAllSelected(newSelected.size === filteredAlerts.length);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedAlerts(new Set(filteredAlerts.map(alert => alert.id)));
+    } else {
+      setSelectedAlerts(new Set());
+    }
+    setIsAllSelected(checked);
+  };
+
+  const getNextStatus = (currentStatus: string): string | null => {
+    const statusFlow = ['active', 'acknowledged', 'in_progress', 'escalated', 'resolved'];
+    const currentIndex = statusFlow.indexOf(currentStatus);
+    return currentIndex < statusFlow.length - 1 ? statusFlow[currentIndex + 1] : null;
+  };
+
+  const canProgressStatus = (status: string): boolean => {
+    return getNextStatus(status) !== null;
   };
 
   const filteredAlerts = alerts.filter(alert => 
@@ -136,6 +215,7 @@ export function CriticalAlertsPanel() {
   );
 
   const activeAlertsCount = alerts.filter(alert => alert.status === 'active').length;
+  const selectedAlertsArray = Array.from(selectedAlerts);
 
   return (
     <div className="space-y-6">
@@ -151,21 +231,21 @@ export function CriticalAlertsPanel() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Acknowledged</CardTitle>
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-secondary-foreground">
-              {alerts.filter(a => a.status === 'acknowledged').length}
+            <div className="text-2xl font-bold text-blue-600">
+              {alerts.filter(a => a.status === 'in_progress').length}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Resolved Today</CardTitle>
+            <CardTitle className="text-sm font-medium">Escalated</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">
-              {alerts.filter(a => a.status === 'resolved').length}
+            <div className="text-2xl font-bold text-orange-600">
+              {alerts.filter(a => a.status === 'escalated').length}
             </div>
           </CardContent>
         </Card>
@@ -181,7 +261,7 @@ export function CriticalAlertsPanel() {
 
       {/* Filter Buttons */}
       <div className="flex gap-2">
-        {(['all', 'active', 'acknowledged', 'resolved'] as const).map((status) => (
+        {(['all', 'active', 'acknowledged', 'in_progress', 'escalated', 'resolved'] as const).map((status) => (
           <Button
             key={status}
             variant={filter === status ? 'default' : 'outline'}
@@ -189,10 +269,100 @@ export function CriticalAlertsPanel() {
             onClick={() => setFilter(status)}
             className="capitalize"
           >
-            {status === 'all' ? 'All Alerts' : status}
+            {status === 'all' ? 'All Alerts' : status.replace('_', ' ')}
           </Button>
         ))}
       </div>
+
+      {/* Bulk Actions Toolbar */}
+      {selectedAlerts.size > 0 && (
+        <Card className="border-primary">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  {selectedAlerts.size} alert(s) selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const canProgress = selectedAlertsArray.some(id => {
+                      const alert = alerts.find(a => a.id === id);
+                      return alert && canProgressStatus(alert.status);
+                    });
+                    if (canProgress) {
+                      const alertsToProgress = selectedAlertsArray.filter(id => {
+                        const alert = alerts.find(a => a.id === id);
+                        return alert && canProgressStatus(alert.status);
+                      });
+                      
+                      // Group by next status and update
+                      const statusGroups = new Map<string, string[]>();
+                      alertsToProgress.forEach(id => {
+                        const alert = alerts.find(a => a.id === id);
+                        if (alert) {
+                          const nextStatus = getNextStatus(alert.status);
+                          if (nextStatus) {
+                            if (!statusGroups.has(nextStatus)) {
+                              statusGroups.set(nextStatus, []);
+                            }
+                            statusGroups.get(nextStatus)!.push(id);
+                          }
+                        }
+                      });
+                      
+                      statusGroups.forEach((ids, status) => {
+                        updateAlertStatus(ids, status);
+                      });
+                    }
+                  }}
+                  disabled={!selectedAlertsArray.some(id => {
+                    const alert = alerts.find(a => a.id === id);
+                    return alert && canProgressStatus(alert.status);
+                  })}
+                >
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Progress Status
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => updateAlertStatus(selectedAlertsArray, 'resolved')}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Mark Resolved
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => deleteAlerts(selectedAlertsArray)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Select All Checkbox */}
+      {filteredAlerts.length > 0 && (
+        <div className="flex items-center gap-2 px-1">
+          <Checkbox
+            id="select-all"
+            checked={isAllSelected}
+            onCheckedChange={handleSelectAll}
+          />
+          <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+            Select All ({filteredAlerts.length} alerts)
+          </label>
+        </div>
+      )}
 
       {/* Critical Alerts List */}
       <div className="space-y-4">
@@ -200,20 +370,27 @@ export function CriticalAlertsPanel() {
           <Card key={alert.id} className="relative">
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    {getSensorIcon(alert.sensor)}
-                    <CardTitle className="text-lg">{alert.title}</CardTitle>
-                    <Badge variant={getSeverityColor(alert.severity) as any}>
-                      {alert.severity.toUpperCase()}
-                    </Badge>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={selectedAlerts.has(alert.id)}
+                    onCheckedChange={(checked) => handleSelectAlert(alert.id, !!checked)}
+                    className="mt-1"
+                  />
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      {getSensorIcon(alert.sensor)}
+                      <CardTitle className="text-lg">{alert.title}</CardTitle>
+                      <Badge variant={getSeverityColor(alert.severity) as any}>
+                        {alert.severity.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <CardDescription>{alert.description}</CardDescription>
                   </div>
-                  <CardDescription>{alert.description}</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                   {getStatusIcon(alert.status)}
                   <Badge variant={getStatusColor(alert.status) as any}>
-                    {alert.status.toUpperCase()}
+                    {alert.status.replace('_', ' ').toUpperCase()}
                   </Badge>
                 </div>
               </div>
@@ -244,32 +421,41 @@ export function CriticalAlertsPanel() {
                 </div>
               </div>
               
-              {alert.status === 'active' && (
-                <div className="flex gap-2">
+              <div className="flex gap-2">
+                {canProgressStatus(alert.status) && (
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={() => handleAcknowledge(alert.id)}
+                    onClick={() => {
+                      const nextStatus = getNextStatus(alert.status);
+                      if (nextStatus) {
+                        updateAlertStatus([alert.id], nextStatus);
+                      }
+                    }}
                   >
-                    Acknowledge
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    {getNextStatus(alert.status)?.replace('_', ' ')}
                   </Button>
+                )}
+                
+                {alert.status !== 'resolved' && (
                   <Button 
                     size="sm" 
-                    onClick={() => handleResolve(alert.id)}
+                    onClick={() => updateAlertStatus([alert.id], 'resolved')}
                   >
+                    <CheckCircle className="h-4 w-4 mr-2" />
                     Resolve
                   </Button>
-                </div>
-              )}
-              
-              {alert.status === 'acknowledged' && (
+                )}
+                
                 <Button 
                   size="sm" 
-                  onClick={() => handleResolve(alert.id)}
+                  variant="destructive"
+                  onClick={() => deleteAlerts([alert.id])}
                 >
-                  Resolve
+                  <Trash2 className="h-4 w-4" />
                 </Button>
-              )}
+              </div>
             </CardContent>
           </Card>
         ))}
