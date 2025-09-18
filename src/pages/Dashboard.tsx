@@ -105,7 +105,7 @@ const Dashboard = () => {
       content: (
         <div className="space-y-6">
           <AnomalyAlertsPanel />
-          <AlertsPanel />
+          <CriticalAlertsPanel />
         </div>
       ),
     },

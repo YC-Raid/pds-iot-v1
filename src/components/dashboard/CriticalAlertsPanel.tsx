@@ -364,111 +364,124 @@ export function CriticalAlertsPanel() {
         </div>
       )}
 
-      {/* Critical Alerts List */}
-      <div className="space-y-4">
-        {filteredAlerts.map((alert) => (
-          <Card key={alert.id} className="relative">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={selectedAlerts.has(alert.id)}
-                    onCheckedChange={(checked) => handleSelectAlert(alert.id, !!checked)}
-                    className="mt-1"
-                  />
-                  <div className="space-y-2 flex-1">
+      {/* Industrial Alert Management System */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Industrial Alert Management System
+          </CardTitle>
+          <CardDescription>
+            Comprehensive IIOT alert monitoring, investigation, and resolution tracking with bulk management capabilities
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {filteredAlerts.map((alert) => (
+              <Card key={alert.id} className="relative">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selectedAlerts.has(alert.id)}
+                        onCheckedChange={(checked) => handleSelectAlert(alert.id, !!checked)}
+                        className="mt-1"
+                      />
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          {getSensorIcon(alert.sensor)}
+                          <CardTitle className="text-lg">{alert.title}</CardTitle>
+                          <Badge variant={getSeverityColor(alert.severity) as any}>
+                            {alert.severity.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <CardDescription>{alert.description}</CardDescription>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2">
-                      {getSensorIcon(alert.sensor)}
-                      <CardTitle className="text-lg">{alert.title}</CardTitle>
-                      <Badge variant={getSeverityColor(alert.severity) as any}>
-                        {alert.severity.toUpperCase()}
+                      {getStatusIcon(alert.status)}
+                      <Badge variant={getStatusColor(alert.status) as any}>
+                        {alert.status.replace('_', ' ').toUpperCase()}
                       </Badge>
                     </div>
-                    <CardDescription>{alert.description}</CardDescription>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(alert.status)}
-                  <Badge variant={getStatusColor(alert.status) as any}>
-                    {alert.status.replace('_', ' ').toUpperCase()}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <div className="text-sm text-muted-foreground">Current Value</div>
-                  <div className="font-semibold">{alert.value} {alert.unit}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Threshold</div>
-                  <div className="font-semibold">{alert.threshold} {alert.unit}</div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Location</div>
-                    <div className="font-semibold">{alert.location}</div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Current Value</div>
+                      <div className="font-semibold">{alert.value} {alert.unit}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Threshold</div>
+                      <div className="font-semibold">{alert.threshold} {alert.unit}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm text-muted-foreground">Location</div>
+                        <div className="font-semibold">{alert.location}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm text-muted-foreground">Time</div>
+                        <div className="font-semibold">{format(alert.timestamp, 'HH:mm:ss')}</div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Time</div>
-                    <div className="font-semibold">{format(alert.timestamp, 'HH:mm:ss')}</div>
+                  
+                  <div className="flex gap-2">
+                    {canProgressStatus(alert.status) && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          const nextStatus = getNextStatus(alert.status);
+                          if (nextStatus) {
+                            updateAlertStatus([alert.id], nextStatus);
+                          }
+                        }}
+                      >
+                        <ArrowRight className="h-4 w-4 mr-2" />
+                        {getNextStatus(alert.status)?.replace('_', ' ')}
+                      </Button>
+                    )}
+                    
+                    {alert.status !== 'resolved' && (
+                      <Button 
+                        size="sm" 
+                        onClick={() => updateAlertStatus([alert.id], 'resolved')}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Resolve
+                      </Button>
+                    )}
+                    
+                    <Button 
+                      size="sm" 
+                      variant="destructive"
+                      onClick={() => deleteAlerts([alert.id])}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                {canProgressStatus(alert.status) && (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => {
-                      const nextStatus = getNextStatus(alert.status);
-                      if (nextStatus) {
-                        updateAlertStatus([alert.id], nextStatus);
-                      }
-                    }}
-                  >
-                    <ArrowRight className="h-4 w-4 mr-2" />
-                    {getNextStatus(alert.status)?.replace('_', ' ')}
-                  </Button>
-                )}
-                
-                {alert.status !== 'resolved' && (
-                  <Button 
-                    size="sm" 
-                    onClick={() => updateAlertStatus([alert.id], 'resolved')}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Resolve
-                  </Button>
-                )}
-                
-                <Button 
-                  size="sm" 
-                  variant="destructive"
-                  onClick={() => deleteAlerts([alert.id])}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </CardContent>
+              </Card>
+            ))}
 
-      {filteredAlerts.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-8">
-            <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No {filter === 'all' ? '' : filter} alerts found.</p>
-          </CardContent>
-        </Card>
-      )}
+            {filteredAlerts.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No {filter === 'all' ? '' : filter} alerts found.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
