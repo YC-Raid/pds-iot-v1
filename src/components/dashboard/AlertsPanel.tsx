@@ -664,16 +664,19 @@ const AlertsPanel = () => {
   // Bulk delete function
   const deleteBulkAlerts = async () => {
     if (selectedAlerts.size === 0) return;
-    
     const selectedIds = Array.from(selectedAlerts);
-    
-    try {
-      const { error } = await supabase
-        .from('alerts')
-        .delete()
-        .in('id', selectedIds);
 
-      if (error) throw error;
+    try {
+      // Chunk deletes to avoid very long URLs that cause 400 Bad Request
+      const CHUNK_SIZE = 50;
+      for (let i = 0; i < selectedIds.length; i += CHUNK_SIZE) {
+        const chunk = selectedIds.slice(i, i + CHUNK_SIZE);
+        const { error } = await supabase
+          .from('alerts')
+          .delete()
+          .in('id', chunk);
+        if (error) throw error;
+      }
 
       setAlerts(prev => prev.filter(alert => !selectedIds.includes(alert.id)));
       setSelectedAlerts(new Set());
@@ -687,7 +690,7 @@ const AlertsPanel = () => {
       console.error('Error deleting alerts:', error);
       toast({
         title: "Error",
-        description: "Failed to delete alerts.",
+        description: "Failed to delete alerts. Please try again.",
         variant: "destructive"
       });
     }
