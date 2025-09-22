@@ -25,7 +25,7 @@ const SensorDetail = () => {
   const navigate = useNavigate();
   const { getSensorReadingsByTimeRange, getAggregatedSensorData, getHourlyAveragedData, sensorReadings } = useSensorData();
   const [chartData, setChartData] = useState([]);
-  const [timeRange, setTimeRange] = useState('24');
+  const [timeRange, setTimeRange] = useState('1');
   const [isLoading, setIsLoading] = useState(true);
 
   // Get current reading - EXACT same logic as SensorOverview but for all sensor types
@@ -126,53 +126,7 @@ const SensorDetail = () => {
         const hours = parseInt(timeRange);
         let data: any[] = [];
 
-        if (hours === 24 && !['acceleration', 'rotation'].includes(sensorType)) {
-          // Use hourly averaged data from processed_sensor_readings for 24h single-value sensors
-          console.log(`🔍 [DEBUG] Fetching hourly data for sensor: ${sensorType}`);
-          const hourlyData = await getHourlyAveragedData(sensorType);
-          console.log(`📊 [DEBUG] Hourly data received:`, hourlyData);
-          
-          // Generate full 24-hour range: data is already in Singapore time
-          const now = new Date();
-          const currentHour = new Date(now);
-          currentHour.setMinutes(0, 0, 0); // Round down to current hour
-          const startTime = new Date(currentHour.getTime() - 24 * 60 * 60 * 1000);
-
-          console.log(`⏰ [DEBUG] Time range (SG time): ${startTime.toISOString()} to ${currentHour.toISOString()}`);
-
-          const fullRange: any[] = [];
-          for (let i = 0; i <= 24; i++) { // 25 data points: start hour to current hour inclusive
-            const bucketDate = new Date(startTime.getTime() + i * 60 * 60 * 1000);
-            const hourKey = bucketDate.getFullYear() + '-' + 
-                           (bucketDate.getMonth() + 1).toString().padStart(2, '0') + '-' + 
-                           bucketDate.getDate().toString().padStart(2, '0') + ' ' + 
-                           bucketDate.getHours().toString().padStart(2, '0') + ':00:00';
-            
-            const timeLabel = bucketDate.getDate() + ' ' + 
-                            bucketDate.toLocaleDateString('en', {month: 'short'}) + ' ' + 
-                            bucketDate.getHours().toString().padStart(2, '0') + ':00';
-                            
-            const matchingData = Array.isArray(hourlyData)
-              ? hourlyData.find((d: any) => d.hour_bucket === hourKey)
-              : null;
-
-            fullRange.push({
-              time: timeLabel,
-              value: matchingData ? Number(matchingData.avg_value) : null,
-              timestamp: hourKey,
-              hour_bucket: hourKey,
-              reading_count: matchingData ? matchingData.reading_count : 0,
-            });
-          }
-
-          console.log(`📈 [DEBUG] Full range data points:`, fullRange.length);
-          console.log(`📈 [DEBUG] Sample data points:`, fullRange.slice(0, 3));
-          console.log(`📈 [DEBUG] Data points with values:`, fullRange.filter(d => d.value !== null).length);
-
-          setChartData(fullRange);
-          setIsLoading(false);
-          return;
-        } else if (hours <= 24) {
+        if (hours <= 24) {
           // Use raw data from processed_sensor_readings for 1h and 24h views
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
@@ -339,11 +293,48 @@ const SensorDetail = () => {
               console.log(`📊 [DEBUG] 24-hour ${sensorType} data grouped into ${formatted.length} hour buckets`);
               console.log(`📊 [DEBUG] Sample hour data:`, formatted.slice(0, 3));
             }
-           } else if (sensorType === 'acceleration') {
-            const maxPoints = 200;
-            const step = Math.max(1, Math.ceil(data.length / maxPoints));
-            
-            if (hours === 24) {
+            } else if (sensorType === 'acceleration') {
+             const maxPoints = 200;
+             const step = Math.max(1, Math.ceil(data.length / maxPoints));
+             
+             if (hours === 1) {
+               // 1 hour: Group by hour for better visualization (12-hour range)
+               const hourGroups = new Map();
+               
+               // Get last 12 hours of data for 1-hour analysis
+               const now = new Date();
+               const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+               
+               data.forEach(reading => {
+                 const readingDate = new Date(reading.recorded_at);
+                 if (readingDate >= startTime) {
+                   const hourKey = `${readingDate.getHours().toString().padStart(2, '0')}:00`;
+                   
+                   if (!hourGroups.has(hourKey)) {
+                     hourGroups.set(hourKey, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                   }
+                   const group = hourGroups.get(hourKey);
+                   group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
+                   group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
+                   group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
+                   // Calculate corrected magnitude from individual components
+                   const accelX = Number(reading.accel_x || reading.avg_accel_x) || 0;
+                   const accelY = Number(reading.accel_y || reading.avg_accel_y) || 0;
+                   const accelZ = Number(reading.accel_z || reading.avg_accel_z) || 0;
+                   const correctedMag = calculateCorrectedAccelMagnitude(accelX, accelY, accelZ);
+                   group.mag.push(correctedMag);
+                 }
+               });
+               
+               formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
+                 time: timeLabel,
+                 x_axis: group.x.length > 0 ? group.x.reduce((sum, val) => sum + val, 0) / group.x.length : 0,
+                 y_axis: group.y.length > 0 ? group.y.reduce((sum, val) => sum + val, 0) / group.y.length : 0,
+                 z_axis: group.z.length > 0 ? group.z.reduce((sum, val) => sum + val, 0) / group.z.length : 0,
+                 magnitude: group.mag.length > 0 ? group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length : 0
+               })).sort((a, b) => a.time.localeCompare(b.time));
+               
+             } else if (hours === 24) {
               // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
               const hourGroups = new Map();
               
@@ -442,38 +433,35 @@ const SensorDetail = () => {
             const maxPoints = hours === 1 ? 60 : 200;
             const step = Math.max(1, Math.ceil(data.length / maxPoints));
             if (hours === 1) {
-              // 1 hour: Group by minute and average gyroscope data
-              const minuteGroups = new Map();
+              // 1 hour: Group by hour for better visualization (12-hour range)
+              const hourGroups = new Map();
+              
+              // Get last 12 hours of data for 1-hour analysis
+              const now = new Date();
+              const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
               
               data.forEach(reading => {
-                // For sensor_data, use local_time field directly (already Singapore time)
-                // For processed_sensor_readings, recorded_at is already Singapore time
-                let singaporeTime;
-                if (reading.local_time) {
-                  // sensor_data table - already has Singapore local time
-                  singaporeTime = reading.local_time.substring(0, 5); // Extract HH:MM
-                } else {
-                  // processed_sensor_readings table - already in Singapore time
-                  const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                  singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
+                const readingDate = new Date(reading.recorded_at);
+                if (readingDate >= startTime) {
+                  const hourKey = `${readingDate.getHours().toString().padStart(2, '0')}:00`;
+                  
+                  if (!hourGroups.has(hourKey)) {
+                    hourGroups.set(hourKey, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                  }
+                  const group = hourGroups.get(hourKey);
+                  group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
+                  group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
+                  group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                  group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
                 }
-                
-                if (!minuteGroups.has(singaporeTime)) {
-                  minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                }
-                const group = minuteGroups.get(singaporeTime);
-                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
-                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
               });
               
-              formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
+              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
-                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
-                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
-                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
-                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
+                x_axis: group.x.length > 0 ? group.x.reduce((sum, val) => sum + val, 0) / group.x.length : 0,
+                y_axis: group.y.length > 0 ? group.y.reduce((sum, val) => sum + val, 0) / group.y.length : 0,
+                z_axis: group.z.length > 0 ? group.z.reduce((sum, val) => sum + val, 0) / group.z.length : 0,
+                magnitude: group.mag.length > 0 ? group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length : 0
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
@@ -561,21 +549,26 @@ const SensorDetail = () => {
             const dataKey = currentSensor.dataKey;
             
             if (hours === 1) {
-              // 1 hour: Group by minute and average
-              const minuteGroups = new Map();
+              // 1 hour: Group by hour for better visualization (12-hour range)
+              const hourGroups = new Map();
+              
+              // Get last 12 hours of data for 1-hour analysis
+              const now = new Date();
+              const startTime = new Date(now.getTime() - 12 * 60 * 60 * 1000);
               
               data.forEach(reading => {
-                // recorded_at is already in Singapore timezone in the database
-                const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                
-                if (!minuteGroups.has(singaporeTime)) {
-                  minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                const readingDate = new Date(reading.recorded_at || reading.time_bucket);
+                if (readingDate >= startTime) {
+                  const hourKey = `${readingDate.getHours().toString().padStart(2, '0')}:00`;
+                  
+                  if (!hourGroups.has(hourKey)) {
+                    hourGroups.set(hourKey, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                  }
+                  hourGroups.get(hourKey).values.push(Number(reading[dataKey]) || 0);
                 }
-                minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
               });
               
-              formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
+              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
                 value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
                 timestamp: group.timestamp
