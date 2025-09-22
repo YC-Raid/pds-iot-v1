@@ -92,7 +92,7 @@ export function useSensorData() {
     // Generate mock data for each gap
     let mockData: MockSensorReading[] = [];
     gaps.forEach(gap => {
-      const gapMock = generateMockSensorData(gap.start, gap.end, 12); // 12 readings per hour
+      const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
       mockData = [...mockData, ...gapMock];
     });
 
@@ -241,7 +241,7 @@ export function useSensorData() {
         
         let mockData: MockSensorReading[] = [];
         gaps.forEach(gap => {
-          const gapMock = generateMockSensorData(gap.start, gap.end, 12);
+          const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
           mockData = [...mockData, ...gapMock];
         });
 
@@ -307,7 +307,7 @@ export function useSensorData() {
           
           let mockData: MockSensorReading[] = [];
           gaps.forEach(gap => {
-            const gapMock = generateMockSensorData(gap.start, gap.end, 12);
+            const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
             mockData = [...mockData, ...gapMock];
           });
 
