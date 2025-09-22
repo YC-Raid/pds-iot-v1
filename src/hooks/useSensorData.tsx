@@ -24,14 +24,14 @@ interface SensorReading {
   gyro_y: number | null;
   gyro_z: number | null;
   gyro_magnitude: number | null;
-  anomaly_score: number;
-  predicted_failure_probability: number;
+  anomaly_score: number | null;
+  predicted_failure_probability: number | null;
   maintenance_recommendation: string | null;
-  quality_score: number;
-  processed_at: string;
-  created_at?: string;
-  updated_at?: string;
-  processing_version?: string;
+  quality_score: number | null;
+  processed_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  processing_version: string | null;
 }
 
 interface DashboardData {
@@ -121,7 +121,10 @@ export function useSensorData() {
       predicted_failure_probability: mock.predicted_failure_probability,
       maintenance_recommendation: mock.maintenance_recommendation,
       quality_score: mock.quality_score,
-      processed_at: mock.recorded_at
+      processed_at: mock.recorded_at,
+      created_at: mock.recorded_at,
+      updated_at: mock.recorded_at,
+      processing_version: mock.processing_version
     }));
 
     console.log(`📊 Generated ${mockSensorReadings.length} mock readings to fill gaps`);
