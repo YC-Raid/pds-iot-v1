@@ -196,7 +196,7 @@ const SensorDetail = () => {
             console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
         } else if (hours === 720) {
-          // 1 month: Use daily aggregated data filtered to current month
+          // 1 month: Use daily aggregated data for current month
           console.log(`📊 [DEBUG] Fetching daily aggregated data for 1 month view`);
           try {
             const aggregatedData = await getAggregatedSensorData('day', 31);
@@ -215,10 +215,11 @@ const SensorDetail = () => {
               
               console.log(`✅ [DEBUG] Using ${monthlyData.length} daily records for month ${currentMonth + 1}/${currentYear}`);
               
-              if (monthlyData.length >= 2) { // Need at least 2 days for meaningful analysis
+              // Use daily data regardless of how many days we have
+              if (monthlyData.length > 0) {
                 data = monthlyData;
               } else {
-                console.log(`⚠️ [DEBUG] Insufficient monthly data (${monthlyData.length} days), falling back to raw data`);
+                console.log(`⚠️ [DEBUG] No daily data for current month, falling back to raw data`);
                 data = await getSensorReadingsByTimeRange(hours);
                 console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
               }
