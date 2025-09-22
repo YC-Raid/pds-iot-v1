@@ -297,53 +297,54 @@ const SensorDetail = () => {
              const maxPoints = 200;
              const step = Math.max(1, Math.ceil(data.length / maxPoints));
              
-             if (hours === 1) {
-               // 1 hour: Group by minute and average accelerometer data - last 60 minutes only
-               const minuteGroups = new Map();
-               
-               // Get last 60 minutes of data for 1-hour analysis  
-               const now = new Date();
-               const startTime = new Date(now.getTime() - 60 * 60 * 1000); // exactly 1 hour ago
-               
-               data.forEach(reading => {
-                 const readingDate = new Date(reading.recorded_at);
-                 if (readingDate >= startTime) {
-                   const singaporeTime = `${readingDate.getHours().toString().padStart(2, '0')}:${readingDate.getMinutes().toString().padStart(2, '0')}`;
-                   
-                   if (!minuteGroups.has(singaporeTime)) {
-                     minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                   }
-                   const group = minuteGroups.get(singaporeTime);
-                   
-                   if (reading.accel_x !== null && reading.accel_x !== undefined) {
-                     group.x.push(Number(reading.accel_x));
-                   }
-                   if (reading.accel_y !== null && reading.accel_y !== undefined) {
-                     group.y.push(Number(reading.accel_y));
-                   }
-                   if (reading.accel_z !== null && reading.accel_z !== undefined) {
-                     group.z.push(Number(reading.accel_z));
-                   }
-                   if (reading.accel_x !== null && reading.accel_x !== undefined &&
-                       reading.accel_y !== null && reading.accel_y !== undefined &&
-                       reading.accel_z !== null && reading.accel_z !== undefined) {
-                     const correctedMagnitude = calculateCorrectedAccelMagnitude(
-                       Number(reading.accel_x),
-                       Number(reading.accel_y), 
-                       Number(reading.accel_z)
-                     );
-                     group.mag.push(correctedMagnitude);
-                   }
-                 }
-               });
-               
-               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
-                 time: timeLabel,
-                 x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
-                 y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
-                 z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
-                 magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
-               })).sort((a, b) => a.time.localeCompare(b.time));
+              if (hours === 1) {
+                // 1 hour: Group by minute and average accelerometer data - current hour only (Singapore timezone)
+                const minuteGroups = new Map();
+                
+                // Get current hour bounds in Singapore timezone
+                const nowSingapore = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+                const startOfHour = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), nowSingapore.getHours(), 0, 0, 0);
+                const endOfHour = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), nowSingapore.getHours(), 59, 59, 999);
+                
+                data.forEach(reading => {
+                  const readingDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+                  if (readingDate >= startOfHour && readingDate <= endOfHour) {
+                    const singaporeTime = `${readingDate.getHours().toString().padStart(2, '0')}:${readingDate.getMinutes().toString().padStart(2, '0')}`;
+                    
+                    if (!minuteGroups.has(singaporeTime)) {
+                      minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                    }
+                    const group = minuteGroups.get(singaporeTime);
+                    
+                    if (reading.accel_x !== null && reading.accel_x !== undefined) {
+                      group.x.push(Number(reading.accel_x));
+                    }
+                    if (reading.accel_y !== null && reading.accel_y !== undefined) {
+                      group.y.push(Number(reading.accel_y));
+                    }
+                    if (reading.accel_z !== null && reading.accel_z !== undefined) {
+                      group.z.push(Number(reading.accel_z));
+                    }
+                    if (reading.accel_x !== null && reading.accel_x !== undefined &&
+                        reading.accel_y !== null && reading.accel_y !== undefined &&
+                        reading.accel_z !== null && reading.accel_z !== undefined) {
+                      const correctedMagnitude = calculateCorrectedAccelMagnitude(
+                        Number(reading.accel_x),
+                        Number(reading.accel_y), 
+                        Number(reading.accel_z)
+                      );
+                      group.mag.push(correctedMagnitude);
+                    }
+                  }
+                });
+                
+                formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
+                  time: timeLabel,
+                  x_axis: group.x.length > 0 ? group.x.reduce((sum, val) => sum + val, 0) / group.x.length : 0,
+                  y_axis: group.y.length > 0 ? group.y.reduce((sum, val) => sum + val, 0) / group.y.length : 0,
+                  z_axis: group.z.length > 0 ? group.z.reduce((sum, val) => sum + val, 0) / group.z.length : 0,
+                  magnitude: group.mag.length > 0 ? group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length : 0
+                })).sort((a, b) => a.time.localeCompare(b.time));
                
              } else if (hours === 24) {
               // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
@@ -560,28 +561,32 @@ const SensorDetail = () => {
             const dataKey = currentSensor.dataKey;
             
             if (hours === 1) {
-              // 1 hour: Group by minute and average - last 60 minutes only
+              // 1 hour: Group by minute and average - current hour only (Singapore timezone)
               const minuteGroups = new Map();
               
-              // Get last 60 minutes of data for 1-hour analysis  
-              const now = new Date();
-              const startTime = new Date(now.getTime() - 60 * 60 * 1000); // exactly 1 hour ago
+              // Get current hour bounds in Singapore timezone
+              const nowSingapore = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+              const startOfHour = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), nowSingapore.getHours(), 0, 0, 0);
+              const endOfHour = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), nowSingapore.getHours(), 59, 59, 999);
               
               data.forEach(reading => {
-                const readingDate = new Date(reading.recorded_at || reading.time_bucket);
-                if (readingDate >= startTime) {
+                const readingDate = new Date(new Date(reading.recorded_at || reading.time_bucket).toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+                if (readingDate >= startOfHour && readingDate <= endOfHour) {
                   const singaporeTime = `${readingDate.getHours().toString().padStart(2, '0')}:${readingDate.getMinutes().toString().padStart(2, '0')}`;
                   
                   if (!minuteGroups.has(singaporeTime)) {
                     minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
                   }
-                  minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
+                  const value = Number(reading[dataKey]);
+                  if (!isNaN(value)) {
+                    minuteGroups.get(singaporeTime).values.push(value);
+                  }
                 }
               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
-                value: group.values.reduce((sum, val) => sum + val, 0) / group.values.length,
+                value: group.values.length > 0 ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length : 0,
                 timestamp: group.timestamp
               })).sort((a, b) => a.time.localeCompare(b.time));
               
