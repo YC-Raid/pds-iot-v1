@@ -208,12 +208,18 @@ const SensorDetail = () => {
               const currentMonth = now.getMonth();
               const currentYear = now.getFullYear();
               
+              console.log(`📅 [DEBUG] Current month: ${currentMonth + 1}/${currentYear}, checking data...`);
+              console.log(`📅 [DEBUG] Sample aggregated records:`, aggregatedData.slice(0, 3));
+              
               const monthlyData = aggregatedData.filter(record => {
                 const recordDate = new Date(record.time_bucket);
-                return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+                const isCurrentMonth = recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+                console.log(`📅 [DEBUG] Record ${record.time_bucket} -> Date: ${recordDate.toISOString()}, Month: ${recordDate.getMonth() + 1}, Match: ${isCurrentMonth}`);
+                return isCurrentMonth;
               });
               
               console.log(`✅ [DEBUG] Using ${monthlyData.length} daily records for month ${currentMonth + 1}/${currentYear}`);
+              console.log(`✅ [DEBUG] Monthly data sample:`, monthlyData.slice(0, 3));
               
               // Use daily data regardless of how many days we have
               if (monthlyData.length > 0) {
@@ -645,16 +651,13 @@ const SensorDetail = () => {
                       };
                     }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
                   } else if (hours === 720) {
-                    // 1 month: aggregated by week - show actual week dates
+                    // 1 month: daily aggregated data - show each day
                     formatted = data.map(reading => {
                       const bucketDate = new Date(reading.time_bucket);
-                      // Calculate week start and end dates
-                      const weekStart = new Date(bucketDate);
-                      weekStart.setDate(bucketDate.getDate() - bucketDate.getDay()); // Start of week (Sunday)
-                      const weekEnd = new Date(weekStart);
-                      weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
-                      
-                      const timeLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                      const timeLabel = bucketDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                      });
                       return {
                         time: timeLabel,
                         value: Number(reading[valueColumn]) || null,
@@ -762,9 +765,11 @@ const SensorDetail = () => {
                     });
                   }
                 }
-              }
+            }
           }
-         
+          
+          console.log(`📈 [DEBUG] Final formatted data for ${sensorType}:`, formatted.length, 'points');
+          console.log(`📈 [DEBUG] Sample formatted data:`, formatted.slice(0, 5));
           setChartData(formatted);
         } else {
           setChartData(testData);
