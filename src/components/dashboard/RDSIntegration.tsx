@@ -12,12 +12,14 @@ interface RDSIntegrationProps {
 
 export function RDSIntegration({ className }: RDSIntegrationProps) {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFillingGaps, setIsFillingGaps] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [fillGapsResult, setFillGapsResult] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(() => {
     const stored = localStorage.getItem('lastSyncTime');
     return stored ? new Date(stored) : null;
   });
-  const { dashboardData, syncRDSData } = useSensorData();
+  const { dashboardData, syncRDSData, fillMockGaps } = useSensorData();
   const { toast } = useToast();
 
   const handleSync = async () => {
@@ -44,6 +46,27 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
     }
   };
 
+  const handleFillGaps = async () => {
+    setIsFillingGaps(true);
+    try {
+      const result = await fillMockGaps();
+      setFillGapsResult(result);
+      
+      toast({
+        title: "Mock Gaps Filled Successfully",
+        description: `Added ${result.mockRecords} mock data points to fill gaps`,
+      });
+    } catch (error) {
+      toast({
+        title: "Fill Gaps Failed", 
+        description: error instanceof Error ? error.message : "Failed to fill mock data gaps",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFillingGaps(false);
+    }
+  };
+
   const totalReadings = dashboardData.reduce((sum, location) => sum + location.total_readings, 0);
   const avgAnomalyScore = dashboardData.length > 0 
     ? dashboardData.reduce((sum, location) => sum + location.avg_anomaly_score, 0) / dashboardData.length 
@@ -62,19 +85,34 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
               Sync and process sensor data from your AWS RDS PostgreSQL database
             </CardDescription>
           </div>
-          <Button 
-            onClick={handleSync} 
-            disabled={isSyncing}
-            size="sm"
-            variant="outline"
-          >
-            {isSyncing ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <RotateCw className="h-4 w-4 mr-2" />
-            )}
-            {isSyncing ? 'Syncing...' : 'Sync Now'}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleSync} 
+              disabled={isSyncing || isFillingGaps}
+              size="sm"
+              variant="outline"
+            >
+              {isSyncing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RotateCw className="h-4 w-4 mr-2" />
+              )}
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </Button>
+            <Button 
+              onClick={handleFillGaps} 
+              disabled={isSyncing || isFillingGaps}
+              size="sm"
+              variant="secondary"
+            >
+              {isFillingGaps ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              {isFillingGaps ? 'Filling...' : 'Fill Mock Gaps'}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -185,11 +223,22 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
           <div className="flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
             <div className="text-sm">
-              <span className="font-medium text-blue-900 dark:text-blue-100">Ready for ML Integration</span>
+              <span className="font-medium text-blue-900 dark:text-blue-100">Data Migration Completed</span>
               <p className="text-blue-700 dark:text-blue-300 mt-1">
-                Your sensor data is now processed and ready for machine learning models. 
-                Anomaly detection and predictive maintenance algorithms can be applied to the processed data.
+                ✅ Original sensor data restored to processed_sensor_readings<br/>
+                ✅ Mock dataset table created as mock_sensor_dataset<br/>
+                📊 Use "Fill Mock Gaps" to add 10-second interval mock data for Sep 1-18
               </p>
+              {fillGapsResult && (
+                <div className="mt-2 text-xs">
+                  <Badge variant="outline" className="mr-2">
+                    {fillGapsResult.existingRecords} real records
+                  </Badge>
+                  <Badge variant="outline">
+                    {fillGapsResult.mockRecords} mock records added
+                  </Badge>
+                </div>
+              )}
             </div>
           </div>
         </div>
