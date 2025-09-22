@@ -215,7 +215,7 @@ const SensorDetail = () => {
               
               console.log(`✅ [DEBUG] Using ${monthlyData.length} daily records for month ${currentMonth + 1}/${currentYear}`);
               
-              if (monthlyData.length >= 5) { // Need at least 5 days for meaningful analysis
+              if (monthlyData.length >= 2) { // Need at least 2 days for meaningful analysis
                 data = monthlyData;
               } else {
                 console.log(`⚠️ [DEBUG] Insufficient monthly data (${monthlyData.length} days), falling back to raw data`);
