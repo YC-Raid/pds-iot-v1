@@ -473,6 +473,96 @@ export type Database = {
         }
         Relationships: []
       }
+      processed_sensor_readings_duplicate: {
+        Row: {
+          accel_magnitude: number | null
+          accel_x: number | null
+          accel_y: number | null
+          accel_z: number | null
+          anomaly_score: number | null
+          created_at: string | null
+          gas_resistance: number | null
+          gyro_magnitude: number | null
+          gyro_x: number | null
+          gyro_y: number | null
+          gyro_z: number | null
+          humidity: number | null
+          id: number
+          location: string | null
+          maintenance_recommendation: string | null
+          original_id: number
+          pm1_0: number | null
+          pm10: number | null
+          pm2_5: number | null
+          predicted_failure_probability: number | null
+          pressure: number | null
+          processed_at: string | null
+          processing_version: string | null
+          quality_score: number | null
+          recorded_at: string
+          temperature: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          accel_magnitude?: number | null
+          accel_x?: number | null
+          accel_y?: number | null
+          accel_z?: number | null
+          anomaly_score?: number | null
+          created_at?: string | null
+          gas_resistance?: number | null
+          gyro_magnitude?: number | null
+          gyro_x?: number | null
+          gyro_y?: number | null
+          gyro_z?: number | null
+          humidity?: number | null
+          id?: number
+          location?: string | null
+          maintenance_recommendation?: string | null
+          original_id: number
+          pm1_0?: number | null
+          pm10?: number | null
+          pm2_5?: number | null
+          predicted_failure_probability?: number | null
+          pressure?: number | null
+          processed_at?: string | null
+          processing_version?: string | null
+          quality_score?: number | null
+          recorded_at: string
+          temperature?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          accel_magnitude?: number | null
+          accel_x?: number | null
+          accel_y?: number | null
+          accel_z?: number | null
+          anomaly_score?: number | null
+          created_at?: string | null
+          gas_resistance?: number | null
+          gyro_magnitude?: number | null
+          gyro_x?: number | null
+          gyro_y?: number | null
+          gyro_z?: number | null
+          humidity?: number | null
+          id?: number
+          location?: string | null
+          maintenance_recommendation?: string | null
+          original_id?: number
+          pm1_0?: number | null
+          pm10?: number | null
+          pm2_5?: number | null
+          predicted_failure_probability?: number | null
+          pressure?: number | null
+          processed_at?: string | null
+          processing_version?: string | null
+          quality_score?: number | null
+          recorded_at?: string
+          temperature?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
