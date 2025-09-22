@@ -298,37 +298,42 @@ const SensorDetail = () => {
              const step = Math.max(1, Math.ceil(data.length / maxPoints));
              
              if (hours === 1) {
-               // 1 hour: Group by minute and average accelerometer data
+               // 1 hour: Group by minute and average accelerometer data - last 60 minutes only
                const minuteGroups = new Map();
                
+               // Get last 60 minutes of data for 1-hour analysis  
+               const now = new Date();
+               const startTime = new Date(now.getTime() - 60 * 60 * 1000); // exactly 1 hour ago
+               
                data.forEach(reading => {
-                 // recorded_at is already Singapore time
-                 const singaporeDate = new Date(reading.recorded_at);
-                 const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                 
-                 if (!minuteGroups.has(singaporeTime)) {
-                   minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                 }
-                 const group = minuteGroups.get(singaporeTime);
-                 
-                 if (reading.accel_x !== null && reading.accel_x !== undefined) {
-                   group.x.push(Number(reading.accel_x));
-                 }
-                 if (reading.accel_y !== null && reading.accel_y !== undefined) {
-                   group.y.push(Number(reading.accel_y));
-                 }
-                 if (reading.accel_z !== null && reading.accel_z !== undefined) {
-                   group.z.push(Number(reading.accel_z));
-                 }
-                 if (reading.accel_x !== null && reading.accel_x !== undefined &&
-                     reading.accel_y !== null && reading.accel_y !== undefined &&
-                     reading.accel_z !== null && reading.accel_z !== undefined) {
-                   const correctedMagnitude = calculateCorrectedAccelMagnitude(
-                     Number(reading.accel_x),
-                     Number(reading.accel_y), 
-                     Number(reading.accel_z)
-                   );
-                   group.mag.push(correctedMagnitude);
+                 const readingDate = new Date(reading.recorded_at);
+                 if (readingDate >= startTime) {
+                   const singaporeTime = `${readingDate.getHours().toString().padStart(2, '0')}:${readingDate.getMinutes().toString().padStart(2, '0')}`;
+                   
+                   if (!minuteGroups.has(singaporeTime)) {
+                     minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                   }
+                   const group = minuteGroups.get(singaporeTime);
+                   
+                   if (reading.accel_x !== null && reading.accel_x !== undefined) {
+                     group.x.push(Number(reading.accel_x));
+                   }
+                   if (reading.accel_y !== null && reading.accel_y !== undefined) {
+                     group.y.push(Number(reading.accel_y));
+                   }
+                   if (reading.accel_z !== null && reading.accel_z !== undefined) {
+                     group.z.push(Number(reading.accel_z));
+                   }
+                   if (reading.accel_x !== null && reading.accel_x !== undefined &&
+                       reading.accel_y !== null && reading.accel_y !== undefined &&
+                       reading.accel_z !== null && reading.accel_z !== undefined) {
+                     const correctedMagnitude = calculateCorrectedAccelMagnitude(
+                       Number(reading.accel_x),
+                       Number(reading.accel_y), 
+                       Number(reading.accel_z)
+                     );
+                     group.mag.push(correctedMagnitude);
+                   }
                  }
                });
                
@@ -439,22 +444,27 @@ const SensorDetail = () => {
             const maxPoints = hours === 1 ? 60 : 200;
             const step = Math.max(1, Math.ceil(data.length / maxPoints));
             if (hours === 1) {
-              // 1 hour: Group by minute and average gyroscope data
+              // 1 hour: Group by minute and average gyroscope data - last 60 minutes only
               const minuteGroups = new Map();
               
+              // Get last 60 minutes of data for 1-hour analysis  
+              const now = new Date();
+              const startTime = new Date(now.getTime() - 60 * 60 * 1000); // exactly 1 hour ago
+              
               data.forEach(reading => {
-                // recorded_at is already Singapore time
-                const singaporeDate = new Date(reading.recorded_at);
-                const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                
-                if (!minuteGroups.has(singaporeTime)) {
-                  minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                const readingDate = new Date(reading.recorded_at);
+                if (readingDate >= startTime) {
+                  const singaporeTime = `${readingDate.getHours().toString().padStart(2, '0')}:${readingDate.getMinutes().toString().padStart(2, '0')}`;
+                  
+                  if (!minuteGroups.has(singaporeTime)) {
+                    minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                  }
+                  const group = minuteGroups.get(singaporeTime);
+                  group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
+                  group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
+                  group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                  group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
                 }
-                const group = minuteGroups.get(singaporeTime);
-                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
-                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
@@ -550,18 +560,23 @@ const SensorDetail = () => {
             const dataKey = currentSensor.dataKey;
             
             if (hours === 1) {
-              // 1 hour: Group by minute and average
+              // 1 hour: Group by minute and average - last 60 minutes only
               const minuteGroups = new Map();
               
+              // Get last 60 minutes of data for 1-hour analysis  
+              const now = new Date();
+              const startTime = new Date(now.getTime() - 60 * 60 * 1000); // exactly 1 hour ago
+              
               data.forEach(reading => {
-                // recorded_at is already in Singapore timezone in the database
-                const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
-                const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
-                
-                if (!minuteGroups.has(singaporeTime)) {
-                  minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                const readingDate = new Date(reading.recorded_at || reading.time_bucket);
+                if (readingDate >= startTime) {
+                  const singaporeTime = `${readingDate.getHours().toString().padStart(2, '0')}:${readingDate.getMinutes().toString().padStart(2, '0')}`;
+                  
+                  if (!minuteGroups.has(singaporeTime)) {
+                    minuteGroups.set(singaporeTime, { values: [], timestamp: reading.recorded_at || reading.utc_timestamp });
+                  }
+                  minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
                 }
-                minuteGroups.get(singaporeTime).values.push(Number(reading[dataKey]) || 0);
               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
