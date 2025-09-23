@@ -13,13 +13,15 @@ interface RDSIntegrationProps {
 export function RDSIntegration({ className }: RDSIntegrationProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFillingGaps, setIsFillingGaps] = useState(false);
+  const [isPopulating, setIsPopulating] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [fillGapsResult, setFillGapsResult] = useState<any>(null);
+  const [populateResult, setPopulateResult] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(() => {
     const stored = localStorage.getItem('lastSyncTime');
     return stored ? new Date(stored) : null;
   });
-  const { dashboardData, syncRDSData, fillMockGaps } = useSensorData();
+  const { dashboardData, syncRDSData, fillMockGaps, populateMockData } = useSensorData();
   const { toast } = useToast();
 
   const handleSync = async () => {
@@ -67,6 +69,27 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
     }
   };
 
+  const handlePopulateMockData = async () => {
+    setIsPopulating(true);
+    try {
+      const result = await populateMockData();
+      setPopulateResult(result);
+      
+      toast({
+        title: "Mock Data Populated Successfully",
+        description: `Generated ${result.details?.total_records} sensor readings for Sep 1-15, 2025`,
+      });
+    } catch (error) {
+      toast({
+        title: "Population Failed", 
+        description: error instanceof Error ? error.message : "Failed to populate mock data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPopulating(false);
+    }
+  };
+
   const totalReadings = dashboardData.reduce((sum, location) => sum + location.total_readings, 0);
   const avgAnomalyScore = dashboardData.length > 0 
     ? dashboardData.reduce((sum, location) => sum + location.avg_anomaly_score, 0) / dashboardData.length 
@@ -88,7 +111,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
           <div className="flex gap-2">
             <Button 
               onClick={handleSync} 
-              disabled={isSyncing || isFillingGaps}
+              disabled={isSyncing || isFillingGaps || isPopulating}
               size="sm"
               variant="outline"
             >
@@ -101,7 +124,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
             </Button>
             <Button 
               onClick={handleFillGaps} 
-              disabled={isSyncing || isFillingGaps}
+              disabled={isSyncing || isFillingGaps || isPopulating}
               size="sm"
               variant="secondary"
             >
@@ -113,6 +136,22 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
               {isFillingGaps ? 'Filling...' : 'Fill Mock Gaps'}
             </Button>
           </div>
+        </div>
+        <div className="flex justify-center mt-2">
+          <Button 
+            onClick={handlePopulateMockData} 
+            disabled={isSyncing || isFillingGaps || isPopulating}
+            size="sm"
+            variant="default"
+            className="w-full max-w-xs"
+          >
+            {isPopulating ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Database className="h-4 w-4 mr-2" />
+            )}
+            {isPopulating ? 'Generating...' : 'Generate Full Mock Dataset'}
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -227,7 +266,8 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
               <p className="text-blue-700 dark:text-blue-300 mt-1">
                 ✅ Original sensor data restored to processed_sensor_readings<br/>
                 ✅ Mock dataset table created as mock_sensor_dataset<br/>
-                📊 Use "Fill Mock Gaps" to add 10-second interval mock data for Sep 1-18
+                🎯 "Generate Full Mock Dataset" creates complete Sep 1-15 data with your specs<br/>
+                📊 "Fill Mock Gaps" adds smaller gap-filling data
               </p>
               {fillGapsResult && (
                 <div className="mt-2 text-xs">
@@ -236,6 +276,16 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
                   </Badge>
                   <Badge variant="outline">
                     {fillGapsResult.mockRecords} mock records added
+                  </Badge>
+                </div>
+              )}
+              {populateResult && (
+                <div className="mt-2 text-xs">
+                  <Badge variant="default" className="mr-2">
+                    {populateResult.details?.total_records} mock records generated
+                  </Badge>
+                  <Badge variant="outline">
+                    Sep 1-15, 2025 (10s intervals)
                   </Badge>
                 </div>
               )}

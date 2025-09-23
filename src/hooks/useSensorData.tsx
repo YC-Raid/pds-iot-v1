@@ -179,6 +179,17 @@ export function useSensorData() {
     }
   };
 
+  const populateMockData = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('populate-mock-data');
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to populate mock data');
+      throw err;
+    }
+  };
+
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
       let startTime: Date;
@@ -699,6 +710,7 @@ export function useSensorData() {
     fetchDashboardData,
     syncRDSData,
     fillMockGaps,
+    populateMockData,
     getSensorReadingsByTimeRange,
     getHourlyAveragedData,
     getAnomalousSensorReadings,

@@ -60,3 +60,6 @@ verify_jwt = true
 
 [functions.get-singapore-aqi]
 verify_jwt = false
+
+[functions.populate-mock-data]
+verify_jwt = false
