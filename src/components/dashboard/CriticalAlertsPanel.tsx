@@ -24,19 +24,48 @@ interface CriticalAlert {
 
 export function CriticalAlertsPanel() {
   const [alerts, setAlerts] = useState<CriticalAlert[]>([]);
+  const [alertCounts, setAlertCounts] = useState({
+    active: 0,
+    in_progress: 0,
+    escalated: 0,
+    total: 0
+  });
   const [filter, setFilter] = useState<'all' | 'active' | 'acknowledged' | 'in_progress' | 'escalated' | 'resolved'>('all');
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
   const [isAllSelected, setIsAllSelected] = useState(false);
 
-  // Fetch real alerts from Supabase
+  // Fetch alert counts and recent alerts from Supabase
   useEffect(() => {
-    const fetchAlerts = async () => {
+    const fetchAlertsData = async () => {
       try {
+        // Fetch counts for statistics
+        const { data: countsData, error: countsError } = await supabase
+          .from('alerts')
+          .select('status')
+          .not('status', 'eq', 'resolved');
+
+        if (countsError) {
+          console.error('Error fetching alert counts:', countsError);
+          return;
+        }
+
+        // Calculate counts
+        const counts = countsData?.reduce((acc, alert) => {
+          acc.total++;
+          if (alert.status === 'active') acc.active++;
+          if (alert.status === 'in_progress') acc.in_progress++;
+          if (alert.status === 'escalated') acc.escalated++;
+          return acc;
+        }, { active: 0, in_progress: 0, escalated: 0, total: 0 }) || { active: 0, in_progress: 0, escalated: 0, total: 0 };
+
+        setAlertCounts(counts);
+
+        // Fetch recent alerts for display (limited to 50 for performance)
         const { data, error } = await supabase
           .from('alerts')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(50);
 
         if (error) {
           console.error('Error fetching alerts:', error);
@@ -64,7 +93,7 @@ export function CriticalAlertsPanel() {
       }
     };
 
-    fetchAlerts();
+    fetchAlertsData();
   }, []);
 
   const getSeverityColor = (severity: string) => {
@@ -214,7 +243,7 @@ export function CriticalAlertsPanel() {
     filter === 'all' || alert.status === filter
   );
 
-  const activeAlertsCount = alerts.filter(alert => alert.status === 'active').length;
+  const activeAlertsCount = alertCounts.active;
   const selectedAlertsArray = Array.from(selectedAlerts);
 
   return (
@@ -235,7 +264,7 @@ export function CriticalAlertsPanel() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {alerts.filter(a => a.status === 'in_progress').length}
+              {alertCounts.in_progress}
             </div>
           </CardContent>
         </Card>
@@ -245,7 +274,7 @@ export function CriticalAlertsPanel() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              {alerts.filter(a => a.status === 'escalated').length}
+              {alertCounts.escalated}
             </div>
           </CardContent>
         </Card>
@@ -254,7 +283,7 @@ export function CriticalAlertsPanel() {
             <CardTitle className="text-sm font-medium">Total Alerts</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{alerts.length}</div>
+            <div className="text-2xl font-bold">{alertCounts.total}</div>
           </CardContent>
         </Card>
       </div>
