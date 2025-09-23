@@ -27,12 +27,13 @@ serve(async (req) => {
       failure_probability: { warning: 0.4, critical: 0.7 }
     }
 
-    // Get recent sensor readings (last 30 minutes)
+    // Get recent sensor readings (last 5 minutes to reduce processing load)
     const { data: readings, error: readingsError } = await supabaseClient
       .from('processed_sensor_readings')
       .select('*')
-      .gte('recorded_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .gte('recorded_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
       .order('recorded_at', { ascending: false })
+      .limit(100) // Limit processing to recent 100 readings
 
     if (readingsError) {
       throw readingsError
@@ -224,21 +225,21 @@ serve(async (req) => {
 
     // Insert alerts into database (avoid duplicates by checking recent alerts)
     if (alertsToCreate.length > 0) {
-      // Check for recent similar alerts to avoid spam
-      const { data: recentAlerts } = await supabaseClient
-        .from('alerts')
-        .select('sensor_type, location, status')
-        .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString()) // Last hour
-        .eq('status', 'active')
+    // Check for recent similar alerts to avoid spam (extended to 24 hours)
+    const { data: recentAlerts } = await supabaseClient
+      .from('alerts')
+      .select('sensor_type, location, status, sensor_value, threshold_value')
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours instead of 1 hour
+      .in('status', ['active', 'acknowledged', 'in_progress'])
 
-      const recentAlertKeys = new Set(
-        (recentAlerts || []).map(alert => `${alert.sensor_type}-${alert.location}`)
-      )
+    const recentAlertKeys = new Set(
+      (recentAlerts || []).map(alert => `${alert.sensor_type}-${alert.location}-${alert.sensor_value}-${alert.threshold_value}`)
+    )
 
-      // Filter out alerts that are similar to recent ones
-      const newAlerts = alertsToCreate.filter(alert => 
-        !recentAlertKeys.has(`${alert.sensor_type}-${alert.location}`)
-      )
+    // Filter out alerts that are similar to recent ones (more specific matching)
+    const newAlerts = alertsToCreate.filter(alert => 
+      !recentAlertKeys.has(`${alert.sensor_type}-${alert.location}-${alert.value}-${alert.threshold}`)
+    )
 
       if (newAlerts.length > 0) {
         const { error: insertError } = await supabaseClient
