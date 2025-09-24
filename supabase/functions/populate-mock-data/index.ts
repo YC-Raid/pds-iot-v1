@@ -18,11 +18,9 @@ interface MockSensorReading {
   accel_x: number
   accel_y: number
   accel_z: number
-  accel_magnitude: number
   gyro_x: number
   gyro_y: number
   gyro_z: number
-  gyro_magnitude: number
   anomaly_score: number
   predicted_failure_probability: number
   quality_score: number
@@ -40,13 +38,11 @@ function generateSensorReading(id: number, timestamp: Date): MockSensorReading {
   const accel_x = randomInRange(-19.62, 19.62) // m/s²
   const accel_y = randomInRange(-19.62, 19.62)
   const accel_z = randomInRange(-19.62, 19.62)
-  const accel_magnitude = Math.sqrt(accel_x * accel_x + accel_y * accel_y + accel_z * accel_z)
   
   // Generate gyroscope data (realistic rotation: -250 to +250 deg/s)
   const gyro_x = randomInRange(-250, 250)
   const gyro_y = randomInRange(-250, 250) 
   const gyro_z = randomInRange(-250, 250)
-  const gyro_magnitude = Math.sqrt(gyro_x * gyro_x + gyro_y * gyro_y + gyro_z * gyro_z)
   
   // Generate environmental data with your specified ranges
   const temperature = randomInRange(35, 40)
@@ -60,6 +56,7 @@ function generateSensorReading(id: number, timestamp: Date): MockSensorReading {
   const pm10 = Math.floor(randomInRange(0, 150))
   
   // Calculate anomaly score based on thresholds
+  const accel_magnitude = Math.sqrt(accel_x * accel_x + accel_y * accel_y + accel_z * accel_z)
   let anomaly_score = 0
   if (temperature > 38) anomaly_score += 0.3
   if (humidity > 55) anomaly_score += 0.2
@@ -95,11 +92,9 @@ function generateSensorReading(id: number, timestamp: Date): MockSensorReading {
     accel_x,
     accel_y,
     accel_z,
-    accel_magnitude,
     gyro_x,
     gyro_y,
     gyro_z,
-    gyro_magnitude,
     anomaly_score,
     predicted_failure_probability,
     quality_score: quality_score,
