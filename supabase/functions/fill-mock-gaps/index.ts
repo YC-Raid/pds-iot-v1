@@ -138,11 +138,11 @@ Deno.serve(async (req) => {
       }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error filling gaps:', error)
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: error?.message || 'Unknown error occurred',
         success: false
       }),
       {

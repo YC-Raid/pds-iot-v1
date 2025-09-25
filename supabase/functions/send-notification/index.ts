@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { Resend } from "npm:resend@2.0.0";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -122,23 +122,23 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('user_id', user.user_id)
             .single();
 
-          if (settings?.email_enabled !== false) { // Default to true if no settings
-            const emailHtml = email_template || `
-              <h1>New Alert from Hangar Guardian</h1>
-              <h2>${title}</h2>
-              <p>${message}</p>
-              <p>Best regards,<br>Hangar Guardian System</p>
-            `;
+            if (user.email && settings?.email_enabled !== false) { // Default to true if no settings
+              const emailHtml = email_template || `
+                <h1>New Alert from Hangar Guardian</h1>
+                <h2>${title}</h2>
+                <p>${message}</p>
+                <p>Best regards,<br>Hangar Guardian System</p>
+              `;
 
-            await resend.emails.send({
-              from: 'Hangar Guardian <alerts@hangarguardian.com>',
-              to: [user.email],
-              subject: `Alert: ${title}`,
-              html: emailHtml,
-            });
+              await resend.emails.send({
+                from: 'Hangar Guardian <alerts@hangarguardian.com>',
+                to: [user.email],
+                subject: `Alert: ${title}`,
+                html: emailHtml,
+              });
 
-            console.log(`Email sent to ${user.email}`);
-          }
+              console.log(`Email sent to ${user.email}`);
+            }
         } catch (emailError) {
           console.error(`Failed to send email to ${user.email}:`, emailError);
           // Continue with other users even if one email fails

@@ -80,13 +80,13 @@ serve(async (req) => {
       }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching Singapore AQI:', error)
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to fetch Singapore AQI data',
-        details: error.toString(),
+        error: error?.message || 'Failed to fetch Singapore AQI data',
+        details: error?.toString() || 'Unknown error occurred',
         timestamp: new Date().toISOString()
       }),
       { 

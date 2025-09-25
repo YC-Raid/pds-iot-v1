@@ -200,13 +200,13 @@ Deno.serve(async (req) => {
       }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error populating mock data:', error)
     
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error?.message || 'Unknown error occurred',
         details: 'Failed to populate mock sensor dataset'
       }),
       {

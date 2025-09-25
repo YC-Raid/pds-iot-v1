@@ -117,7 +117,7 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         synced_count: 0,
-        error: error.message
+        error: (error as any)?.message || 'Unknown error occurred'
       } as SyncResponse),
       {
         status: 500,
