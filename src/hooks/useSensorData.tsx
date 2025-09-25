@@ -64,9 +64,11 @@ export function useSensorData() {
 
       if (error) throw error;
       
-      // Fill gaps with mock data if needed
-      const enrichedData = await fillDataGaps(data || []);
-      setSensorReadings(enrichedData);
+      console.log(`📊 [CONSISTENCY] Raw processed_sensor_readings data: ${data?.length || 0} records`);
+      console.log(`📊 [CONSISTENCY] Latest record: ${data?.[0]?.recorded_at || 'None'}`);
+      
+      // Use raw data only - no gap filling for individual sensor readings to ensure consistency
+      setSensorReadings(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch sensor readings');
     }
