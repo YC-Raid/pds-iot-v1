@@ -59,84 +59,26 @@ export function useSensorData() {
 
   const fetchSensorReadings = async (limit = 100) => {
     try {
+      // Only fetch data from the last 24 hours
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      
       const { data, error } = await supabase
         .from(dataSource)
         .select('*')
+        .gte('recorded_at', twentyFourHoursAgo.toISOString())
+        .lte('recorded_at', now.toISOString())
         .order('recorded_at', { ascending: false })
         .limit(limit);
 
       if (error) throw error;
       
-      // For processed_sensor_readings, show only real data without mock augmentation
-      // For mock_sensor_dataset, use the data as-is
+      // Show only real data - no mock augmentation for any data source
+      console.log(`📊 [DEBUG] Fetched ${data?.length || 0} real readings from last 24h from ${dataSource}`);
       setSensorReadings(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch sensor readings');
     }
-  };
-
-  // Fill data gaps with mock data
-  const fillDataGaps = async (existingData: SensorReading[]): Promise<SensorReading[]> => {
-    if (existingData.length === 0) return existingData;
-
-    // Check for gaps in the last 30 days
-    const now = new Date();
-    const thirtyDaysAgo = subDays(now, 30);
-    
-    const gaps = findDataGaps(existingData, thirtyDaysAgo, now);
-    
-    if (gaps.length === 0) {
-      console.log('📊 No data gaps found');
-      return existingData;
-    }
-
-    console.log(`📊 Found ${gaps.length} data gaps:`, gaps);
-    
-    // Generate mock data for each gap
-    let mockData: MockSensorReading[] = [];
-    gaps.forEach(gap => {
-      const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
-      mockData = [...mockData, ...gapMock];
-    });
-
-    // Convert mock data to SensorReading format and merge
-    const mockSensorReadings: SensorReading[] = mockData.map((mock, index) => ({
-      id: -(index + 1), // Negative ID to distinguish from real data
-      original_id: -(index + 1),
-      recorded_at: mock.recorded_at,
-      location: mock.location,
-      temperature: mock.temperature,
-      humidity: mock.humidity,
-      pressure: mock.pressure,
-      gas_resistance: mock.gas_resistance,
-      pm1_0: mock.pm1_0,
-      pm2_5: mock.pm2_5,
-      pm10: mock.pm10,
-      accel_x: mock.accel_x,
-      accel_y: mock.accel_y,
-      accel_z: mock.accel_z,
-      accel_magnitude: mock.accel_magnitude,
-      gyro_x: mock.gyro_x,
-      gyro_y: mock.gyro_y,
-      gyro_z: mock.gyro_z,
-      gyro_magnitude: mock.gyro_magnitude,
-      anomaly_score: mock.anomaly_score,
-      predicted_failure_probability: mock.predicted_failure_probability,
-      maintenance_recommendation: mock.maintenance_recommendation,
-      quality_score: 100, // Mock data quality is perfect
-      processed_at: mock.recorded_at,
-      created_at: mock.recorded_at,
-      updated_at: mock.recorded_at,
-      processing_version: 'mock_v1.0'
-    }));
-
-    console.log(`📊 Generated ${mockSensorReadings.length} mock readings to fill gaps`);
-    
-    // Merge and sort by timestamp
-    const allData = [...existingData, ...mockSensorReadings];
-    allData.sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
-    
-    return allData;
   };
 
   const fetchDashboardData = async () => {
