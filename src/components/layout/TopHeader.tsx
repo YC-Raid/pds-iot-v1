@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import { useNavigate } from "react-router-dom";
+import { DataSourceToggle } from "@/components/ui/data-source-toggle";
 
 interface TopHeaderProps {
   isDarkMode: boolean;
@@ -45,6 +46,7 @@ export function TopHeader({ isDarkMode, toggleDarkMode }: TopHeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
+          <DataSourceToggle />
           <NotificationBell />
           
           <Button

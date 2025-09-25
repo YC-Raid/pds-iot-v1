@@ -4,6 +4,8 @@ import { toast } from '@/hooks/use-toast';
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { generateMockSensorData, findDataGaps, type MockSensorReading } from '@/utils/mockDataGenerator';
 import { startOfDay, endOfDay, subDays } from 'date-fns';
+import { useDataSource } from '@/contexts/DataSourceContext';
+
 interface SensorReading {
   id: number;
   original_id: number;
@@ -49,6 +51,7 @@ interface DashboardData {
 }
 
 export function useSensorData() {
+  const { dataSource } = useDataSource();
   const [sensorReadings, setSensorReadings] = useState<SensorReading[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,15 +60,17 @@ export function useSensorData() {
   const fetchSensorReadings = async (limit = 100) => {
     try {
       const { data, error } = await supabase
-        .from('processed_sensor_readings')
+        .from(dataSource)
         .select('*')
         .order('recorded_at', { ascending: false })
         .limit(limit);
 
       if (error) throw error;
       
-      // Fill gaps with mock data if needed
-      const enrichedData = await fillDataGaps(data || []);
+      // Fill gaps with mock data only if using processed_sensor_readings
+      const enrichedData = dataSource === 'processed_sensor_readings' 
+        ? await fillDataGaps(data || []) 
+        : data || [];
       setSensorReadings(enrichedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch sensor readings');
@@ -98,8 +103,8 @@ export function useSensorData() {
 
     // Convert mock data to SensorReading format and merge
     const mockSensorReadings: SensorReading[] = mockData.map((mock, index) => ({
-      id: 999000 + index, // Use high IDs to avoid conflicts
-      original_id: mock.original_id,
+      id: -(index + 1), // Negative ID to distinguish from real data
+      original_id: -(index + 1),
       recorded_at: mock.recorded_at,
       location: mock.location,
       temperature: mock.temperature,
@@ -120,18 +125,20 @@ export function useSensorData() {
       anomaly_score: mock.anomaly_score,
       predicted_failure_probability: mock.predicted_failure_probability,
       maintenance_recommendation: mock.maintenance_recommendation,
-      quality_score: mock.quality_score,
+      quality_score: 100, // Mock data quality is perfect
       processed_at: mock.recorded_at,
       created_at: mock.recorded_at,
       updated_at: mock.recorded_at,
-      processing_version: mock.processing_version
+      processing_version: 'mock_v1.0'
     }));
 
     console.log(`📊 Generated ${mockSensorReadings.length} mock readings to fill gaps`);
-
-    // Merge and sort all data
+    
+    // Merge and sort by timestamp
     const allData = [...existingData, ...mockSensorReadings];
-    return allData.sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
+    allData.sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
+    
+    return allData;
   };
 
   const fetchDashboardData = async () => {
@@ -206,7 +213,7 @@ export function useSensorData() {
         
         // First, get the most recent timestamp
         const { data: recentData, error: recentError } = await supabase
-          .from('processed_sensor_readings')
+          .from(dataSource)
           .select('recorded_at')
           .order('recorded_at', { ascending: false })
           .limit(1);
@@ -214,7 +221,7 @@ export function useSensorData() {
         if (recentError) throw recentError;
         
         if (!recentData || recentData.length === 0) {
-          console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
+          console.log(`⚠️ [DEBUG] No data found in ${dataSource} table`);
           return [];
         }
         
@@ -234,7 +241,7 @@ export function useSensorData() {
 
         while (true) {
           const { data, error } = await supabase
-            .from('processed_sensor_readings')
+            .from(dataSource)
             .select('*')
             .gte('recorded_at', startTime.toISOString())
             .lte('recorded_at', endTime.toISOString())
@@ -249,157 +256,83 @@ export function useSensorData() {
           if (batchCount < pageSize) break;
           from += pageSize;
           to += pageSize;
-          if (from > 200000) { // safety guard for very large datasets
-            console.warn('⚠️ [DEBUG] Stopping pagination after 200k rows to avoid runaway requests');
+          if (from > 100000) { // safety guard
+            console.warn('⚠️ [DEBUG] Stopping pagination after 100k rows to avoid runaway requests');
             break;
           }
         }
 
-      // Fill gaps with mock data for the requested time range
-      const gaps = findDataGaps(allData, startTime, endTime);
-      
-      if (gaps.length > 0) {
-        console.log(`📊 Filling ${gaps.length} gaps in ${hours}h time range`);
+        console.log(`📊 [DEBUG] Fetched ${allData.length} readings for ${hours}-hour range`);
         
-        let mockData: MockSensorReading[] = [];
-        gaps.forEach(gap => {
-          const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
-          mockData = [...mockData, ...gapMock];
-        });
-
-          // Convert mock data to SensorReading format
-          const mockSensorReadings: SensorReading[] = mockData.map((mock, index) => ({
-            id: 888000 + index,
-            original_id: mock.original_id,
-            recorded_at: mock.recorded_at,
-            location: mock.location,
-            temperature: mock.temperature,
-            humidity: mock.humidity,
-            pressure: mock.pressure,
-            gas_resistance: mock.gas_resistance,
-            pm1_0: mock.pm1_0,
-            pm2_5: mock.pm2_5,
-            pm10: mock.pm10,
-            accel_x: mock.accel_x,
-            accel_y: mock.accel_y,
-            accel_z: mock.accel_z,
-            accel_magnitude: mock.accel_magnitude,
-            gyro_x: mock.gyro_x,
-            gyro_y: mock.gyro_y,
-            gyro_z: mock.gyro_z,
-            gyro_magnitude: mock.gyro_magnitude,
-            anomaly_score: mock.anomaly_score,
-            predicted_failure_probability: mock.predicted_failure_probability,
-            maintenance_recommendation: mock.maintenance_recommendation,
-            quality_score: mock.quality_score,
-            processed_at: mock.recorded_at,
-            created_at: mock.recorded_at,
-            updated_at: mock.recorded_at,
-            processing_version: mock.processing_version
-          }));
-
-        // Merge and sort
-        allData = [...allData, ...mockSensorReadings];
-        allData = allData.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
-        
-        console.log(`📊 Returning ${allData.length} readings (${allData.length - mockSensorReadings.length} real + ${mockSensorReadings.length} mock)`);
-      }
-
-        console.log(`📈 [DEBUG] Total time range data fetched: ${allData.length} records`);
-        return allData;
-      } else {
-        // For short periods, use single query with reasonable limit
-        const { data, error } = await supabase
-          .from('processed_sensor_readings')
-          .select('*')
-          .gte('recorded_at', startTime.toISOString())
-          .lte('recorded_at', endTime.toISOString())
-          .order('recorded_at', { ascending: true })
-          .limit(10000);
-
-        if (error) throw error;
-        console.log(`📈 [DEBUG] Short time range data fetched: ${data?.length || 0} records`);
-        let allData = data || [];
-
-        // Fill gaps with mock data for the requested time range
-        const gaps = findDataGaps(allData, startTime, endTime);
-        
-        if (gaps.length > 0) {
-          console.log(`📊 Filling ${gaps.length} gaps in ${hours}h time range`);
+        // Fill gaps with mock data if coverage is low (for processed readings only)
+        if (dataSource === 'processed_sensor_readings' && allData.length < hours * 30) { // Expect ~30 readings per hour
+          const coverage = (allData.length / (hours * 30)) * 100;
+          console.log(`⚠️ [DEBUG] Data coverage is only ${coverage.toFixed(1)}% for ${dataSource}. Filling with mock data.`);
+          
+          const gaps = findDataGaps(allData, startTime, endTime);
+          console.log(`📊 [DEBUG] Found ${gaps.length} gaps to fill with mock data`);
           
           let mockData: MockSensorReading[] = [];
           gaps.forEach(gap => {
-            const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
+            const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 1-minute intervals
             mockData = [...mockData, ...gapMock];
           });
 
-          // Convert mock data to SensorReading format
-          const mockSensorReadings: SensorReading[] = mockData.map((mock, index) => ({
-            id: 888000 + index,
-            original_id: mock.original_id,
-            recorded_at: mock.recorded_at,
-            location: mock.location,
-            temperature: mock.temperature,
-            humidity: mock.humidity,
-            pressure: mock.pressure,
-            gas_resistance: mock.gas_resistance,
-            pm1_0: mock.pm1_0,
-            pm2_5: mock.pm2_5,
-            pm10: mock.pm10,
-            accel_x: mock.accel_x,
-            accel_y: mock.accel_y,
-            accel_z: mock.accel_z,
-            accel_magnitude: mock.accel_magnitude,
-            gyro_x: mock.gyro_x,
-            gyro_y: mock.gyro_y,
-            gyro_z: mock.gyro_z,
-            gyro_magnitude: mock.gyro_magnitude,
-            anomaly_score: mock.anomaly_score,
-            predicted_failure_probability: mock.predicted_failure_probability,
-            maintenance_recommendation: mock.maintenance_recommendation,
-            quality_score: mock.quality_score,
+          const mockSensorReadings = mockData.map((mock, index) => ({
+            ...mock,
+            id: -(index + 1),
+            original_id: -(index + 1),
             processed_at: mock.recorded_at,
             created_at: mock.recorded_at,
             updated_at: mock.recorded_at,
-            processing_version: mock.processing_version
+            processing_version: 'mock_v1.0',
+            quality_score: 100
           }));
 
-          // Merge and sort
           allData = [...allData, ...mockSensorReadings];
-          allData = allData.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
-          
-          console.log(`📊 Returning ${allData.length} readings (${allData.length - mockSensorReadings.length} real + ${mockSensorReadings.length} mock)`);
+          allData.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
+          console.log(`📊 [DEBUG] Enhanced data with ${mockSensorReadings.length} mock readings, total: ${allData.length}`);
         }
 
         return allData;
+      } else {
+        // For shorter periods, single query should suffice
+        const { data, error } = await supabase
+          .from(dataSource)
+          .select('*')
+          .gte('recorded_at', startTime.toISOString())
+          .lte('recorded_at', endTime.toISOString())
+          .order('recorded_at', { ascending: true });
+
+        if (error) throw error;
+        console.log(`📊 [DEBUG] Fetched ${data?.length || 0} readings for ${hours}-hour range`);
+        return data || [];
       }
     } catch (err) {
-      console.error('Failed to fetch time range data:', err);
+      console.error('Failed to fetch sensor readings by time range:', err);
       return [];
     }
-  }, []);
+  }, [dataSource]);
 
-  const getHourlyAveragedData = useCallback(async (sensorType: string): Promise<Array<{hour_bucket: string, avg_value: number, reading_count: number}>> => {
+  const getHourlyAveragedData = useCallback(async (sensorType: string) => {
     try {
-      console.log(`🚀 [DEBUG] Starting getHourlyAveragedData for: ${sensorType}`);
+      console.log(`📊 [DEBUG] Starting getHourlyAveragedData for sensor: ${sensorType}`);
       
-      // Map sensor type to column in processed_sensor_readings
+      // Map sensor type to database column
       const sensorColumnMap = {
         'temperature': 'temperature',
         'humidity': 'humidity', 
         'pressure': 'pressure',
-        'gas': 'gas_resistance',
-        'pm1': 'pm1_0',
-        'pm25': 'pm2_5',
-        'pm10': 'pm10'
-      } as const;
+        'air-quality': 'pm2_5',
+        'vibration': 'accel_magnitude'
+      };
       
       const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
       console.log(`📊 [DEBUG] Using sensor column: ${sensorColumn}`);
       
       // Use same approach as getSensorReadingsByTimeRange - get most recent and go back 24h
       const { data: recentData, error: recentError } = await supabase
-        .from('processed_sensor_readings')
+        .from(dataSource)
         .select('recorded_at')
         .order('recorded_at', { ascending: false })
         .limit(1);
@@ -407,7 +340,7 @@ export function useSensorData() {
       if (recentError) throw recentError;
       
       if (!recentData || recentData.length === 0) {
-        console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
+        console.log(`⚠️ [DEBUG] No data found in ${dataSource} table`);
         return [];
       }
       
@@ -417,7 +350,7 @@ export function useSensorData() {
 
       console.log(`⏰ [DEBUG] Time window (treating as SG time): ${startTime.toISOString()} to ${endTime.toISOString()}`);
 
-      // Fetch readings from processed_sensor_readings with pagination (PostgREST default limit ~1000)
+      // Fetch readings from current data source with pagination
       const pageSize = 1000;
       let from = 0;
       let to = pageSize - 1;
@@ -425,7 +358,7 @@ export function useSensorData() {
 
       while (true) {
         const { data, error } = await supabase
-          .from('processed_sensor_readings')
+          .from(dataSource)
           .select(`recorded_at, ${sensorColumn}`)
           .not(sensorColumn, 'is', null)
           .gte('recorded_at', startTime.toISOString())
@@ -456,7 +389,7 @@ export function useSensorData() {
       // Optional: peek at latest records to ensure window alignment
       try {
         const { data: broadData } = await supabase
-          .from('processed_sensor_readings')
+          .from(dataSource)
           .select(`recorded_at, ${sensorColumn}`)
           .not(sensorColumn, 'is', null)
           .order('recorded_at', { ascending: false })
@@ -496,7 +429,7 @@ export function useSensorData() {
         }))
         .sort((a, b) => a.hour_bucket.localeCompare(b.hour_bucket));
 
-      console.log(`✅ [DEBUG] Returning ${result.length} hourly averages`);
+      console.log(`📊 [DEBUG] Final result: ${result.length} hourly buckets`);
       if (result.length > 0) {
         console.log(`📊 [DEBUG] Sample result:`, result.slice(0, 3));
       }
@@ -506,12 +439,12 @@ export function useSensorData() {
       console.error('❌ [DEBUG] Failed to fetch hourly averaged data:', err);
       return [];
     }
-  }, []);
+  }, [dataSource]);
 
   const getAnomalousSensorReadings = async (threshold = 0.7) => {
     try {
       const { data, error } = await supabase
-        .from('processed_sensor_readings')
+        .from(dataSource)
         .select('*')
         .gte('anomaly_score', threshold)
         .order('anomaly_score', { ascending: false })
@@ -564,7 +497,7 @@ export function useSensorData() {
         
         return allData.sort((a, b) => new Date(a.time_bucket).getTime() - new Date(b.time_bucket).getTime());
       }
-
+      
       return existingData;
     } catch (err) {
       console.error('Failed to fetch aggregated sensor data:', err);
@@ -572,24 +505,30 @@ export function useSensorData() {
     }
   }, []);
 
-  // Helper function to aggregate mock data
+  // Helper function to aggregate mock data by level
   const aggregateMockData = (mockData: MockSensorReading[], level: 'day' | 'week' | 'month') => {
     const groups: { [key: string]: MockSensorReading[] } = {};
-
+    
     mockData.forEach(reading => {
       const date = new Date(reading.recorded_at);
       let key: string;
-
-      if (level === 'day') {
-        key = startOfDay(date).toISOString();
-      } else if (level === 'week') {
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        key = startOfDay(weekStart).toISOString();
-      } else { // month
-        key = new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
+      
+      switch (level) {
+        case 'day':
+          key = date.toISOString().split('T')[0]; // YYYY-MM-DD
+          break;
+        case 'week':
+          const weekStart = new Date(date);
+          weekStart.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
+          key = weekStart.toISOString().split('T')[0];
+          break;
+        case 'month':
+          key = date.toISOString().slice(0, 7) + '-01'; // YYYY-MM-01
+          break;
+        default:
+          key = date.toISOString().split('T')[0];
       }
-
+      
       if (!groups[key]) groups[key] = [];
       groups[key].push(reading);
     });
@@ -613,8 +552,6 @@ export function useSensorData() {
     }));
   };
  
-  // Function removed - now using sensorReadings[0].temperature directly
-
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -634,27 +571,15 @@ export function useSensorData() {
 
     loadData();
 
-    // Perform initial sync when component mounts
-    const performInitialSync = async () => {
-      try {
-        await syncRDSData();
-      } catch (error) {
-        console.error('Initial sync failed:', error);
-      }
-    };
-
-    // Trigger initial sync after a short delay
-    const initialSyncTimeout = setTimeout(performInitialSync, 2000);
-
     // Set up real-time subscription for new sensor data
     const channel = supabase
-      .channel('processed-sensor-data-changes')
+      .channel('sensor-data-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'processed_sensor_readings'
+          table: dataSource
         },
         (payload) => {
           console.log('Sensor data changed:', payload);
@@ -665,41 +590,59 @@ export function useSensorData() {
       )
       .subscribe();
 
-    // Auto-sync every 5 minutes
-    const autoSyncInterval = setInterval(async () => {
-      try {
-        const syncStartTime = new Date().toISOString();
-        const result = await syncRDSData();
-        
-        // Store sync time even if no new records
-        localStorage.setItem('lastSyncTime', syncStartTime);
-        
-        // Show notification with sync details
-        const syncedCount = result.synced_count || 0;
-        toast({
-          title: "Data Sync Complete",
-          description: `Synced ${syncedCount} new records from AWS RDS`,
-          duration: 3000,
-        });
-      } catch (error) {
-        console.error('Auto-sync failed:', error);
-        
-        // Show error notification for failed sync
-        toast({
-          title: "Sync Failed",
-          description: "Failed to sync data from AWS RDS. Will retry in 5 minutes.",
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
-    }, 5 * 60 * 1000); // 5 minutes
+    // Only perform initial sync and auto-sync for processed_sensor_readings (RDS data)
+    let initialSyncTimeout: NodeJS.Timeout;
+    let autoSyncInterval: NodeJS.Timeout;
+
+    if (dataSource === 'processed_sensor_readings') {
+      // Perform initial sync when component mounts
+      const performInitialSync = async () => {
+        try {
+          await syncRDSData();
+        } catch (error) {
+          console.error('Initial sync failed:', error);
+        }
+      };
+
+      // Trigger initial sync after a short delay
+      initialSyncTimeout = setTimeout(performInitialSync, 2000);
+
+      // Auto-sync every 5 minutes for RDS data only
+      autoSyncInterval = setInterval(async () => {
+        try {
+          const syncStartTime = new Date().toISOString();
+          const result = await syncRDSData();
+          
+          // Store sync time even if no new records
+          localStorage.setItem('lastSyncTime', syncStartTime);
+          
+          // Show notification with sync details
+          const syncedCount = result.synced_count || 0;
+          toast({
+            title: "Data Sync Complete",
+            description: `Synced ${syncedCount} new records from AWS RDS`,
+            duration: 3000,
+          });
+        } catch (error) {
+          console.error('Auto-sync failed:', error);
+          
+          // Show error notification for failed sync
+          toast({
+            title: "Sync Failed",
+            description: "Failed to sync data from AWS RDS. Will retry in 5 minutes.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+    }
 
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(autoSyncInterval);
-      clearTimeout(initialSyncTimeout);
+      if (initialSyncTimeout) clearTimeout(initialSyncTimeout);
+      if (autoSyncInterval) clearInterval(autoSyncInterval);
     };
-  }, []);
+  }, [dataSource]); // Add dataSource as dependency to re-run when it changes
 
   return {
     sensorReadings,
