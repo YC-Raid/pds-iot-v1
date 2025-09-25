@@ -257,57 +257,9 @@ export function useSensorData() {
           }
         }
 
-      // Fill gaps with mock data for the requested time range
-      const gaps = findDataGaps(allData, startTime, endTime);
-      
-      if (gaps.length > 0) {
-        console.log(`📊 Filling ${gaps.length} gaps in ${hours}h time range`);
-        
-        let mockData: MockSensorReading[] = [];
-        gaps.forEach(gap => {
-          const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
-          mockData = [...mockData, ...gapMock];
-        });
-
-          // Convert mock data to SensorReading format
-          const mockSensorReadings: SensorReading[] = mockData.map((mock, index) => ({
-            id: 888000 + index,
-            original_id: mock.original_id,
-            recorded_at: mock.recorded_at,
-            location: mock.location,
-            temperature: mock.temperature,
-            humidity: mock.humidity,
-            pressure: mock.pressure,
-            gas_resistance: mock.gas_resistance,
-            pm1_0: mock.pm1_0,
-            pm2_5: mock.pm2_5,
-            pm10: mock.pm10,
-            accel_x: mock.accel_x,
-            accel_y: mock.accel_y,
-            accel_z: mock.accel_z,
-            accel_magnitude: mock.accel_magnitude,
-            gyro_x: mock.gyro_x,
-            gyro_y: mock.gyro_y,
-            gyro_z: mock.gyro_z,
-            gyro_magnitude: mock.gyro_magnitude,
-            anomaly_score: mock.anomaly_score,
-            predicted_failure_probability: mock.predicted_failure_probability,
-            maintenance_recommendation: mock.maintenance_recommendation,
-            quality_score: mock.quality_score,
-            processed_at: mock.recorded_at,
-            created_at: mock.recorded_at,
-            updated_at: mock.recorded_at,
-            processing_version: mock.processing_version
-          }));
-
-        // Merge and sort
-        allData = [...allData, ...mockSensorReadings];
+        // Sort and return only real data
         allData = allData.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
-        
-        console.log(`📊 Returning ${allData.length} readings (${allData.length - mockSensorReadings.length} real + ${mockSensorReadings.length} mock)`);
-      }
-
-        console.log(`📈 [DEBUG] Total time range data fetched: ${allData.length} records`);
+        console.log(`📈 [DEBUG] Total time range data fetched (real only): ${allData.length} records`);
         return allData;
       } else {
         // For short periods, use single query with reasonable limit
@@ -321,62 +273,7 @@ export function useSensorData() {
 
         if (error) throw error;
         console.log(`📈 [DEBUG] Short time range data fetched: ${data?.length || 0} records`);
-        let allData = data || [];
-
-        // Always fill gaps with mock data for the requested time range to ensure continuous charts
-        const gaps = findDataGaps(allData, startTime, endTime);
-        
-        if (gaps.length > 0) {
-          console.log(`📊 Filling ${gaps.length} gaps in ${hours}h time range`);
-          
-          let mockData: MockSensorReading[] = [];
-          gaps.forEach(gap => {
-            // Use more frequent data points for better chart rendering
-            const dataPointsPerHour = hours <= 1 ? 60 : hours <= 24 ? 4 : 1;
-            const gapMock = generateMockSensorData(gap.start, gap.end, dataPointsPerHour);
-            mockData = [...mockData, ...gapMock];
-          });
-
-          // Convert mock data to SensorReading format
-          const mockSensorReadings: SensorReading[] = mockData.map((mock, index) => ({
-            id: 888000 + index,
-            original_id: mock.original_id,
-            recorded_at: mock.recorded_at,
-            location: mock.location,
-            temperature: mock.temperature,
-            humidity: mock.humidity,
-            pressure: mock.pressure,
-            gas_resistance: mock.gas_resistance,
-            pm1_0: mock.pm1_0,
-            pm2_5: mock.pm2_5,
-            pm10: mock.pm10,
-            accel_x: mock.accel_x,
-            accel_y: mock.accel_y,
-            accel_z: mock.accel_z,
-            accel_magnitude: mock.accel_magnitude,
-            gyro_x: mock.gyro_x,
-            gyro_y: mock.gyro_y,
-            gyro_z: mock.gyro_z,
-            gyro_magnitude: mock.gyro_magnitude,
-            anomaly_score: mock.anomaly_score,
-            predicted_failure_probability: mock.predicted_failure_probability,
-            maintenance_recommendation: mock.maintenance_recommendation,
-            quality_score: mock.quality_score,
-            processed_at: mock.recorded_at,
-            created_at: mock.recorded_at,
-            updated_at: mock.recorded_at,
-            processing_version: mock.processing_version
-          }));
-
-          // Merge and sort
-          allData = [...allData, ...mockSensorReadings];
-          allData = allData.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
-          
-          console.log(`📊 Returning ${allData.length} readings (${allData.length - mockSensorReadings.length} real + ${mockSensorReadings.length} mock)`);
-        } else {
-          console.log(`✅ No gaps found, returning ${allData.length} real readings`);
-        }
-
+        const allData = (data || []).sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
         return allData;
       }
     } catch (err) {
@@ -547,29 +444,8 @@ export function useSensorData() {
       
       const existingData = data || [];
       
-      // For aggregated data, if we have significant gaps, generate mock aggregated data
-      if (existingData.length < Math.floor(days * 0.7)) { // If less than 70% coverage
-        console.log(`📊 Low coverage for ${aggregationLevel} data (${existingData.length}/${days}), generating mock aggregates`);
-        
-        const endDate = new Date();
-        
-        // Generate mock raw data to create aggregates from
-        const mockRawData = generateMockSensorData(startDate, endDate, 12);
-        
-        // Aggregate mock data by the requested level
-        const mockAggregates = aggregateMockData(mockRawData, aggregationLevel);
-        
-        // Merge with existing data, preferring real data over mock
-        const existingDates = new Set(existingData.map(d => d.time_bucket));
-        const uniqueMockAggregates = mockAggregates.filter(mock => 
-          !existingDates.has(mock.time_bucket)
-        );
-        
-        const allData = [...existingData, ...uniqueMockAggregates];
-        console.log(`📊 Returning ${allData.length} aggregated records (${existingData.length} real + ${uniqueMockAggregates.length} mock)`);
-        
-        return allData.sort((a, b) => new Date(a.time_bucket).getTime() - new Date(b.time_bucket).getTime());
-      }
+      // Return only existing aggregated data (no mock generation)
+
 
       return existingData;
     } catch (err) {
