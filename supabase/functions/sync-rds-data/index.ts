@@ -97,7 +97,7 @@ serve(async (req) => {
           predicted_failure_probability: Math.random() * 0.2,
           maintenance_recommendation: 'Normal operation'
         })
-        .gte('processed_at', new Date(Date.now() - 5 * 60000).toISOString().replace('Z', '+08:00')); // Last 5 minutes in Singapore time
+        .gte('processed_at', new Date(Date.now() - 5 * 60000).toISOString()); // Last 5 minutes
     }
 
     return new Response(

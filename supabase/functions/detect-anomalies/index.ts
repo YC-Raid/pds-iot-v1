@@ -31,7 +31,7 @@ serve(async (req) => {
     const { data: readings, error: readingsError } = await supabaseClient
       .from('processed_sensor_readings')
       .select('*')
-      .gte('recorded_at', new Date(Date.now() - 5 * 60 * 1000).toISOString().replace('Z', '+08:00'))
+      .gte('recorded_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
       .order('recorded_at', { ascending: false })
       .limit(100) // Limit processing to recent 100 readings
 
@@ -229,7 +229,7 @@ serve(async (req) => {
     const { data: recentAlerts } = await supabaseClient
       .from('alerts')
       .select('sensor_type, location, status, sensor_value, threshold_value')
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().replace('Z', '+08:00')) // Last 24 hours in Singapore time
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours instead of 1 hour
       .in('status', ['active', 'acknowledged', 'in_progress'])
 
     const recentAlertKeys = new Set(
