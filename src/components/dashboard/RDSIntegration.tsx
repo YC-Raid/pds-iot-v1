@@ -84,10 +84,10 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
       
       for (let day = 0; day < totalDays; day++) {
         const dayStart = new Date(startDate);
-        dayStart.setDate(startDate.getDate() + day);
+        dayStart.setUTCDate(startDate.getUTCDate() + day);
         
         const dayEnd = new Date(dayStart);
-        dayEnd.setHours(23, 59, 50, 0);
+        dayEnd.setUTCHours(23, 59, 50, 0);
         
         setPopulateProgress({ current: day + 1, total: totalDays });
         
