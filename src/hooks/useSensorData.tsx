@@ -395,9 +395,11 @@ export function useSensorData() {
           .order('recorded_at', { ascending: false })
           .limit(5);
         if (broadData) {
-          console.log(`🔍 [DEBUG] Latest 5 records in DB:`, broadData.map(r => r.recorded_at));
+          console.log(`🔍 [DEBUG] Latest 5 records in DB:`, broadData.map((r: any) => r.recorded_at));
         }
-      } catch {}
+      } catch {
+        // Ignore errors when peeking at data
+      }
 
 
       // Group by hour buckets - data is already in Singapore time
@@ -591,9 +593,6 @@ export function useSensorData() {
       .subscribe();
 
     // Only perform initial sync and auto-sync for processed_sensor_readings (RDS data)
-    let initialSyncTimeout: NodeJS.Timeout;
-    let autoSyncInterval: NodeJS.Timeout;
-
     if (dataSource === 'processed_sensor_readings') {
       // Perform initial sync when component mounts
       const performInitialSync = async () => {
@@ -605,10 +604,10 @@ export function useSensorData() {
       };
 
       // Trigger initial sync after a short delay
-      initialSyncTimeout = setTimeout(performInitialSync, 2000);
+      const initialSyncTimeout = setTimeout(performInitialSync, 2000);
 
       // Auto-sync every 5 minutes for RDS data only
-      autoSyncInterval = setInterval(async () => {
+      const autoSyncInterval = setInterval(async () => {
         try {
           const syncStartTime = new Date().toISOString();
           const result = await syncRDSData();
@@ -635,12 +634,16 @@ export function useSensorData() {
           });
         }
       }, 5 * 60 * 1000); // 5 minutes
+
+      return () => {
+        clearTimeout(initialSyncTimeout);
+        clearInterval(autoSyncInterval);
+        supabase.removeChannel(channel);
+      };
     }
 
     return () => {
       supabase.removeChannel(channel);
-      if (initialSyncTimeout) clearTimeout(initialSyncTimeout);
-      if (autoSyncInterval) clearInterval(autoSyncInterval);
     };
   }, [dataSource]); // Add dataSource as dependency to re-run when it changes
 
