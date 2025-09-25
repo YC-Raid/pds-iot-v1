@@ -58,7 +58,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
       
       toast({
         title: "Mock Gaps Filled Successfully",
-        description: `Added ${result.mockRecords} mock data points to fill gaps`,
+        description: `Mock data functionality disabled`,
       });
     } catch (error) {
       toast({

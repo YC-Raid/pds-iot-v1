@@ -15,34 +15,31 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import SensorDetail from "./pages/SensorDetail";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { DataSourceProvider } from "./contexts/DataSourceContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <DataSourceProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <SidebarProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="sensor/:sensorType" element={<SensorDetail />} />
-                  <Route path="profile" element={<Profile />} />
-                  <Route path="settings" element={<Settings />} />
-                </Route>
-                <Route path="/alert/:alertId" element={<CriticalAlert />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </SidebarProvider>
-        </TooltipProvider>
-      </DataSourceProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <SidebarProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="sensor/:sensorType" element={<SensorDetail />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
+              <Route path="/alert/:alertId" element={<CriticalAlert />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </SidebarProvider>
+      </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

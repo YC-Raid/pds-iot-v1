@@ -166,9 +166,9 @@ const SensorDetail = () => {
               console.log(`📅 [DEBUG] Sample aggregated records:`, aggregatedData.slice(0, 3));
               
               const monthlyData = aggregatedData.filter(record => {
-                const recordDate = new Date(record.time_bucket);
+                const recordDate = new Date(record.recorded_at);
                 const isCurrentMonth = recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
-                console.log(`📅 [DEBUG] Record ${record.time_bucket} -> Date: ${recordDate.toISOString()}, Month: ${recordDate.getMonth() + 1}, Match: ${isCurrentMonth}`);
+                console.log(`📅 [DEBUG] Record ${record.recorded_at} -> Date: ${recordDate.toISOString()}, Month: ${recordDate.getMonth() + 1}, Match: ${isCurrentMonth}`);
                 return isCurrentMonth;
               });
               
