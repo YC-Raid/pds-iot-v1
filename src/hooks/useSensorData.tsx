@@ -67,11 +67,9 @@ export function useSensorData() {
 
       if (error) throw error;
       
-      // Fill gaps with mock data only if using processed_sensor_readings
-      const enrichedData = dataSource === 'processed_sensor_readings' 
-        ? await fillDataGaps(data || []) 
-        : data || [];
-      setSensorReadings(enrichedData);
+      // For processed_sensor_readings, show only real data without mock augmentation
+      // For mock_sensor_dataset, use the data as-is
+      setSensorReadings(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch sensor readings');
     }
@@ -262,37 +260,7 @@ export function useSensorData() {
           }
         }
 
-        console.log(`📊 [DEBUG] Fetched ${allData.length} readings for ${hours}-hour range`);
-        
-        // Fill gaps with mock data if coverage is low (for processed readings only)
-        if (dataSource === 'processed_sensor_readings' && allData.length < hours * 30) { // Expect ~30 readings per hour
-          const coverage = (allData.length / (hours * 30)) * 100;
-          console.log(`⚠️ [DEBUG] Data coverage is only ${coverage.toFixed(1)}% for ${dataSource}. Filling with mock data.`);
-          
-          const gaps = findDataGaps(allData, startTime, endTime);
-          console.log(`📊 [DEBUG] Found ${gaps.length} gaps to fill with mock data`);
-          
-          let mockData: MockSensorReading[] = [];
-          gaps.forEach(gap => {
-            const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 1-minute intervals
-            mockData = [...mockData, ...gapMock];
-          });
-
-          const mockSensorReadings = mockData.map((mock, index) => ({
-            ...mock,
-            id: -(index + 1),
-            original_id: -(index + 1),
-            processed_at: mock.recorded_at,
-            created_at: mock.recorded_at,
-            updated_at: mock.recorded_at,
-            processing_version: 'mock_v1.0',
-            quality_score: 100
-          }));
-
-          allData = [...allData, ...mockSensorReadings];
-          allData.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
-          console.log(`📊 [DEBUG] Enhanced data with ${mockSensorReadings.length} mock readings, total: ${allData.length}`);
-        }
+        console.log(`📊 [DEBUG] Fetched ${allData.length} readings for ${hours}-hour range from ${dataSource}`);
 
         return allData;
       } else {
@@ -465,6 +433,20 @@ export function useSensorData() {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
       
+      // For processed_sensor_readings, show only real data without mock augmentation
+      if (dataSource === 'processed_sensor_readings') {
+        const { data, error } = await supabase
+          .from('sensor_readings_aggregated')
+          .select('*')
+          .eq('aggregation_level', aggregationLevel)
+          .gte('time_bucket', startDate.toISOString())
+          .order('time_bucket', { ascending: true });
+        
+        if (error) throw error;
+        return data || [];
+      }
+      
+      // For mock_sensor_dataset, keep existing behavior with mock data generation
       const { data, error } = await supabase
         .from('sensor_readings_aggregated')
         .select('*')
@@ -505,7 +487,7 @@ export function useSensorData() {
       console.error('Failed to fetch aggregated sensor data:', err);
       return [];
     }
-  }, []);
+  }, [dataSource]);
 
   // Helper function to aggregate mock data by level
   const aggregateMockData = (mockData: MockSensorReading[], level: 'day' | 'week' | 'month') => {
