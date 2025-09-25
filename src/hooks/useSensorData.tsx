@@ -195,34 +195,34 @@ export function useSensorData() {
       let startTime: Date;
       let endTime: Date;
       
-      // For 1-hour view, use current time window (now -> now - 1h)
-      if (hours <= 1) {
-        endTime = new Date();
-        startTime = new Date(endTime.getTime() - hours * 60 * 60 * 1000);
-        console.log(`⏱️ [DEBUG] 1h window (now): ${startTime.toISOString()} to ${endTime.toISOString()}`);
-      } else {
-        // For longer periods, anchor to most recent reading in DB
-        console.log(`🔍 [DEBUG] Getting most recent data for ${hours}-hour view`);
+      // Always use current time as end point for better real-time experience
+      endTime = new Date();
+      startTime = new Date(endTime.getTime() - hours * 60 * 60 * 1000);
+      
+      console.log(`⏱️ [DEBUG] ${hours}h window: ${startTime.toISOString()} to ${endTime.toISOString()}`);
+      
+      // Check if we have recent data in the database first
+      const { data: recentCheck, error: recentError } = await supabase
+        .from('processed_sensor_readings')
+        .select('recorded_at')
+        .order('recorded_at', { ascending: false })
+        .limit(1);
         
-        // First, get the most recent timestamp
-        const { data: recentData, error: recentError } = await supabase
-          .from('processed_sensor_readings')
-          .select('recorded_at')
-          .order('recorded_at', { ascending: false })
-          .limit(1);
-          
-        if (recentError) throw recentError;
-        
-        if (!recentData || recentData.length === 0) {
-          console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
-          return [];
+      if (recentError) throw recentError;
+      
+      const hasRecentData = recentCheck && recentCheck.length > 0;
+      const mostRecentTime = hasRecentData ? new Date(recentCheck[0].recorded_at) : null;
+      
+      console.log(`🔍 [DEBUG] Most recent data in DB: ${mostRecentTime?.toISOString() || 'None'}`);
+      
+      // If no recent data or data is old, extend time window to include available data
+      if (!hasRecentData || (mostRecentTime && (endTime.getTime() - mostRecentTime.getTime()) > 24 * 60 * 60 * 1000)) {
+        console.log(`📅 [DEBUG] Data is outdated, adjusting time window to include available data`);
+        if (mostRecentTime) {
+          endTime = mostRecentTime;
+          startTime = new Date(mostRecentTime.getTime() - hours * 60 * 60 * 1000);
+          console.log(`🔍 [DEBUG] Adjusted window: ${startTime.toISOString()} to ${endTime.toISOString()}`);
         }
-        
-        const mostRecentTime = new Date(recentData[0].recorded_at);
-        endTime = mostRecentTime;
-        startTime = new Date(mostRecentTime.getTime() - hours * 60 * 60 * 1000);
-        
-        console.log(`🔍 [DEBUG] Fetching ${hours}-hour data from most recent: ${startTime.toISOString()} to ${endTime.toISOString()}`);
       }
       
       // For longer periods, use pagination to ensure we get all data
@@ -321,7 +321,7 @@ export function useSensorData() {
         console.log(`📈 [DEBUG] Short time range data fetched: ${data?.length || 0} records`);
         let allData = data || [];
 
-        // Fill gaps with mock data for the requested time range
+        // Always fill gaps with mock data for the requested time range to ensure continuous charts
         const gaps = findDataGaps(allData, startTime, endTime);
         
         if (gaps.length > 0) {
@@ -329,7 +329,9 @@ export function useSensorData() {
           
           let mockData: MockSensorReading[] = [];
           gaps.forEach(gap => {
-            const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
+            // Use more frequent data points for better chart rendering
+            const dataPointsPerHour = hours <= 1 ? 60 : hours <= 24 ? 4 : 1;
+            const gapMock = generateMockSensorData(gap.start, gap.end, dataPointsPerHour);
             mockData = [...mockData, ...gapMock];
           });
 
@@ -369,6 +371,8 @@ export function useSensorData() {
           allData = allData.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
           
           console.log(`📊 Returning ${allData.length} readings (${allData.length - mockSensorReadings.length} real + ${mockSensorReadings.length} mock)`);
+        } else {
+          console.log(`✅ No gaps found, returning ${allData.length} real readings`);
         }
 
         return allData;
