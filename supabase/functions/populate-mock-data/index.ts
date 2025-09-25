@@ -116,23 +116,27 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    const { startDate: startDateStr, endDate: endDateStr, clearExisting = false } = await req.json()
+
     console.log('🔄 Starting mock data population...')
     
-    // Clear existing mock data
-    const { error: deleteError } = await supabaseClient
-      .from('mock_sensor_dataset')
-      .delete()
-      .eq('is_mock_data', true)
-    
-    if (deleteError) {
-      console.error('Error clearing existing mock data:', deleteError)
-    } else {
-      console.log('✅ Cleared existing mock data')
+    // Clear existing mock data only if requested (first batch)
+    if (clearExisting) {
+      const { error: deleteError } = await supabaseClient
+        .from('mock_sensor_dataset')
+        .delete()
+        .eq('is_mock_data', true)
+      
+      if (deleteError) {
+        console.error('Error clearing existing mock data:', deleteError)
+      } else {
+        console.log('✅ Cleared existing mock data')
+      }
     }
 
-    // Generate data from Sept 1-15, 2025, every 10 seconds
-    const startDate = new Date('2025-09-01T00:00:00.000Z')
-    const endDate = new Date('2025-09-15T23:59:50.000Z')
+    // Use provided date range or default to single day
+    const startDate = new Date(startDateStr || '2025-09-01T00:00:00.000Z')
+    const endDate = new Date(endDateStr || '2025-09-01T23:59:50.000Z')
     const intervalMs = 10 * 1000 // 10 seconds
     
     const mockData: MockSensorReading[] = []

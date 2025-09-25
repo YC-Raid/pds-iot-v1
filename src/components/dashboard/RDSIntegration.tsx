@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Database, RotateCw, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { useSensorData } from '@/hooks/useSensorData';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RDSIntegrationProps {
   className?: string;
@@ -14,6 +15,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFillingGaps, setIsFillingGaps] = useState(false);
   const [isPopulating, setIsPopulating] = useState(false);
+  const [populateProgress, setPopulateProgress] = useState<{current: number, total: number} | null>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [fillGapsResult, setFillGapsResult] = useState<any>(null);
   const [populateResult, setPopulateResult] = useState<any>(null);
@@ -71,13 +73,53 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
 
   const handlePopulateMockData = async () => {
     setIsPopulating(true);
+    setPopulateProgress({ current: 0, total: 15 });
+    
     try {
-      const result = await populateMockData();
-      setPopulateResult(result);
+      let totalRecords = 0;
+      
+      // Generate data for Sep 1-15, 2025 (15 days)
+      const startDate = new Date('2025-09-01T00:00:00.000Z');
+      const totalDays = 15;
+      
+      for (let day = 0; day < totalDays; day++) {
+        const dayStart = new Date(startDate);
+        dayStart.setDate(startDate.getDate() + day);
+        
+        const dayEnd = new Date(dayStart);
+        dayEnd.setHours(23, 59, 50, 0);
+        
+        setPopulateProgress({ current: day + 1, total: totalDays });
+        
+        // Call the edge function for this day
+        const { data, error } = await supabase.functions.invoke('populate-mock-data', {
+          body: {
+            startDate: dayStart.toISOString(),
+            endDate: dayEnd.toISOString(),
+            clearExisting: day === 0 // Only clear on first day
+          }
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data?.details?.total_records) {
+          totalRecords += data.details.total_records;
+        }
+        
+        // Small delay between batches to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      setPopulateResult({
+        success: true,
+        details: { total_records: totalRecords }
+      });
       
       toast({
         title: "Mock Data Populated Successfully",
-        description: `Generated ${result.details?.total_records} sensor readings for Sep 1-15, 2025`,
+        description: `Generated ${totalRecords.toLocaleString()} sensor readings for Sep 1-15, 2025`,
       });
     } catch (error) {
       toast({
@@ -87,6 +129,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
       });
     } finally {
       setIsPopulating(false);
+      setPopulateProgress(null);
     }
   };
 
@@ -146,11 +189,16 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
             className="w-full max-w-xs"
           >
             {isPopulating ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                {populateProgress ? `Day ${populateProgress.current}/${populateProgress.total}` : 'Starting...'}
+              </>
             ) : (
-              <Database className="h-4 w-4 mr-2" />
+              <>
+                <Database className="h-4 w-4 mr-2" />
+                Generate Full Mock Dataset
+              </>
             )}
-            {isPopulating ? 'Generating...' : 'Generate Full Mock Dataset'}
           </Button>
         </div>
       </CardHeader>
