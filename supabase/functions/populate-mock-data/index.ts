@@ -81,7 +81,7 @@ function generateSensorReading(id: number, timestamp: Date): MockSensorReading {
   
   return {
     original_id: id,
-    recorded_at: timestamp.toISOString(),
+    recorded_at: timestamp.toISOString().replace('Z', '+08:00'), // Store as Singapore time to match RDS sync
     temperature,
     humidity,
     pressure,
