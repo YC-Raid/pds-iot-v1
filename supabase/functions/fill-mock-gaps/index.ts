@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
 
     // Find gaps and generate mock data with 10-second intervals
     const mockData: any[] = []
-    const startDate = new Date('2025-09-01T00:00:00Z')
-    const endDate = new Date('2025-09-18T23:59:59Z')
+    const startDate = new Date('2025-09-01T00:00:00+08:00') // Singapore time
+    const endDate = new Date('2025-09-18T23:59:59+08:00') // Singapore time
     
     // Create a set of existing timestamps for quick lookup
     const existingTimestamps = new Set(existingData?.map(d => d.recorded_at) || [])
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     let originalId = Math.max(...(existingData?.map(d => d.original_id) || [0])) + 1
 
     while (current <= endDate) {
-      const timestamp = current.toISOString()
+      const timestamp = current.toISOString().replace('Z', '+08:00') // Singapore time
       
       // If this timestamp doesn't exist in our data, generate mock data
       if (!existingTimestamps.has(timestamp)) {
