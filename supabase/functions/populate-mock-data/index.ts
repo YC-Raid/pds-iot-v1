@@ -120,17 +120,17 @@ Deno.serve(async (req) => {
 
     console.log('🔄 Starting mock data population...')
     
-    // Clear existing mock data only if requested (first batch)
+    // Clear ALL existing data in mock_sensor_dataset if requested (first batch)
     if (clearExisting) {
       const { error: deleteError } = await supabaseClient
         .from('mock_sensor_dataset')
         .delete()
-        .eq('is_mock_data', true)
+        .neq('id', 0) // Delete all records
       
       if (deleteError) {
         console.error('Error clearing existing mock data:', deleteError)
       } else {
-        console.log('✅ Cleared existing mock data')
+        console.log('✅ Cleared all existing mock data')
       }
     }
 
