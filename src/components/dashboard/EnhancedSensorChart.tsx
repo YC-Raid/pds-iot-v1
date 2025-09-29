@@ -333,7 +333,8 @@ const EnhancedSensorChart = ({ data, config, title, timeRange, isLoading, timeRa
                     position: 'insideLeft',
                     style: { fontSize: responsiveConfig.fontSize }
                   }}
-                  domain={config.yAxisRange ? [config.yAxisRange.min, config.yAxisRange.max] : ['auto', 'auto']}
+                  domain={config.yAxisRange ? [config.yAxisRange.min, config.yAxisRange.max] : 
+                    (data.every(d => d.value === 0) && data.length > 0) ? [0, 100] : ['auto', 'auto']}
                   tickFormatter={(value) => value.toFixed(responsiveConfig.precision)}
                   tick={{ fontSize: responsiveConfig.fontSize }}
                 />

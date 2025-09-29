@@ -768,11 +768,43 @@ const SensorDetail = () => {
           console.log(`📈 [DEBUG] Sample formatted data:`, formatted.slice(0, 5));
           setChartData(formatted);
         } else {
-          setChartData([]);
+          // Create minimal chart structure to show axes even with no data
+          const now = new Date();
+          const emptyData = [];
+          for (let i = 0; i < 5; i++) {
+            const time = new Date(now.getTime() - (i * 3600000)); // 5 hours ago to now
+            emptyData.unshift({
+              time: time.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                hour: timeRange === '1h' ? '2-digit' : undefined,
+                minute: timeRange === '1h' ? '2-digit' : undefined
+              }),
+              value: 0,
+              timestamp: time.toISOString()
+            });
+          }
+          setChartData(emptyData);
         }
       } catch (error) {
         console.error('❌ Error loading data:', error);
-        setChartData([]); // Show empty state when failing to load
+        // Create minimal chart structure to show axes even when failing to load
+        const now = new Date();
+        const emptyData = [];
+        for (let i = 0; i < 5; i++) {
+          const time = new Date(now.getTime() - (i * 3600000));
+          emptyData.unshift({
+            time: time.toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric',
+              hour: timeRange === '1h' ? '2-digit' : undefined,
+              minute: timeRange === '1h' ? '2-digit' : undefined
+            }),
+            value: 0,
+            timestamp: time.toISOString()
+          });
+        }
+        setChartData(emptyData);
       } finally {
         setIsLoading(false);
       }
