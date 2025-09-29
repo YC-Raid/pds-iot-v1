@@ -351,7 +351,7 @@ const SensorDetail = () => {
               const hourGroups = new Map();
               
               data.forEach(reading => {
-                const singaporeDate = new Date(reading.recorded_at);
+                const singaporeDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
                 const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
                 
                 if (!hourGroups.has(singaporeHour)) {
@@ -409,37 +409,32 @@ const SensorDetail = () => {
               })).sort((a, b) => new Date(a.time + ', 2024').getTime() - new Date(b.time + ', 2024').getTime());
               
             } else if (hours === 720) {
-              // 1 month: Group by week and average accelerometer data
-              const weekGroups = new Map();
-              const currentDate = new Date();
+              // 1 month: Group by day and average accelerometer data (Asia/Singapore)
+              const dayGroups = new Map();
               
               data.forEach(reading => {
-                const readingDate = new Date(reading.recorded_at);
-                const weeksDiff = Math.floor((currentDate.getTime() - readingDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-                const weekLabel = `Week ${Math.max(1, 4 - weeksDiff)}`;
-                
-                if (!weekGroups.has(weekLabel)) {
-                  weekGroups.set(weekLabel, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                const readingDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
+                const dayLabel = readingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                if (!dayGroups.has(dayLabel)) {
+                  dayGroups.set(dayLabel, { x: [], y: [], z: [], mag: [], sortKey: new Date(readingDate.getFullYear(), readingDate.getMonth(), readingDate.getDate()).getTime() });
                 }
-                const group = weekGroups.get(weekLabel);
-                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
-                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
-                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
-                // Calculate corrected magnitude from individual components instead of raw magnitude
-                const accelX = Number(reading.accel_x || reading.avg_accel_x) || 0;
-                const accelY = Number(reading.accel_y || reading.avg_accel_y) || 0;
-                const accelZ = Number(reading.accel_z || reading.avg_accel_z) || 0;
-                const correctedMag = calculateCorrectedAccelMagnitude(accelX, accelY, accelZ);
-                group.mag.push(correctedMag);
+                const group = dayGroups.get(dayLabel);
+                const ax = Number(reading.accel_x || reading.avg_accel_x) || 0;
+                const ay = Number(reading.accel_y || reading.avg_accel_y) || 0;
+                const az = Number(reading.accel_z || reading.avg_accel_z) || 0;
+                group.x.push(ax);
+                group.y.push(ay);
+                group.z.push(az);
+                group.mag.push(calculateCorrectedAccelMagnitude(ax, ay, az));
               });
               
-              formatted = Array.from(weekGroups.entries()).map(([timeLabel, group]) => ({
+              formatted = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
-                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
-                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
-                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
-                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
-              })).sort((a, b) => a.time.localeCompare(b.time));
+                x_axis: group.x.reduce((s, v) => s + v, 0) / group.x.length,
+                y_axis: group.y.reduce((s, v) => s + v, 0) / group.y.length,
+                z_axis: group.z.reduce((s, v) => s + v, 0) / group.z.length,
+                magnitude: group.mag.reduce((s, v) => s + v, 0) / group.mag.length
+              })).sort((a, b) => dayGroups.get(a.time).sortKey - dayGroups.get(b.time).sortKey);
             }
           } else if (sensorType === 'rotation') {
             const maxPoints = hours === 1 ? 60 : 200;
@@ -529,32 +524,32 @@ const SensorDetail = () => {
               })).sort((a, b) => new Date(a.time + ', 2024').getTime() - new Date(b.time + ', 2024').getTime());
               
             } else if (hours === 720) {
-              // 1 month: Group by week and average gyroscope data
-              const weekGroups = new Map();
-              const currentDate = new Date();
+              // 1 month: Group by day and average gyroscope data (Asia/Singapore)
+              const dayGroups = new Map();
               
               data.forEach(reading => {
-                const readingDate = new Date(reading.recorded_at);
-                const weeksDiff = Math.floor((currentDate.getTime() - readingDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-                const weekLabel = `Week ${Math.max(1, 4 - weeksDiff)}`;
-                
-                if (!weekGroups.has(weekLabel)) {
-                  weekGroups.set(weekLabel, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                const readingDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
+                const dayLabel = readingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                if (!dayGroups.has(dayLabel)) {
+                  dayGroups.set(dayLabel, { x: [], y: [], z: [], mag: [], sortKey: new Date(readingDate.getFullYear(), readingDate.getMonth(), readingDate.getDate()).getTime() });
                 }
-                const group = weekGroups.get(weekLabel);
-                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                const group = dayGroups.get(dayLabel);
+                const gx = Number(reading.gyro_x || reading.avg_gyro_x) || 0;
+                const gy = Number(reading.gyro_y || reading.avg_gyro_y) || 0;
+                const gz = Number(reading.gyro_z || reading.avg_gyro_z) || 0;
+                group.x.push(gx);
+                group.y.push(gy);
+                group.z.push(gz);
                 group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
               });
               
-              formatted = Array.from(weekGroups.entries()).map(([timeLabel, group]) => ({
+              formatted = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
-                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
-                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
-                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
-                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
-              })).sort((a, b) => a.time.localeCompare(b.time));
+                x_axis: group.x.reduce((s, v) => s + v, 0) / group.x.length,
+                y_axis: group.y.reduce((s, v) => s + v, 0) / group.y.length,
+                z_axis: group.z.reduce((s, v) => s + v, 0) / group.z.length,
+                magnitude: group.mag.reduce((s, v) => s + v, 0) / group.mag.length
+              })).sort((a, b) => dayGroups.get(a.time).sortKey - dayGroups.get(b.time).sortKey);
             }
           } else {
             // Single value sensors with time range filtering and aggregation
@@ -599,7 +594,7 @@ const SensorDetail = () => {
               
               data.forEach(reading => {
                 // recorded_at is already Singapore time, use it directly
-                const singaporeDate = new Date(reading.recorded_at || reading.time_bucket);
+                const singaporeDate = new Date(new Date(reading.recorded_at || reading.time_bucket).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
                 const dateStr = singaporeDate.toLocaleDateString('en-US', { 
                   month: 'short', 
                   day: 'numeric' 
@@ -715,36 +710,28 @@ const SensorDetail = () => {
                     });
                     
                   } else if (hours === 720) {
-                    // 1 month: Group by week with actual date ranges
-                    const weekGroups = new Map();
+                    // 1 month: Group by day (Asia/Singapore)
+                    const dayGroups = new Map();
                     
                     data.forEach(reading => {
-                      const readingDate = new Date(reading.recorded_at);
-                      // Get start of week (Sunday)
-                      const weekStart = new Date(readingDate);
-                      weekStart.setDate(readingDate.getDate() - readingDate.getDay());
-                      weekStart.setHours(0, 0, 0, 0);
+                      const readingDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
+                      const dayStart = new Date(readingDate.getFullYear(), readingDate.getMonth(), readingDate.getDate());
+                      const dayLabel = readingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                       
-                      // Get end of week (Saturday)
-                      const weekEnd = new Date(weekStart);
-                      weekEnd.setDate(weekStart.getDate() + 6);
-                      
-                      const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-                      
-                      if (!weekGroups.has(weekLabel)) {
-                        weekGroups.set(weekLabel, { values: [], timestamp: reading.recorded_at, sortKey: weekStart.getTime() });
+                      if (!dayGroups.has(dayLabel)) {
+                        dayGroups.set(dayLabel, { values: [], timestamp: reading.recorded_at, sortKey: dayStart.getTime() });
                       }
                       const value = Number(reading[dataKey]) || 0;
-                      weekGroups.get(weekLabel).values.push(value);
+                      dayGroups.get(dayLabel).values.push(value);
                     });
                     
-                    formatted = Array.from(weekGroups.entries()).map(([timeLabel, group]) => ({
+                    formatted = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
                       time: timeLabel,
                       value: group.values.length > 0 ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length : null,
                       timestamp: group.timestamp
                     })).sort((a, b) => {
-                      const aGroup = weekGroups.get(a.time);
-                      const bGroup = weekGroups.get(b.time);
+                      const aGroup = dayGroups.get(a.time);
+                      const bGroup = dayGroups.get(b.time);
                       return aGroup.sortKey - bGroup.sortKey;
                     });
                     

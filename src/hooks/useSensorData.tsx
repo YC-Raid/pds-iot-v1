@@ -203,26 +203,6 @@ export function useSensorData() {
       
       console.log(`⏱️ [DEBUG] ${hours}h window: ${startTime.toISOString()} to ${endTime.toISOString()}`);
       
-      // Check if we have recent data in the database first
-      const { data: recentCheck, error: recentError } = await supabase
-        .from('processed_sensor_readings')
-        .select('recorded_at')
-        .order('recorded_at', { ascending: false })
-        .limit(1);
-        
-      if (recentError) throw recentError;
-      
-      const hasRecentData = recentCheck && recentCheck.length > 0;
-      const mostRecentTime = hasRecentData ? new Date(recentCheck[0].recorded_at) : null;
-      
-      console.log(`🔍 [DEBUG] Most recent data in DB: ${mostRecentTime?.toISOString() || 'None'}`);
-      
-      // If no recent data or data is old, return empty dataset instead of showing old data
-      if (!hasRecentData || (mostRecentTime && (endTime.getTime() - mostRecentTime.getTime()) > 24 * 60 * 60 * 1000)) {
-        console.log(`📅 [DEBUG] Data is outdated, returning empty dataset to show no data available`);
-        return [];
-      }
-      
       // For longer periods, use pagination to ensure we get all data
       if (hours > 24) {
         const pageSize = 1000;
