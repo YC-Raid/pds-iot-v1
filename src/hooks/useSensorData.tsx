@@ -217,14 +217,10 @@ export function useSensorData() {
       
       console.log(`🔍 [DEBUG] Most recent data in DB: ${mostRecentTime?.toISOString() || 'None'}`);
       
-      // If no recent data or data is old, extend time window to include available data
+      // If no recent data or data is old, return empty dataset instead of showing old data
       if (!hasRecentData || (mostRecentTime && (endTime.getTime() - mostRecentTime.getTime()) > 24 * 60 * 60 * 1000)) {
-        console.log(`📅 [DEBUG] Data is outdated, adjusting time window to include available data`);
-        if (mostRecentTime) {
-          endTime = mostRecentTime;
-          startTime = new Date(mostRecentTime.getTime() - hours * 60 * 60 * 1000);
-          console.log(`🔍 [DEBUG] Adjusted window: ${startTime.toISOString()} to ${endTime.toISOString()}`);
-        }
+        console.log(`📅 [DEBUG] Data is outdated, returning empty dataset to show no data available`);
+        return [];
       }
       
       // For longer periods, use pagination to ensure we get all data
