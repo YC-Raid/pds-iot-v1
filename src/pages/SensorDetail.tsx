@@ -382,7 +382,7 @@ const SensorDetail = () => {
               const dayGroups = new Map();
               
               data.forEach(reading => {
-                const singaporeDate = new Date(reading.recorded_at);
+                const singaporeDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
                 const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 
                 if (!dayGroups.has(singaporeDay)) {
@@ -502,7 +502,7 @@ const SensorDetail = () => {
               const dayGroups = new Map();
               
               data.forEach(reading => {
-                const singaporeDate = new Date(reading.recorded_at);
+                const singaporeDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
                 const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 
                 if (!dayGroups.has(singaporeDay)) {
@@ -689,7 +689,7 @@ const SensorDetail = () => {
                     // 1 week: Group by day
                     const dayGroups = new Map();
                     data.forEach(reading => {
-                      const singaporeDate = new Date(reading.recorded_at);
+                      const singaporeDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
                       const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                       
                       if (!dayGroups.has(singaporeDay)) {
@@ -768,11 +768,11 @@ const SensorDetail = () => {
           console.log(`📈 [DEBUG] Sample formatted data:`, formatted.slice(0, 5));
           setChartData(formatted);
         } else {
-          setChartData(testData);
+          setChartData([]);
         }
       } catch (error) {
         console.error('❌ Error loading data:', error);
-        setChartData(testData); // Fallback to test data
+        setChartData([]); // Show empty state when failing to load
       } finally {
         setIsLoading(false);
       }
