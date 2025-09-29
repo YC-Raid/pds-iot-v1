@@ -15,10 +15,16 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import SensorDetail from "./pages/SensorDetail";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { useSensorData, isDataFresh } from "./hooks/useSensorData";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  const { sensorReadings } = useSensorData();
+  const latestReading = sensorReadings[0];
+  const dataIsFresh = latestReading ? isDataFresh(latestReading.recorded_at) : false;
+
+  return (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
@@ -42,6 +48,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

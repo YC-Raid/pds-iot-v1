@@ -1,5 +1,5 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useSensorData, isDataFresh } from "@/hooks/useSensorData";
 import { Badge } from "@/components/ui/badge";
 import { SensorOverview } from "@/components/dashboard/SensorOverview";
 import { AirQualityPanel } from "@/components/dashboard/AirQualityPanel";
@@ -24,6 +24,10 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { useEffect } from "react";
 
 const Dashboard = () => {
+  const { sensorReadings } = useSensorData();
+  const latestReading = sensorReadings[0];
+  const dataIsFresh = latestReading ? isDataFresh(latestReading.recorded_at) : false;
+  
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
@@ -167,21 +171,29 @@ const Dashboard = () => {
       )}
     <div className="min-h-screen bg-background p-6 animate-fade-in">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Hangar Guardian</h1>
-            <p className="text-muted-foreground">IoT Monitoring & Predictive Maintenance System</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Hangar Guardian</h1>
+              <p className="text-muted-foreground">IoT Monitoring & Predictive Maintenance System</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={`${
+                latestReading && dataIsFresh 
+                  ? "bg-success/10 text-success border-success/20" 
+                  : "bg-destructive/10 text-destructive border-destructive/20"
+              }`}>
+                {latestReading && dataIsFresh ? "System Online" : "System Offline"}
+              </Badge>
+              <Badge variant="outline">
+                Last Updated: {latestReading ? (() => {
+                  const diffMinutes = Math.round((new Date().getTime() - new Date(latestReading.recorded_at).getTime()) / (1000 * 60));
+                  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+                  if (diffMinutes < 1440) return `${Math.round(diffMinutes / 60)} hr ago`;
+                  return `${Math.round(diffMinutes / 1440)} days ago`;
+                })() : "Never"}
+              </Badge>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-              System Online
-            </Badge>
-            <Badge variant="outline">
-              Last Updated: 2 min ago
-            </Badge>
-          </div>
-        </div>
 
         {/* Animated Dashboard Tabs */}
         <div className="space-y-6">

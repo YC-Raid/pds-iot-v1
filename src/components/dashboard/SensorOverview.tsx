@@ -21,7 +21,7 @@ import {
   Waves,
   ChevronDown
 } from "lucide-react";
-import { useSensorData } from "@/hooks/useSensorData";
+import { useSensorData, isDataFresh } from "@/hooks/useSensorData";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -47,11 +47,14 @@ const SensorOverview = () => {
         // Use raw data for 1h/24h views
         const data = await getSensorReadingsByTimeRange(hours);
         
+        // Filter out stale data (older than 2 minutes from the latest timestamp)
+        const freshData = data.filter((reading: any) => isDataFresh(reading.recorded_at));
+        
         if (hours === 1) {
           // 1 hour: Group by minute and average
           const minuteGroups = new Map();
           
-          data.forEach((reading: any) => {
+          freshData.forEach((reading: any) => {
             // processed_sensor_readings.recorded_at is already in Singapore time
             const singaporeDate = new Date(reading.recorded_at);
             const singaporeTime = `${singaporeDate.getHours().toString().padStart(2, '0')}:${singaporeDate.getMinutes().toString().padStart(2, '0')}`;
@@ -93,7 +96,7 @@ const SensorOverview = () => {
           // 24 hours: Group by date + hour to handle multi-day data properly
           const hourGroups = new Map();
           
-          data.forEach((reading: any) => {
+          freshData.forEach((reading: any) => {
             // recorded_at is already Singapore time, use it directly
             const singaporeDate = new Date(reading.recorded_at);
             const dateStr = singaporeDate.toLocaleDateString('en-US', { 
@@ -144,9 +147,10 @@ const SensorOverview = () => {
       } else if (hours === 168) {
         // 1 week: Group by day using raw data with proper sorting
         const data = await getSensorReadingsByTimeRange(168);
+        const freshData = data.filter((reading: any) => isDataFresh(reading.recorded_at));
         const dayGroups = new Map();
         
-        data.forEach((reading: any) => {
+        freshData.forEach((reading: any) => {
           // recorded_at is already Singapore time, use it directly
           const singaporeDate = new Date(reading.recorded_at);
           const singaporeTime = singaporeDate.toLocaleDateString('en-US', {
@@ -195,9 +199,10 @@ const SensorOverview = () => {
       } else if (hours === 720) {
         // 1 month: Group by day using raw data - same simple pattern as 1h, 24h, and 1 week
         const data = await getSensorReadingsByTimeRange(720);
+        const freshData = data.filter((reading: any) => isDataFresh(reading.recorded_at));
         const dayGroups = new Map();
         
-        data.forEach((reading: any) => {
+        freshData.forEach((reading: any) => {
           const singaporeDate = new Date(reading.recorded_at);
           const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           
@@ -243,8 +248,9 @@ const SensorOverview = () => {
     }
   }, [getSensorReadingsByTimeRange, getAggregatedSensorData, isLoading, timeRange]);
 
-  // Get latest sensor readings
+  // Get latest sensor readings and check freshness
   const latestReading = sensorReadings[0];
+  const dataIsFresh = latestReading ? isDataFresh(latestReading.recorded_at) : false;
   
   // Create sensor cards from real data - Rearranged for better visual organization
   const sensors = latestReading ? [
@@ -254,9 +260,9 @@ const SensorOverview = () => {
       name: "Temperature Sensor",
       type: "Temperature",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.temperature?.toFixed(2) || "N/A",
+      value: dataIsFresh && latestReading.temperature !== null ? latestReading.temperature.toFixed(2) : "N/A",
       unit: "°C",
-      status: latestReading.temperature ? "online" : "offline",
+      status: dataIsFresh && latestReading.temperature !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);
@@ -269,9 +275,9 @@ const SensorOverview = () => {
       name: "Humidity Sensor",
       type: "Humidity",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.humidity?.toFixed(2) || "N/A",
+      value: dataIsFresh && latestReading.humidity !== null ? latestReading.humidity.toFixed(2) : "N/A",
       unit: "%",
-      status: latestReading.humidity ? "online" : "offline",
+      status: dataIsFresh && latestReading.humidity !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);
@@ -284,9 +290,9 @@ const SensorOverview = () => {
       name: "Pressure Sensor",
       type: "Pressure",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pressure?.toFixed(2) || "N/A",
+      value: dataIsFresh && latestReading.pressure !== null ? latestReading.pressure.toFixed(2) : "N/A",
       unit: "hPa",
-      status: latestReading.pressure ? "online" : "offline",
+      status: dataIsFresh && latestReading.pressure !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);
@@ -300,9 +306,9 @@ const SensorOverview = () => {
       name: "Gas Resistance",
       type: "Gas Quality",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.gas_resistance?.toFixed(0) || "N/A",
+      value: dataIsFresh && latestReading.gas_resistance !== null ? latestReading.gas_resistance.toFixed(0) : "N/A",
       unit: "Ω",
-      status: latestReading.gas_resistance ? "online" : "offline",
+      status: dataIsFresh && latestReading.gas_resistance !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);
@@ -315,10 +321,10 @@ const SensorOverview = () => {
       name: "Accelerometer",
       type: "Acceleration",
       location: latestReading.location || "Hangar 01",
-      value: `X: ${latestReading.accel_x?.toFixed(2) || "N/A"} | Y: ${latestReading.accel_y?.toFixed(2) || "N/A"} | Z: ${latestReading.accel_z?.toFixed(2) || "N/A"}`,
-      magnitude: latestReading.accel_magnitude?.toFixed(2) || "N/A",
+      value: dataIsFresh && latestReading.accel_x !== null ? `X: ${latestReading.accel_x.toFixed(2)} | Y: ${latestReading.accel_y?.toFixed(2) || "N/A"} | Z: ${latestReading.accel_z?.toFixed(2) || "N/A"}` : "N/A",
+      magnitude: dataIsFresh && latestReading.accel_magnitude !== null ? latestReading.accel_magnitude.toFixed(2) : "N/A",
       unit: "m/s²",
-      status: latestReading.accel_magnitude !== null ? "online" : "offline",
+      status: dataIsFresh && latestReading.accel_magnitude !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);
@@ -331,10 +337,10 @@ const SensorOverview = () => {
       name: "Gyroscope",
       type: "Rotation",
       location: latestReading.location || "Hangar 01",
-      value: `X: ${latestReading.gyro_x?.toFixed(2) || "N/A"} | Y: ${latestReading.gyro_y?.toFixed(2) || "N/A"} | Z: ${latestReading.gyro_z?.toFixed(2) || "N/A"}`,
-      magnitude: latestReading.gyro_magnitude?.toFixed(2) || "N/A",
+      value: dataIsFresh && latestReading.gyro_x !== null ? `X: ${latestReading.gyro_x.toFixed(2)} | Y: ${latestReading.gyro_y?.toFixed(2) || "N/A"} | Z: ${latestReading.gyro_z?.toFixed(2) || "N/A"}` : "N/A",
+      magnitude: dataIsFresh && latestReading.gyro_magnitude !== null ? latestReading.gyro_magnitude.toFixed(2) : "N/A",
       unit: "°/s",
-      status: latestReading.gyro_magnitude !== null ? "online" : "offline",
+      status: dataIsFresh && latestReading.gyro_magnitude !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);
@@ -348,9 +354,9 @@ const SensorOverview = () => {
       name: "PM1.0 Monitor",
       type: "PM1.0",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pm1_0?.toFixed(2) || "0.00",
+      value: dataIsFresh && latestReading.pm1_0 !== null ? latestReading.pm1_0.toFixed(2) : "N/A",
       unit: "μg/m³",
-      status: latestReading.pm1_0 !== null ? "online" : "offline",
+      status: dataIsFresh && latestReading.pm1_0 !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);
@@ -363,9 +369,9 @@ const SensorOverview = () => {
       name: "PM2.5 Monitor",
       type: "PM2.5",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pm2_5?.toFixed(2) || "0.00",
+      value: dataIsFresh && latestReading.pm2_5 !== null ? latestReading.pm2_5.toFixed(2) : "N/A",
       unit: "μg/m³",
-      status: latestReading.pm2_5 !== null ? "online" : "offline",
+      status: dataIsFresh && latestReading.pm2_5 !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);
@@ -378,9 +384,9 @@ const SensorOverview = () => {
       name: "PM10 Monitor",
       type: "PM10",
       location: latestReading.location || "Hangar 01",
-      value: latestReading.pm10?.toFixed(2) || "0.00",
+      value: dataIsFresh && latestReading.pm10 !== null ? latestReading.pm10.toFixed(2) : "N/A",
       unit: "μg/m³",
-      status: latestReading.pm10 !== null ? "online" : "offline",
+      status: dataIsFresh && latestReading.pm10 !== null ? "online" : "offline",
       lastUpdate: (() => {
         // processed_sensor_readings.recorded_at is already in Singapore time
         const singaporeDate = new Date(latestReading.recorded_at);

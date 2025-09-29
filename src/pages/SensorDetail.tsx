@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowLeft, Activity, Thermometer, Droplets, Gauge, Zap, Eye, Cloud, Wind, Waves } from "lucide-react";
-import { useSensorData } from "@/hooks/useSensorData";
+import { useSensorData, isDataFresh } from "@/hooks/useSensorData";
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CustomTooltip } from "@/components/ui/custom-chart-tooltip";
@@ -30,6 +30,7 @@ const SensorDetail = () => {
 
   // Get current reading - EXACT same logic as SensorOverview but for all sensor types
   const latestReading = sensorReadings[0];
+  const dataIsFresh = latestReading ? isDataFresh(latestReading.recorded_at) : false;
   const currentReading = useMemo(() => {
     if (!latestReading) return null;
     
@@ -129,6 +130,8 @@ const SensorDetail = () => {
         if (hours <= 24) {
           // Use raw data from processed_sensor_readings for 1h and 24h views
           data = await getSensorReadingsByTimeRange(hours);
+          // Filter out stale data (older than 2 minutes from the latest timestamp)
+          data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data
           console.log(`📊 [DEBUG] Trying aggregated data for 1 week view`);
@@ -142,11 +145,15 @@ const SensorDetail = () => {
             } else {
               console.log(`⚠️ [DEBUG] Insufficient aggregated data (${aggregatedData?.length || 0} days), falling back to raw data for 1 week`);
               data = await getSensorReadingsByTimeRange(hours);
+              // Filter out stale data (older than 2 minutes from the latest timestamp)
+              data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
               console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
             }
           } catch (error) {
             console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
             data = await getSensorReadingsByTimeRange(hours);
+            // Filter out stale data (older than 2 minutes from the latest timestamp)
+            data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
             console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
         } else if (hours === 720) {
@@ -181,16 +188,22 @@ const SensorDetail = () => {
               } else {
                 console.log(`⚠️ [DEBUG] No daily data for current month, falling back to raw data`);
                 data = await getSensorReadingsByTimeRange(hours);
+                // Filter out stale data (older than 2 minutes from the latest timestamp)
+                data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
                 console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
               }
             } else {
               console.log(`⚠️ [DEBUG] No aggregated data available, falling back to raw data`);
               data = await getSensorReadingsByTimeRange(hours);
+              // Filter out stale data (older than 2 minutes from the latest timestamp)
+              data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
               console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
             }
           } catch (error) {
             console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
             data = await getSensorReadingsByTimeRange(hours);
+            // Filter out stale data (older than 2 minutes from the latest timestamp)
+            data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
             console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
         }
@@ -863,7 +876,7 @@ const SensorDetail = () => {
                 title={`${currentSensor.name} - ${getTimeRangeLabel()} Analysis`}
                 timeRange={getTimeRangeLabel()}
                 isLoading={isLoading}
-                currentReading={currentReading}
+                currentReading={dataIsFresh ? currentReading : null}
                 timeRangeSelector={
                   <Select value={timeRange} onValueChange={setTimeRange}>
                     <SelectTrigger className="w-32">
