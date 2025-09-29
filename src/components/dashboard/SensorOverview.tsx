@@ -13,6 +13,7 @@ import {
   Gauge,
   Cpu,
   Wifi,
+  WifiOff,
   AlertCircle,
   Zap,
   Activity,
@@ -488,10 +489,17 @@ const SensorOverview = () => {
             <p className="text-xs text-muted-foreground mt-1">
               Data from {latestReading.location || "Hangar 01"} • {sensorReadings.length} total readings
             </p>
-            <Badge variant="outline" className="mt-2 bg-success/10 text-success border-success/20">
-              <Wifi className="h-3 w-3 mr-1" />
-              Connected
-            </Badge>
+            {isDataFresh(latestReading.recorded_at) ? (
+              <Badge variant="outline" className="mt-2 bg-success/10 text-success border-success/20">
+                <Wifi className="h-3 w-3 mr-1" />
+                Connected
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="mt-2 bg-destructive/10 text-destructive border-destructive/20">
+                <WifiOff className="h-3 w-3 mr-1" />
+                Offline
+              </Badge>
+            )}
           </CardContent>
         </Card>
       )}
