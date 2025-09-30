@@ -130,11 +130,6 @@ const SensorDetail = () => {
         if (hours <= 24) {
           // Use raw data from processed_sensor_readings for 1h and 24h views
           data = await getSensorReadingsByTimeRange(hours);
-          // Only filter by freshness for 24h view to remove very old data
-          // For 1h view, show ALL data within the hour window (no freshness filter)
-          if (hours === 24) {
-            data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
-          }
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data
           console.log(`📊 [DEBUG] Trying aggregated data for 1 week view`);
@@ -148,15 +143,11 @@ const SensorDetail = () => {
             } else {
               console.log(`⚠️ [DEBUG] Insufficient aggregated data (${aggregatedData?.length || 0} days), falling back to raw data for 1 week`);
               data = await getSensorReadingsByTimeRange(hours);
-              // Filter out stale data (older than 10 minutes from the latest timestamp)
-              data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
               console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
             }
           } catch (error) {
             console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
             data = await getSensorReadingsByTimeRange(hours);
-            // Filter out stale data (older than 10 minutes from the latest timestamp)
-            data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
             console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
         } else if (hours === 720) {
@@ -191,22 +182,16 @@ const SensorDetail = () => {
               } else {
                 console.log(`⚠️ [DEBUG] No daily data for current month, falling back to raw data`);
                 data = await getSensorReadingsByTimeRange(hours);
-                // Filter out stale data (older than 10 minutes from the latest timestamp)
-                data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
                 console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
               }
             } else {
               console.log(`⚠️ [DEBUG] No aggregated data available, falling back to raw data`);
               data = await getSensorReadingsByTimeRange(hours);
-              // Filter out stale data (older than 10 minutes from the latest timestamp)
-              data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
               console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
             }
           } catch (error) {
             console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
             data = await getSensorReadingsByTimeRange(hours);
-            // Filter out stale data (older than 10 minutes from the latest timestamp)
-            data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
             console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
         }
