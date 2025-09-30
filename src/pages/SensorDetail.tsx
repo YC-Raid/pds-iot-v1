@@ -130,8 +130,11 @@ const SensorDetail = () => {
         if (hours <= 24) {
           // Use raw data from processed_sensor_readings for 1h and 24h views
           data = await getSensorReadingsByTimeRange(hours);
-          // Filter out stale data for both 1h and 24h views (older than 10 minutes)
-          data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
+          // Only filter by freshness for 24h view to remove very old data
+          // For 1h view, show ALL data within the hour window (no freshness filter)
+          if (hours === 24) {
+            data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
+          }
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data
           console.log(`📊 [DEBUG] Trying aggregated data for 1 week view`);
