@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
-import { generateMockSensorData, findDataGaps, type MockSensorReading } from '@/utils/mockDataGenerator';
-import { startOfDay, endOfDay, subDays } from 'date-fns';
 interface SensorReading {
   id: number;
   original_id: number;
@@ -82,67 +80,6 @@ export function useSensorData() {
     }
   };
 
-  // Fill data gaps with mock data
-  const fillDataGaps = async (existingData: SensorReading[]): Promise<SensorReading[]> => {
-    if (existingData.length === 0) return existingData;
-
-    // Check for gaps in the last 30 days
-    const now = new Date();
-    const thirtyDaysAgo = subDays(now, 30);
-    
-    const gaps = findDataGaps(existingData, thirtyDaysAgo, now);
-    
-    if (gaps.length === 0) {
-      console.log('📊 No data gaps found');
-      return existingData;
-    }
-
-    console.log(`📊 Found ${gaps.length} data gaps:`, gaps);
-    
-    // Generate mock data for each gap
-    let mockData: MockSensorReading[] = [];
-    gaps.forEach(gap => {
-      const gapMock = generateMockSensorData(gap.start, gap.end, 60); // 60 readings per hour (1-minute intervals)
-      mockData = [...mockData, ...gapMock];
-    });
-
-    // Convert mock data to SensorReading format and merge
-    const mockSensorReadings: SensorReading[] = mockData.map((mock, index) => ({
-      id: 999000 + index, // Use high IDs to avoid conflicts
-      original_id: mock.original_id,
-      recorded_at: mock.recorded_at,
-      location: mock.location,
-      temperature: mock.temperature,
-      humidity: mock.humidity,
-      pressure: mock.pressure,
-      gas_resistance: mock.gas_resistance,
-      pm1_0: mock.pm1_0,
-      pm2_5: mock.pm2_5,
-      pm10: mock.pm10,
-      accel_x: mock.accel_x,
-      accel_y: mock.accel_y,
-      accel_z: mock.accel_z,
-      accel_magnitude: mock.accel_magnitude,
-      gyro_x: mock.gyro_x,
-      gyro_y: mock.gyro_y,
-      gyro_z: mock.gyro_z,
-      gyro_magnitude: mock.gyro_magnitude,
-      anomaly_score: mock.anomaly_score,
-      predicted_failure_probability: mock.predicted_failure_probability,
-      maintenance_recommendation: mock.maintenance_recommendation,
-      quality_score: mock.quality_score,
-      processed_at: mock.recorded_at,
-      created_at: mock.recorded_at,
-      updated_at: mock.recorded_at,
-      processing_version: mock.processing_version
-    }));
-
-    console.log(`📊 Generated ${mockSensorReadings.length} mock readings to fill gaps`);
-
-    // Merge and sort all data
-    const allData = [...existingData, ...mockSensorReadings];
-    return allData.sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
-  };
 
   const fetchDashboardData = async () => {
     try {
@@ -428,46 +365,6 @@ export function useSensorData() {
     }
   }, []);
 
-  // Helper function to aggregate mock data
-  const aggregateMockData = (mockData: MockSensorReading[], level: 'day' | 'week' | 'month') => {
-    const groups: { [key: string]: MockSensorReading[] } = {};
-
-    mockData.forEach(reading => {
-      const date = new Date(reading.recorded_at);
-      let key: string;
-
-      if (level === 'day') {
-        key = startOfDay(date).toISOString();
-      } else if (level === 'week') {
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        key = startOfDay(weekStart).toISOString();
-      } else { // month
-        key = new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
-      }
-
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(reading);
-    });
-
-    return Object.entries(groups).map(([time_bucket, readings]) => ({
-      time_bucket,
-      aggregation_level: level,
-      location: 'hangar_01',
-      avg_temperature: readings.reduce((sum, r) => sum + r.temperature, 0) / readings.length,
-      avg_humidity: readings.reduce((sum, r) => sum + r.humidity, 0) / readings.length,
-      avg_pressure: readings.reduce((sum, r) => sum + r.pressure, 0) / readings.length,
-      avg_gas_resistance: readings.reduce((sum, r) => sum + r.gas_resistance, 0) / readings.length,
-      avg_pm1_0: readings.reduce((sum, r) => sum + r.pm1_0, 0) / readings.length,
-      avg_pm2_5: readings.reduce((sum, r) => sum + r.pm2_5, 0) / readings.length,
-      avg_pm10: readings.reduce((sum, r) => sum + r.pm10, 0) / readings.length,
-      avg_accel_magnitude: readings.reduce((sum, r) => sum + r.accel_magnitude, 0) / readings.length,
-      avg_gyro_magnitude: readings.reduce((sum, r) => sum + r.gyro_magnitude, 0) / readings.length,
-      min_temperature: Math.min(...readings.map(r => r.temperature)),
-      max_temperature: Math.max(...readings.map(r => r.temperature)),
-      data_points_count: readings.length
-    }));
-  };
  
   // Function removed - now using sensorReadings[0].temperature directly
 
