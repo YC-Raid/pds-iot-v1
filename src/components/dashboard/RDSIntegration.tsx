@@ -166,40 +166,24 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
               {isSyncing ? 'Syncing...' : 'Sync Now'}
             </Button>
             <Button 
-              onClick={handleFillGaps} 
+              onClick={handlePopulateMockData} 
               disabled={isSyncing || isFillingGaps || isPopulating}
               size="sm"
-              variant="secondary"
+              variant="default"
             >
-              {isFillingGaps ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              {isPopulating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  {populateProgress ? `Day ${populateProgress.current}/${populateProgress.total}` : 'Starting...'}
+                </>
               ) : (
-                <CheckCircle className="h-4 w-4 mr-2" />
+                <>
+                  <Database className="h-4 w-4 mr-2" />
+                  Generate Full Mock Dataset
+                </>
               )}
-              {isFillingGaps ? 'Filling...' : 'Fill Mock Gaps'}
             </Button>
           </div>
-        </div>
-        <div className="flex justify-center mt-2">
-          <Button 
-            onClick={handlePopulateMockData} 
-            disabled={isSyncing || isFillingGaps || isPopulating}
-            size="sm"
-            variant="default"
-            className="w-full max-w-xs"
-          >
-            {isPopulating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                {populateProgress ? `Day ${populateProgress.current}/${populateProgress.total}` : 'Starting...'}
-              </>
-            ) : (
-              <>
-                <Database className="h-4 w-4 mr-2" />
-                Generate Full Mock Dataset
-              </>
-            )}
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
