@@ -37,7 +37,20 @@ const SensorOverview = () => {
   const [timeSeriesData, setTimeSeriesData] = useState([]);
   const [timeRange, setTimeRange] = useState('24');
   const [selectedSensors, setSelectedSensors] = useState(['temperature', 'humidity', 'pm1', 'pm25', 'pm10']);
+  const [readingsLast24h, setReadingsLast24h] = useState(0);
   const navigate = useNavigate();
+
+  // Fetch count of readings in last 24 hours
+  useEffect(() => {
+    const fetchReadingsCount = async () => {
+      const data = await getSensorReadingsByTimeRange(24);
+      setReadingsLast24h(data.length);
+    };
+    
+    if (!isLoading) {
+      fetchReadingsCount();
+    }
+  }, [getSensorReadingsByTimeRange, isLoading]);
 
   useEffect(() => {
     const loadTimeSeriesData = async () => {
@@ -485,7 +498,7 @@ const SensorOverview = () => {
               })()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Data from {latestReading.location || "Hangar 01"} • {sensorReadings.length} total readings
+              Data from {latestReading.location || "Hangar 01"} • {readingsLast24h} readings in last 24h
             </p>
             {isDataFresh(latestReading.recorded_at) ? (
               <Badge variant="outline" className="mt-2 bg-success/10 text-success border-success/20">
