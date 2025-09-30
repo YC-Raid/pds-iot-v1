@@ -48,12 +48,11 @@ const SensorOverview = () => {
         // Use raw data for 1h/24h views
         const data = await getSensorReadingsByTimeRange(hours);
         
-        // For 1 hour view, show all data without filtering for freshness
-        // For 24 hour view, filter out stale data (older than 10 minutes from the latest timestamp)
-        const freshData = hours === 1 ? data : data.filter((reading: any) => isDataFresh(reading.recorded_at));
+        // Filter out stale data (older than 10 minutes from the latest timestamp)
+        const freshData = data.filter((reading: any) => isDataFresh(reading.recorded_at));
         
         if (hours === 1) {
-          // 1 hour: Group by minute and average - show ALL data
+          // 1 hour: Group by minute and average
           const minuteGroups = new Map();
           
           freshData.forEach((reading: any) => {
