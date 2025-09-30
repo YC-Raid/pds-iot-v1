@@ -178,16 +178,6 @@ export function useSensorData() {
     }
   };
 
-  const fillMockGaps = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('fill-mock-gaps');
-      if (error) throw error;
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fill mock gaps');
-      throw err;
-    }
-  };
 
   const populateMockData = async () => {
     try {
@@ -575,7 +565,6 @@ export function useSensorData() {
     fetchSensorReadings,
     fetchDashboardData,
     syncRDSData,
-    fillMockGaps,
     populateMockData,
     getSensorReadingsByTimeRange,
     getHourlyAveragedData,
