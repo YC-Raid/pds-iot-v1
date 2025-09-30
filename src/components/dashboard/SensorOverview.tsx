@@ -36,7 +36,7 @@ const SensorOverview = () => {
   } = useSensorData();
   const [timeSeriesData, setTimeSeriesData] = useState([]);
   const [timeRange, setTimeRange] = useState('24');
-  const [selectedSensors, setSelectedSensors] = useState(['temperature', 'humidity', 'pressure', 'pm25']);
+  const [selectedSensors, setSelectedSensors] = useState(['temperature', 'humidity', 'pm1', 'pm25', 'pm10']);
   const navigate = useNavigate();
 
   useEffect(() => {
