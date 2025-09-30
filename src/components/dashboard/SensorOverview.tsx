@@ -48,11 +48,12 @@ const SensorOverview = () => {
         // Use raw data for 1h/24h views
         const data = await getSensorReadingsByTimeRange(hours);
         
-        // Filter out stale data (older than 2 minutes from the latest timestamp)
-        const freshData = data.filter((reading: any) => isDataFresh(reading.recorded_at));
+        // For 1 hour view, show all data without filtering for freshness
+        // For 24 hour view, filter out stale data (older than 10 minutes from the latest timestamp)
+        const freshData = hours === 1 ? data : data.filter((reading: any) => isDataFresh(reading.recorded_at));
         
         if (hours === 1) {
-          // 1 hour: Group by minute and average
+          // 1 hour: Group by minute and average - show ALL data
           const minuteGroups = new Map();
           
           freshData.forEach((reading: any) => {
@@ -148,6 +149,7 @@ const SensorOverview = () => {
       } else if (hours === 168) {
         // 1 week: Group by day using raw data with proper sorting
         const data = await getSensorReadingsByTimeRange(168);
+        // Filter out stale data (older than 10 minutes from the latest timestamp)
         const freshData = data.filter((reading: any) => isDataFresh(reading.recorded_at));
         const dayGroups = new Map();
         
@@ -200,6 +202,7 @@ const SensorOverview = () => {
       } else if (hours === 720) {
         // 1 month: Group by day using raw data - same simple pattern as 1h, 24h, and 1 week
         const data = await getSensorReadingsByTimeRange(720);
+        // Filter out stale data (older than 10 minutes from the latest timestamp)
         const freshData = data.filter((reading: any) => isDataFresh(reading.recorded_at));
         const dayGroups = new Map();
         

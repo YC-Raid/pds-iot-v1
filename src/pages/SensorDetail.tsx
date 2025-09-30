@@ -130,8 +130,11 @@ const SensorDetail = () => {
         if (hours <= 24) {
           // Use raw data from processed_sensor_readings for 1h and 24h views
           data = await getSensorReadingsByTimeRange(hours);
-          // Filter out stale data (older than 2 minutes from the latest timestamp)
-          data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
+          // For 1 hour view, show all data without filtering for freshness
+          // For 24 hour view, filter out stale data (older than 10 minutes from the latest timestamp)
+          if (hours === 24) {
+            data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
+          }
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data
           console.log(`📊 [DEBUG] Trying aggregated data for 1 week view`);
@@ -145,14 +148,14 @@ const SensorDetail = () => {
             } else {
               console.log(`⚠️ [DEBUG] Insufficient aggregated data (${aggregatedData?.length || 0} days), falling back to raw data for 1 week`);
               data = await getSensorReadingsByTimeRange(hours);
-              // Filter out stale data (older than 2 minutes from the latest timestamp)
+              // Filter out stale data (older than 10 minutes from the latest timestamp)
               data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
               console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
             }
           } catch (error) {
             console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
             data = await getSensorReadingsByTimeRange(hours);
-            // Filter out stale data (older than 2 minutes from the latest timestamp)
+            // Filter out stale data (older than 10 minutes from the latest timestamp)
             data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
             console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
@@ -188,21 +191,21 @@ const SensorDetail = () => {
               } else {
                 console.log(`⚠️ [DEBUG] No daily data for current month, falling back to raw data`);
                 data = await getSensorReadingsByTimeRange(hours);
-                // Filter out stale data (older than 2 minutes from the latest timestamp)
+                // Filter out stale data (older than 10 minutes from the latest timestamp)
                 data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
                 console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
               }
             } else {
               console.log(`⚠️ [DEBUG] No aggregated data available, falling back to raw data`);
               data = await getSensorReadingsByTimeRange(hours);
-              // Filter out stale data (older than 2 minutes from the latest timestamp)
+              // Filter out stale data (older than 10 minutes from the latest timestamp)
               data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
               console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
             }
           } catch (error) {
             console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
             data = await getSensorReadingsByTimeRange(hours);
-            // Filter out stale data (older than 2 minutes from the latest timestamp)
+            // Filter out stale data (older than 10 minutes from the latest timestamp)
             data = data.filter((reading: any) => isDataFresh(reading.recorded_at));
             console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
           }
@@ -569,17 +572,16 @@ const SensorDetail = () => {
             const dataKey = currentSensor.dataKey;
             
             if (hours === 1) {
-              // 1 hour: Group by minute and average - current hour only (Singapore timezone)
+              // 1 hour: Group by minute and average - show ALL data from last 60 minutes
               const minuteGroups = new Map();
               
-              // Get current hour bounds in Singapore timezone
-              const nowSingapore = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
-              const startOfHour = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), nowSingapore.getHours(), 0, 0, 0);
-              const endOfHour = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), nowSingapore.getHours(), 59, 59, 999);
+              // Get last 60 minutes of data without timezone filtering
+              const now = new Date();
+              const startTime = new Date(now.getTime() - 60 * 60 * 1000); // exactly 1 hour ago
               
               data.forEach(reading => {
-                const readingDate = new Date(new Date(reading.recorded_at || reading.time_bucket).toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
-                if (readingDate >= startOfHour && readingDate <= endOfHour) {
+                const readingDate = new Date(reading.recorded_at || reading.time_bucket);
+                if (readingDate >= startTime) {
                   const singaporeTime = `${readingDate.getHours().toString().padStart(2, '0')}:${readingDate.getMinutes().toString().padStart(2, '0')}`;
                   
                   if (!minuteGroups.has(singaporeTime)) {

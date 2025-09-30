@@ -46,8 +46,8 @@ interface DashboardData {
   high_risk_count: number;
 }
 
-// Utility function to check if data is fresh (less than 2 minutes old)
-export function isDataFresh(timestamp: string, thresholdMinutes = 2): boolean {
+// Utility function to check if data is fresh (less than 10 minutes old)
+export function isDataFresh(timestamp: string, thresholdMinutes = 10): boolean {
   const now = new Date();
   const dataTime = new Date(timestamp);
   const diffMinutes = (now.getTime() - dataTime.getTime()) / (1000 * 60);
