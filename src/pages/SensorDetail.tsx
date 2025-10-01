@@ -9,6 +9,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { CustomTooltip } from "@/components/ui/custom-chart-tooltip";
 import { EnhancedSensorChart, SensorConfig, DataPoint } from "@/components/dashboard/EnhancedSensorChart";
 import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
+import { supabase } from "@/integrations/supabase/client";
 
 import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 import { toZonedTime, formatInTimeZone } from "date-fns-tz";
@@ -127,8 +128,32 @@ const SensorDetail = () => {
         const hours = parseInt(timeRange);
         let data: any[] = [];
 
-        if (hours <= 24) {
-          // Use raw data from processed_sensor_readings for 1h and 24h views
+        if (hours === 24) {
+          // 24h view: Get TODAY's data only (00:00 to current time in Singapore timezone)
+          console.log(`📊 [DEBUG] Fetching today's data (00:00 to now) for 24h view`);
+          
+          // Get current date in Singapore timezone
+          const nowSingapore = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+          const startOfDaySingapore = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), 0, 0, 0, 0);
+          
+          // Convert to UTC for the query (recorded_at is stored in UTC)
+          const startOfDayUTC = new Date(startOfDaySingapore.getTime() - (8 * 60 * 60 * 1000)); // Subtract 8 hours
+          
+          console.log(`📊 [DEBUG] Start of day Singapore: ${startOfDaySingapore.toISOString()}`);
+          console.log(`📊 [DEBUG] Start of day UTC: ${startOfDayUTC.toISOString()}`);
+          
+          const { data: todayData, error } = await supabase
+            .from('processed_sensor_readings')
+            .select('*')
+            .gte('recorded_at', startOfDayUTC.toISOString())
+            .lte('recorded_at', new Date().toISOString())
+            .order('recorded_at', { ascending: true });
+          
+          if (error) throw error;
+          data = todayData || [];
+          console.log(`📊 [DEBUG] Today's data fetched: ${data.length} records from midnight to now`);
+        } else if (hours === 1) {
+          // 1h view: Get current hour only
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
           // 1 week: Try aggregated data first, fallback to raw data
