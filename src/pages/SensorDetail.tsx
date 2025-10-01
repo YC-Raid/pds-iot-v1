@@ -9,7 +9,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { CustomTooltip } from "@/components/ui/custom-chart-tooltip";
 import { EnhancedSensorChart, SensorConfig, DataPoint } from "@/components/dashboard/EnhancedSensorChart";
 import AnomalyDetection from "@/components/dashboard/AnomalyDetection";
-import { supabase } from "@/integrations/supabase/client";
 
 import { calculateDynamicThresholds } from "@/utils/dynamicThresholds";
 import { toZonedTime, formatInTimeZone } from "date-fns-tz";
@@ -129,29 +128,15 @@ const SensorDetail = () => {
         let data: any[] = [];
 
         if (hours === 24) {
-          // 24h view: Get TODAY's data only (00:00 to current time in Singapore timezone)
-          console.log(`📊 [DEBUG] Fetching today's data (00:00 to now) for 24h view`);
-          
-          // Get current date in Singapore timezone
-          const nowSingapore = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
-          const startOfDaySingapore = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), 0, 0, 0, 0);
-          
-          // Convert to UTC for the query (recorded_at is stored in UTC)
-          const startOfDayUTC = new Date(startOfDaySingapore.getTime() - (8 * 60 * 60 * 1000)); // Subtract 8 hours
-          
-          console.log(`📊 [DEBUG] Start of day Singapore: ${startOfDaySingapore.toISOString()}`);
-          console.log(`📊 [DEBUG] Start of day UTC: ${startOfDayUTC.toISOString()}`);
-          
-          const { data: todayData, error } = await supabase
-            .from('processed_sensor_readings')
-            .select('*')
-            .gte('recorded_at', startOfDayUTC.toISOString())
-            .lte('recorded_at', new Date().toISOString())
-            .order('recorded_at', { ascending: true });
-          
-          if (error) throw error;
-          data = todayData || [];
-          console.log(`📊 [DEBUG] Today's data fetched: ${data.length} records from midnight to now`);
+          // 24h view: filter to TODAY (00:00 -> now) using Asia/Singapore timezone, no UTC math
+          console.log(`📊 [DEBUG] 24h view: filtering to today's Singapore day`);
+          const raw = await getSensorReadingsByTimeRange(36); // buffer to ensure coverage around midnight
+          const todayStr = formatInTimeZone(new Date(), 'Asia/Singapore', 'yyyy-MM-dd');
+          data = raw.filter((r: any) => {
+            const d = new Date(r.recorded_at);
+            return formatInTimeZone(d, 'Asia/Singapore', 'yyyy-MM-dd') === todayStr;
+          });
+          console.log(`📊 [DEBUG] Today's filtered readings: ${data.length}`);
         } else if (hours === 1) {
           // 1h view: Get current hour only
           data = await getSensorReadingsByTimeRange(hours);
@@ -240,51 +225,41 @@ const SensorDetail = () => {
             }
             
             if (sensorType === 'acceleration') {
-              // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
-              const hourGroups = new Map();
-              
-              data.forEach(reading => {
-                const recordedDate = new Date(reading.recorded_at);
-                const singaporeHour = `${recordedDate.getHours().toString().padStart(2, '0')}:00`;
-                
-                if (!hourGroups.has(singaporeHour)) {
-                  hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
-                }
-                const group = hourGroups.get(singaporeHour);
-                
-                if (reading.accel_x !== null && reading.accel_x !== undefined) {
-                  group.x.push(Number(reading.accel_x));
-                }
-                if (reading.accel_y !== null && reading.accel_y !== undefined) {
-                  group.y.push(Number(reading.accel_y));
-                }
-                if (reading.accel_z !== null && reading.accel_z !== undefined) {
-                  group.z.push(Number(reading.accel_z));
-                }
-                if (reading.accel_x !== null && reading.accel_x !== undefined &&
-                    reading.accel_y !== null && reading.accel_y !== undefined &&
-                    reading.accel_z !== null && reading.accel_z !== undefined) {
-                  const correctedMagnitude = calculateCorrectedAccelMagnitude(
-                    Number(reading.accel_x),
-                    Number(reading.accel_y), 
-                    Number(reading.accel_z)
-                  );
-                  group.mag.push(correctedMagnitude);
+              // 24 hours: Group by hour (Singapore time) and average; include empty hours from 00:00 to current hour
+              const currentHourSg = parseInt(formatInTimeZone(new Date(), 'Asia/Singapore', 'HH'));
+              const hoursList = Array.from({ length: currentHourSg + 1 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
+              const slots = new Map(hoursList.map(h => [h, { x: [] as number[], y: [] as number[], z: [] as number[], mag: [] as number[] }]));
+
+              data.forEach((reading: any) => {
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const slot = slots.get(hourLabel);
+                if (!slot) return;
+                if (reading.accel_x !== null && reading.accel_x !== undefined) slot.x.push(Number(reading.accel_x));
+                if (reading.accel_y !== null && reading.accel_y !== undefined) slot.y.push(Number(reading.accel_y));
+                if (reading.accel_z !== null && reading.accel_z !== undefined) slot.z.push(Number(reading.accel_z));
+                if (reading.accel_x != null && reading.accel_y != null && reading.accel_z != null) {
+                  slot.mag.push(calculateCorrectedAccelMagnitude(Number(reading.accel_x), Number(reading.accel_y), Number(reading.accel_z)));
                 }
               });
-              
-              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
-                time: timeLabel,
-                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
-                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
-                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
-                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
-              })).sort((a, b) => a.time.localeCompare(b.time));
-              
-              console.log(`📊 [DEBUG] 24-hour acceleration data grouped into ${formatted.length} hour buckets`);
+
+              formatted = hoursList.map((timeLabel) => {
+                const g = slots.get(timeLabel)!;
+                const avg = (arr: number[]) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null);
+                return {
+                  time: timeLabel,
+                  x_axis: avg(g.x),
+                  y_axis: avg(g.y),
+                  z_axis: avg(g.z),
+                  magnitude: avg(g.mag)
+                };
+              });
+
+              console.log(`📊 [DEBUG] 24-hour acceleration data grouped into ${formatted.length} hour slots (SGT)`);
             } else {
-              // 24 hours: Group by hour and average for single-value sensors  
-              const hourGroups = new Map();
+              // 24 hours: Group by hour (Singapore time) and average for single-value sensors; include empty hours
+              const currentHourSg = parseInt(formatInTimeZone(new Date(), 'Asia/Singapore', 'HH'));
+              const hoursList = Array.from({ length: currentHourSg + 1 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
+              const slots = new Map(hoursList.map(h => [h, { values: [] as number[] }]));
               const dataKey = {
                 'temperature': 'temperature',
                 'humidity': 'humidity', 
@@ -294,29 +269,28 @@ const SensorDetail = () => {
                 'pm25': 'pm2_5',
                 'pm10': 'pm10'
               }[sensorType] || 'temperature';
-              
-              console.log(`📊 [DEBUG] Processing 24-hour ${sensorType} data using column: ${dataKey}`);
-              
-              data.forEach(reading => {
-                const recordedDate = new Date(reading.recorded_at);
-                const hour = `${recordedDate.getHours().toString().padStart(2, '0')}:00`;
-                
+
+              console.log(`📊 [DEBUG] Processing 24-hour ${sensorType} data using column: ${dataKey} (SGT hourly)`);
+
+              data.forEach((reading: any) => {
                 const value = reading[dataKey];
-                if (value !== null && value !== undefined && !isNaN(Number(value))) {
-                  if (!hourGroups.has(hour)) {
-                    hourGroups.set(hour, { values: [], timestamp: reading.recorded_at });
-                  }
-                  hourGroups.get(hour).values.push(Number(value));
-                }
+                if (value === null || value === undefined || isNaN(Number(value))) return;
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const slot = slots.get(hourLabel);
+                if (!slot) return;
+                slot.values.push(Number(value));
               });
-              
-              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
-                time: timeLabel,
-                value: group.values.length > 0 ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length : 0,
-                timestamp: group.timestamp
-              })).sort((a, b) => a.time.localeCompare(b.time));
-              
-              console.log(`📊 [DEBUG] 24-hour ${sensorType} data grouped into ${formatted.length} hour buckets`);
+
+              const avg = (arr: number[]) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null);
+              formatted = hoursList.map((timeLabel) => {
+                const g = slots.get(timeLabel)!;
+                return {
+                  time: timeLabel,
+                  value: avg(g.values)
+                };
+              });
+
+              console.log(`📊 [DEBUG] 24-hour ${sensorType} data grouped into ${formatted.length} hour slots (SGT)`);
               console.log(`📊 [DEBUG] Sample hour data:`, formatted.slice(0, 3));
             }
             } else if (sensorType === 'acceleration') {
