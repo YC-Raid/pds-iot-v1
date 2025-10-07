@@ -63,3 +63,9 @@ verify_jwt = false
 
 [functions.populate-mock-data]
 verify_jwt = false
+
+[functions.archive-sensor-data]
+verify_jwt = false
+
+[functions.detect-anomalies]
+verify_jwt = false
