@@ -71,7 +71,8 @@ import {
   CheckSquare,
   Square,
   Trash2,
-  ArrowRight
+  ArrowRight,
+  Database
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -1025,7 +1026,7 @@ const AlertsPanel = () => {
   return (
     <div className="space-y-6">
       {/* Enhanced Alert Statistics */}
-      <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Critical Alerts</CardTitle>
@@ -1100,6 +1101,41 @@ const AlertsPanel = () => {
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">2.4h</div>
             <p className="text-xs text-muted-foreground">Mean time to repair</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Capacity</CardTitle>
+            <Database className={`h-4 w-4 ${
+              alerts.length >= 900 ? 'text-destructive' : 
+              alerts.length >= 700 ? 'text-orange-600' : 
+              'text-green-600'
+            }`} />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${
+              alerts.length >= 900 ? 'text-destructive' : 
+              alerts.length >= 700 ? 'text-orange-600' : 
+              'text-green-600'
+            }`}>
+              {alerts.length}/1000
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {alerts.length >= 900 ? 'Critical - Near limit!' : 
+               alerts.length >= 700 ? 'Warning - High usage' : 
+               'Alert storage capacity'}
+            </p>
+            <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all ${
+                  alerts.length >= 900 ? 'bg-destructive' : 
+                  alerts.length >= 700 ? 'bg-orange-600' : 
+                  'bg-green-600'
+                }`}
+                style={{ width: `${(alerts.length / 1000) * 100}%` }}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
