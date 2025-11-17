@@ -695,6 +695,13 @@ export type Database = {
       aggregate_sensor_data_hourly: { Args: never; Returns: undefined }
       aggregate_sensor_data_monthly: { Args: never; Returns: undefined }
       aggregate_sensor_data_weekly: { Args: never; Returns: undefined }
+      cleanup_old_sensor_data: {
+        Args: never
+        Returns: {
+          deleted_alerts: number
+          deleted_readings: number
+        }[]
+      }
       get_rds_sensor_data_info: {
         Args: never
         Returns: {
