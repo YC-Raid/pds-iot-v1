@@ -28,10 +28,13 @@ serve(async (req) => {
     }
 
     // Get recent sensor readings (last 5 minutes to reduce processing load)
+    // Only alert on data recorded within the last 7 days to prevent false alerts from old data
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: readings, error: readingsError } = await supabaseClient
       .from('processed_sensor_readings')
       .select('*')
-      .gte('recorded_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+      .gte('recorded_at', sevenDaysAgo) // Only check data from last 7 days
+      .gte('processed_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Recently processed
       .order('recorded_at', { ascending: false })
       .limit(100) // Limit processing to recent 100 readings
 
