@@ -314,99 +314,6 @@ export type Database = {
         }
         Relationships: []
       }
-      mock_sensor_dataset: {
-        Row: {
-          accel_magnitude: number | null
-          accel_x: number | null
-          accel_y: number | null
-          accel_z: number | null
-          anomaly_score: number | null
-          created_at: string | null
-          gas_resistance: number | null
-          gyro_magnitude: number | null
-          gyro_x: number | null
-          gyro_y: number | null
-          gyro_z: number | null
-          humidity: number | null
-          id: number
-          is_mock_data: boolean | null
-          location: string | null
-          maintenance_recommendation: string | null
-          original_id: number
-          pm1_0: number | null
-          pm10: number | null
-          pm2_5: number | null
-          predicted_failure_probability: number | null
-          pressure: number | null
-          processed_at: string | null
-          processing_version: string | null
-          quality_score: number | null
-          recorded_at: string
-          temperature: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          accel_magnitude?: number | null
-          accel_x?: number | null
-          accel_y?: number | null
-          accel_z?: number | null
-          anomaly_score?: number | null
-          created_at?: string | null
-          gas_resistance?: number | null
-          gyro_magnitude?: number | null
-          gyro_x?: number | null
-          gyro_y?: number | null
-          gyro_z?: number | null
-          humidity?: number | null
-          id?: number
-          is_mock_data?: boolean | null
-          location?: string | null
-          maintenance_recommendation?: string | null
-          original_id: number
-          pm1_0?: number | null
-          pm10?: number | null
-          pm2_5?: number | null
-          predicted_failure_probability?: number | null
-          pressure?: number | null
-          processed_at?: string | null
-          processing_version?: string | null
-          quality_score?: number | null
-          recorded_at: string
-          temperature?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          accel_magnitude?: number | null
-          accel_x?: number | null
-          accel_y?: number | null
-          accel_z?: number | null
-          anomaly_score?: number | null
-          created_at?: string | null
-          gas_resistance?: number | null
-          gyro_magnitude?: number | null
-          gyro_x?: number | null
-          gyro_y?: number | null
-          gyro_z?: number | null
-          humidity?: number | null
-          id?: number
-          is_mock_data?: boolean | null
-          location?: string | null
-          maintenance_recommendation?: string | null
-          original_id?: number
-          pm1_0?: number | null
-          pm10?: number | null
-          pm2_5?: number | null
-          predicted_failure_probability?: number | null
-          pressure?: number | null
-          processed_at?: string | null
-          processing_version?: string | null
-          quality_score?: number | null
-          recorded_at?: string
-          temperature?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       notification_settings: {
         Row: {
           alert_threshold_humidity: number | null
@@ -784,24 +691,12 @@ export type Database = {
       }
     }
     Functions: {
-      aggregate_sensor_data_daily: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      aggregate_sensor_data_hourly: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      aggregate_sensor_data_monthly: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      aggregate_sensor_data_weekly: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      aggregate_sensor_data_daily: { Args: never; Returns: undefined }
+      aggregate_sensor_data_hourly: { Args: never; Returns: undefined }
+      aggregate_sensor_data_monthly: { Args: never; Returns: undefined }
+      aggregate_sensor_data_weekly: { Args: never; Returns: undefined }
       get_rds_sensor_data_info: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           connection_status: string
           latest_timestamp: string
@@ -815,24 +710,15 @@ export type Database = {
         }
         Returns: boolean
       }
-      postgres_fdw_disconnect: {
-        Args: { "": string }
-        Returns: boolean
-      }
-      postgres_fdw_disconnect_all: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      postgres_fdw_disconnect: { Args: { "": string }; Returns: boolean }
+      postgres_fdw_disconnect_all: { Args: never; Returns: boolean }
       postgres_fdw_get_connections: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Record<string, unknown>[]
       }
-      postgres_fdw_handler: {
-        Args: Record<PropertyKey, never>
-        Returns: unknown
-      }
+      postgres_fdw_handler: { Args: never; Returns: unknown }
       run_all_sensor_aggregations: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           daily_count: number
           hourly_count: number
@@ -840,10 +726,7 @@ export type Database = {
           weekly_count: number
         }[]
       }
-      sync_sensor_data_from_rds: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      sync_sensor_data_from_rds: { Args: never; Returns: number }
     }
     Enums: {
       app_role: "admin" | "viewer"
