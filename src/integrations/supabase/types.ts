@@ -391,6 +391,9 @@ export type Database = {
           accel_z: number | null
           anomaly_score: number | null
           created_at: string | null
+          door_opened_at: string | null
+          door_opens: number | null
+          door_status: string | null
           gas_resistance: number | null
           gyro_magnitude: number | null
           gyro_x: number | null
@@ -398,6 +401,7 @@ export type Database = {
           gyro_z: number | null
           humidity: number | null
           id: number
+          intrusion_alert: boolean | null
           location: string | null
           maintenance_recommendation: string | null
           original_id: number
@@ -420,6 +424,9 @@ export type Database = {
           accel_z?: number | null
           anomaly_score?: number | null
           created_at?: string | null
+          door_opened_at?: string | null
+          door_opens?: number | null
+          door_status?: string | null
           gas_resistance?: number | null
           gyro_magnitude?: number | null
           gyro_x?: number | null
@@ -427,6 +434,7 @@ export type Database = {
           gyro_z?: number | null
           humidity?: number | null
           id?: number
+          intrusion_alert?: boolean | null
           location?: string | null
           maintenance_recommendation?: string | null
           original_id: number
@@ -449,6 +457,9 @@ export type Database = {
           accel_z?: number | null
           anomaly_score?: number | null
           created_at?: string | null
+          door_opened_at?: string | null
+          door_opens?: number | null
+          door_status?: string | null
           gas_resistance?: number | null
           gyro_magnitude?: number | null
           gyro_x?: number | null
@@ -456,6 +467,7 @@ export type Database = {
           gyro_z?: number | null
           humidity?: number | null
           id?: number
+          intrusion_alert?: boolean | null
           location?: string | null
           maintenance_recommendation?: string | null
           original_id?: number
@@ -496,6 +508,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      security_alert_log: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          email_sent_at: string | null
+          id: string
+          reading_id: number | null
+          recipient_email: string | null
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          email_sent_at?: string | null
+          id?: string
+          reading_id?: number | null
+          recipient_email?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          email_sent_at?: string | null
+          id?: string
+          reading_id?: number | null
+          recipient_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_alert_log_reading_id_fkey"
+            columns: ["reading_id"]
+            isOneToOne: false
+            referencedRelation: "processed_sensor_readings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sensor_data: {
         Row: {
