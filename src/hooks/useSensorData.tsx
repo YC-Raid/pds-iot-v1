@@ -30,6 +30,11 @@ interface SensorReading {
   created_at: string | null;
   updated_at: string | null;
   processing_version: string | null;
+  // Door security fields
+  door_status: string | null;
+  door_opens: number | null;
+  intrusion_alert: boolean | null;
+  door_opened_at: string | null;
 }
 
 interface DashboardData {

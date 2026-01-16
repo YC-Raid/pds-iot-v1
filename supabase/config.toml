@@ -69,3 +69,6 @@ verify_jwt = false
 
 [functions.detect-anomalies]
 verify_jwt = false
+
+[functions.security-alert]
+verify_jwt = false

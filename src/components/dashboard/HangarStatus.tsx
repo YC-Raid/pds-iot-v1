@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -15,13 +14,83 @@ import {
   Eye
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
+import { DoorSecurityCard } from "./DoorSecurityCard";
+import { useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const HangarStatus = () => {
   const { sensorReadings, dashboardData, isLoading } = useSensorData();
+  const doorOpenTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastIntrusionAlertRef = useRef<boolean>(false);
   
   // Get latest readings or use defaults
   const latestReading = sensorReadings[0];
   const dashStats = dashboardData[0];
+
+  // Door security data
+  const doorStatus = (latestReading?.door_status as "OPEN" | "CLOSED") || "CLOSED";
+  const doorOpens = latestReading?.door_opens || 0;
+  const intrusionAlert = latestReading?.intrusion_alert || false;
+  const doorOpenedAt = latestReading?.door_opened_at;
+
+  // Handle security alerts
+  useEffect(() => {
+    // Intrusion alert - immediate email
+    if (intrusionAlert && !lastIntrusionAlertRef.current) {
+      console.log("🚨 Intrusion detected! Sending security alert...");
+      supabase.functions.invoke("security-alert", {
+        body: {
+          alert_type: "intrusion",
+          reading_id: latestReading?.id,
+        },
+      }).then(({ error }) => {
+        if (error) console.error("Failed to send intrusion alert:", error);
+        else console.log("✅ Intrusion alert sent");
+      });
+    }
+    lastIntrusionAlertRef.current = intrusionAlert;
+
+    // Door open too long - 5 minute timer
+    if (doorStatus === "OPEN" && doorOpenedAt) {
+      const openTime = new Date(doorOpenedAt).getTime();
+      const now = Date.now();
+      const minutesOpen = (now - openTime) / (1000 * 60);
+
+      if (minutesOpen >= 5) {
+        // Already open for 5+ minutes, send alert
+        supabase.functions.invoke("security-alert", {
+          body: {
+            alert_type: "door_open_too_long",
+            reading_id: latestReading?.id,
+            door_status: doorStatus,
+            door_opened_at: doorOpenedAt,
+          },
+        }).then(({ error }) => {
+          if (error) console.error("Failed to send door open alert:", error);
+          else console.log("✅ Door open too long alert sent");
+        });
+      } else {
+        // Set timer for remaining time
+        const remainingMs = (5 - minutesOpen) * 60 * 1000;
+        doorOpenTimerRef.current = setTimeout(() => {
+          supabase.functions.invoke("security-alert", {
+            body: {
+              alert_type: "door_open_too_long",
+              reading_id: latestReading?.id,
+              door_status: doorStatus,
+              door_opened_at: doorOpenedAt,
+            },
+          });
+        }, remainingMs);
+      }
+    }
+
+    return () => {
+      if (doorOpenTimerRef.current) {
+        clearTimeout(doorOpenTimerRef.current);
+      }
+    };
+  }, [doorStatus, doorOpenedAt, intrusionAlert, latestReading?.id]);
   
   const currentReadings = {
     temperature: { 
@@ -93,7 +162,7 @@ const HangarStatus = () => {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
       {/* Current Environmental Readings */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -158,6 +227,14 @@ const HangarStatus = () => {
           </Badge>
         </CardContent>
       </Card>
+
+      {/* Door Security Card */}
+      <DoorSecurityCard
+        doorStatus={doorStatus}
+        doorOpens={doorOpens}
+        intrusionAlert={intrusionAlert}
+        lastUpdated={latestReading?.recorded_at}
+      />
 
       {/* System Health Overview */}
       <Card className="md:col-span-2">
