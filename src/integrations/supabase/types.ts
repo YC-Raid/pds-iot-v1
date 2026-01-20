@@ -552,12 +552,16 @@ export type Database = {
           accel_x: number | null
           accel_y: number | null
           accel_z: number | null
+          door_closes: number | null
+          door_opens: number | null
+          door_status: string | null
           gas_resistance: number | null
           gyro_x: number | null
           gyro_y: number | null
           gyro_z: number | null
           humidity: number | null
           id: number
+          intrusion_alert: boolean | null
           local_date: string
           local_time: string
           pm1_0: number | null
@@ -571,12 +575,16 @@ export type Database = {
           accel_x?: number | null
           accel_y?: number | null
           accel_z?: number | null
+          door_closes?: number | null
+          door_opens?: number | null
+          door_status?: string | null
           gas_resistance?: number | null
           gyro_x?: number | null
           gyro_y?: number | null
           gyro_z?: number | null
           humidity?: number | null
           id: number
+          intrusion_alert?: boolean | null
           local_date: string
           local_time: string
           pm1_0?: number | null
@@ -590,12 +598,16 @@ export type Database = {
           accel_x?: number | null
           accel_y?: number | null
           accel_z?: number | null
+          door_closes?: number | null
+          door_opens?: number | null
+          door_status?: string | null
           gas_resistance?: number | null
           gyro_x?: number | null
           gyro_y?: number | null
           gyro_z?: number | null
           humidity?: number | null
           id?: number
+          intrusion_alert?: boolean | null
           local_date?: string
           local_time?: string
           pm1_0?: number | null
