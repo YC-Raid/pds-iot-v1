@@ -102,6 +102,12 @@ export const useNotifications = () => {
         .eq('id', notificationId);
 
       if (error) throw error;
+
+      // Update local state immediately for responsive UI
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -119,6 +125,8 @@ export const useNotifications = () => {
 
       if (error) throw error;
 
+      // Update local state immediately - mark all notifications as read
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
