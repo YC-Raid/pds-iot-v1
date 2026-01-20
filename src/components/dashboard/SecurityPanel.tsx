@@ -48,30 +48,56 @@ export const SecurityPanel = () => {
   const [doorOpenedAt, setDoorOpenedAt] = useState<Date | null>(null);
 
   const doorStatus = (latestReading?.door_status as "OPEN" | "CLOSED") || "CLOSED";
-  const doorOpens = latestReading?.door_opens || 0;
-  const doorCloses = latestReading?.door_closes || 0;
 
-  // Track when door opens and calculate duration
+  // Calculate door_opened_at from sensor readings (find when door transitioned to OPEN)
   useEffect(() => {
-    if (doorStatus === "OPEN") {
-      if (!doorOpenedAt) {
-        setDoorOpenedAt(new Date());
-      }
-    } else {
+    if (doorStatus !== "OPEN") {
       setDoorOpenedAt(null);
       setDoorOpenDuration(0);
+      return;
     }
-  }, [doorStatus, doorOpenedAt]);
+
+    // Find the most recent transition to OPEN by looking back through readings
+    let openedAt: Date | null = null;
+    
+    for (let i = 0; i < sensorReadings.length; i++) {
+      const current = sensorReadings[i];
+      const next = sensorReadings[i + 1];
+      
+      if (current?.door_status === "OPEN") {
+        // Check if this is the transition point
+        if (!next || next.door_status === "CLOSED") {
+          openedAt = new Date(current.recorded_at);
+          break;
+        }
+      } else {
+        // Door was closed, so the previous OPEN reading was the first
+        break;
+      }
+    }
+    
+    // If all readings are OPEN, use the oldest one we have
+    if (!openedAt && sensorReadings.length > 0 && sensorReadings[sensorReadings.length - 1]?.door_status === "OPEN") {
+      openedAt = new Date(sensorReadings[sensorReadings.length - 1].recorded_at);
+    }
+    
+    setDoorOpenedAt(openedAt);
+  }, [doorStatus, sensorReadings]);
 
   // Update door open duration every second
   useEffect(() => {
     if (doorStatus !== "OPEN" || !doorOpenedAt) return;
 
-    const interval = setInterval(() => {
+    // Calculate initial duration immediately
+    const calculateDuration = () => {
       const now = new Date();
       const durationSeconds = Math.floor((now.getTime() - doorOpenedAt.getTime()) / 1000);
-      setDoorOpenDuration(durationSeconds);
-    }, 1000);
+      setDoorOpenDuration(Math.max(0, durationSeconds));
+    };
+    
+    calculateDuration();
+
+    const interval = setInterval(calculateDuration, 1000);
 
     return () => clearInterval(interval);
   }, [doorStatus, doorOpenedAt]);
@@ -80,6 +106,33 @@ export const SecurityPanel = () => {
   const securityStatus = useMemo(() => {
     return calculateSecurityStatus(doorStatus, doorOpenDuration);
   }, [doorStatus, doorOpenDuration, calculateSecurityStatus]);
+
+  // Calculate entries today from sensor readings (door state transitions that happened today)
+  const { doorOpensToday, doorClosesToday } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let opens = 0;
+    let closes = 0;
+    
+    for (let i = 0; i < sensorReadings.length - 1; i++) {
+      const current = sensorReadings[i];
+      const next = sensorReadings[i + 1];
+      
+      const recordedAt = new Date(current.recorded_at);
+      if (recordedAt < today) break; // Stop when we go before today
+      
+      if (current.door_status !== next?.door_status) {
+        if (current.door_status === "OPEN") {
+          opens++;
+        } else if (current.door_status === "CLOSED") {
+          closes++;
+        }
+      }
+    }
+    
+    return { doorOpensToday: opens, doorClosesToday: closes };
+  }, [sensorReadings]);
 
   // Fetch security alerts
   useEffect(() => {
@@ -114,11 +167,15 @@ export const SecurityPanel = () => {
     };
   }, []);
 
-  // Generate door events from sensor readings
+  // Generate door events from sensor readings (last 1 hour only)
   useEffect(() => {
     const events: SecurityEvent[] = [];
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     
-    sensorReadings.slice(0, 50).forEach((reading, index) => {
+    sensorReadings.slice(0, 100).forEach((reading, index) => {
+      const recordedAt = new Date(reading.recorded_at);
+      if (recordedAt < oneHourAgo) return; // Skip events older than 1 hour
+      
       const prevReading = sensorReadings[index + 1];
       
       if (prevReading && reading.door_status !== prevReading.door_status) {
@@ -298,16 +355,16 @@ export const SecurityPanel = () => {
               <div className="text-center">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <DoorOpen className="h-4 w-4" />
-                  <span className="text-sm">Opens</span>
+                  <span className="text-sm">Opens Today</span>
                 </div>
-                <span className="text-3xl font-bold text-foreground">{doorOpens}</span>
+                <span className="text-3xl font-bold text-foreground">{doorOpensToday}</span>
               </div>
               <div className="text-center">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <DoorClosed className="h-4 w-4" />
-                  <span className="text-sm">Closes</span>
+                  <span className="text-sm">Closes Today</span>
                 </div>
-                <span className="text-3xl font-bold text-foreground">{doorCloses}</span>
+                <span className="text-3xl font-bold text-foreground">{doorClosesToday}</span>
               </div>
             </div>
           </div>
