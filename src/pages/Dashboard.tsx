@@ -12,12 +12,13 @@ import { HangarStatus } from "@/components/dashboard/HangarStatus";
 import CriticalAlertsOverview from "@/components/dashboard/CriticalAlertsOverview";
 import { VibrationMonitoring } from "@/components/dashboard/VibrationMonitoring";
 import { SystemLongevity } from "@/components/dashboard/SystemLongevity";
-import { RDSIntegration } from "@/components/dashboard/RDSIntegration";
+import { SecurityPanel } from "@/components/dashboard/SecurityPanel";
+import { EnhancedDoorSecurityCard } from "@/components/dashboard/EnhancedDoorSecurityCard";
 
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { DataExport } from "@/components/ui/data-export";
-import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, AlertTriangle, Database } from "lucide-react";
+import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/seo/SEO";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -40,7 +41,7 @@ const Dashboard = () => {
     maintenance: { title: "Hangar Guardian — Maintenance Schedule", description: "Upcoming maintenance dates and tasks." },
     alerts: { title: "Hangar Guardian — Alerts Center", description: "Live alerts, notifications, and critical warnings." },
     analytics: { title: "Hangar Guardian — Analytics", description: "Trends and insights across sensor data." },
-    
+    security: { title: "Hangar Guardian — Security Panel", description: "Door security monitoring, intrusion alerts, and access history." },
   } as const;
 
   useEffect(() => {
@@ -57,6 +58,7 @@ const Dashboard = () => {
       content: (
         <div className="space-y-6">
           <AlertsPanel />
+          <EnhancedDoorSecurityCard />
           <HangarStatus />
         </div>
       ),
@@ -123,12 +125,12 @@ const Dashboard = () => {
       ),
     },
     {
-      title: "AWS RDS",
-      value: "rds",
-      icon: <Database className="h-4 w-4" />,
+      title: "Security",
+      value: "security",
+      icon: <ShieldCheck className="h-4 w-4" />,
       content: (
         <div className="space-y-6">
-          <RDSIntegration />
+          <SecurityPanel />
         </div>
       ),
     },
