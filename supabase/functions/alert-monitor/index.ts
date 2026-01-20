@@ -296,7 +296,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           alerts.push(alertData);
           
-          // Create alert in database
+          // Create alert in database with user_id
           dbAlerts.push({
             title: alertData.title,
             description: alertData.message,
@@ -314,7 +314,8 @@ const handler = async (req: Request): Promise<Response> => {
             value: sensorData.temperature.toString(),
             threshold: setting.alert_threshold_temp.toString(),
             unit: '°C',
-            impact: generateImpact('temperature', sensorData.temperature, setting.alert_threshold_temp, priority)
+            impact: generateImpact('temperature', sensorData.temperature, setting.alert_threshold_temp, priority),
+            user_id: setting.user_id  // Associate alert with specific user
           });
         }
       }
@@ -337,7 +338,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           alerts.push(alertData);
           
-          // Create alert in database
+          // Create alert in database with user_id
           dbAlerts.push({
             title: alertData.title,
             description: alertData.message,
@@ -355,7 +356,8 @@ const handler = async (req: Request): Promise<Response> => {
             value: sensorData.humidity.toString(),
             threshold: setting.alert_threshold_humidity.toString(),
             unit: '%',
-            impact: generateImpact('humidity', sensorData.humidity, setting.alert_threshold_humidity, priority)
+            impact: generateImpact('humidity', sensorData.humidity, setting.alert_threshold_humidity, priority),
+            user_id: setting.user_id  // Associate alert with specific user
           });
         }
       }
@@ -393,7 +395,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         alerts.push(alertData);
         
-        // Create alert in database with user's threshold
+        // Create alert in database with user's threshold and user_id
         dbAlerts.push({
           title: alertData.title,
           description: alertData.message,
@@ -411,7 +413,8 @@ const handler = async (req: Request): Promise<Response> => {
           value: correctedVibration.toFixed(4),
           threshold: userVibrationThreshold.toString(),
           unit: 'm/s²',
-          impact: generateImpact('vibration', correctedVibration, userVibrationThreshold, priority)
+          impact: generateImpact('vibration', correctedVibration, userVibrationThreshold, priority),
+          user_id: setting.user_id  // Associate alert with specific user
         });
       }
     }
