@@ -11,7 +11,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Shield, Bell, Settings, Save, Users, Thermometer, Droplets, Gauge, Wind, Activity, AlertTriangle } from "lucide-react";
+import { Shield, Bell, Settings, Save, Users, Thermometer, Droplets, Gauge, Wind, Activity, AlertTriangle, Building } from "lucide-react";
+
+interface VibrationMonitoringSettings {
+  foundation_stress_threshold: number;
+  wall_integrity_threshold: number;
+  roof_stability_threshold: number;
+}
 
 interface NotificationSettingsRow {
   id?: string;
@@ -43,12 +49,19 @@ export default function SettingsTab() {
 
   const [notif, setNotif] = useState<NotificationSettingsRow | null>(null);
   const [saving, setSaving] = useState(false);
+  const [vibrationSettings, setVibrationSettings] = useState<VibrationMonitoringSettings>({
+    foundation_stress_threshold: 2.0,
+    wall_integrity_threshold: 1.5,
+    roof_stability_threshold: 1.0
+  });
 
   const isAdmin = useMemo(() => profile?.role === 'admin', [profile?.role]);
 
   useEffect(() => {
     const load = async () => {
       if (!user) return;
+      
+      // Load notification settings
       const { data } = await supabase
         .from('notification_settings')
         .select('*')
@@ -73,6 +86,21 @@ export default function SettingsTab() {
           alert_threshold_failure_prob: 0.4,
         }
       );
+
+      // Load vibration monitoring settings
+      const { data: vibData } = await supabase
+        .from('vibration_monitoring_settings')
+        .select('*')
+        .eq('location', 'hangar_01')
+        .maybeSingle();
+      
+      if (vibData) {
+        setVibrationSettings({
+          foundation_stress_threshold: vibData.foundation_stress_threshold,
+          wall_integrity_threshold: vibData.wall_integrity_threshold,
+          roof_stability_threshold: vibData.roof_stability_threshold
+        });
+      }
     };
     load();
   }, [user?.id]);
@@ -112,12 +140,32 @@ export default function SettingsTab() {
         if (error) throw error;
         setNotif({ ...notif, id: data?.id });
       }
-      toast.success('Threshold settings saved - alerts will now use your values');
+
+      // Save vibration monitoring settings
+      const { error: vibError } = await supabase
+        .from('vibration_monitoring_settings')
+        .upsert({
+          location: 'hangar_01' as const,
+          foundation_stress_threshold: vibrationSettings.foundation_stress_threshold,
+          wall_integrity_threshold: vibrationSettings.wall_integrity_threshold,
+          roof_stability_threshold: vibrationSettings.roof_stability_threshold
+        }, { onConflict: 'location' });
+      
+      if (vibError) throw vibError;
+
+      toast.success('All threshold settings saved successfully');
     } catch (e) {
       console.error(e);
       toast.error('Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleVibrationSettingChange = (field: keyof VibrationMonitoringSettings, value: string) => {
+    const numValue = value === '' ? 0.1 : parseFloat(value);
+    if (!isNaN(numValue)) {
+      setVibrationSettings(prev => ({ ...prev, [field]: numValue }));
     }
   };
 
@@ -331,13 +379,15 @@ export default function SettingsTab() {
           <Separator />
 
           {/* Vibration */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-red-500" />
-              <h4 className="font-medium">Vibration (m/s²)</h4>
+              <h4 className="font-medium">Vibration Monitoring</h4>
             </div>
+            
+            {/* Alert Threshold */}
             <div className="grid gap-2">
-              <Label htmlFor="vibration">Warning Threshold</Label>
+              <Label htmlFor="vibration">Alert Threshold (m/s²)</Label>
               <Input
                 id="vibration"
                 type="number"
@@ -347,7 +397,59 @@ export default function SettingsTab() {
                 value={notif?.alert_threshold_vibration ?? ''}
                 onChange={(e) => handleNumericChange('alert_threshold_vibration', e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">Gravity-corrected acceleration magnitude threshold</p>
+              <p className="text-xs text-muted-foreground">Gravity-corrected acceleration magnitude for triggering alerts</p>
+            </div>
+
+            {/* Structural Health Thresholds */}
+            <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-4">
+              <div className="flex items-center gap-2">
+                <Building className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Structural Health Thresholds</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                These thresholds control the sensitivity of structural health calculations in the Vibration Monitoring panel.
+              </p>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="foundation_threshold" className="text-xs">Foundation Stress</Label>
+                  <Input
+                    id="foundation_threshold"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={vibrationSettings.foundation_stress_threshold}
+                    onChange={(e) => handleVibrationSettingChange('foundation_stress_threshold', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">m/s²</p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="wall_threshold" className="text-xs">Wall Integrity</Label>
+                  <Input
+                    id="wall_threshold"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={vibrationSettings.wall_integrity_threshold}
+                    onChange={(e) => handleVibrationSettingChange('wall_integrity_threshold', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">m/s²</p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="roof_threshold" className="text-xs">Roof Stability</Label>
+                  <Input
+                    id="roof_threshold"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={vibrationSettings.roof_stability_threshold}
+                    onChange={(e) => handleVibrationSettingChange('roof_stability_threshold', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">°/s</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                Lower values = more sensitive monitoring. Higher values = less sensitive.
+              </p>
             </div>
           </div>
 
