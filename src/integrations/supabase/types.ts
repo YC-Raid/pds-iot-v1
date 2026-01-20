@@ -391,6 +391,7 @@ export type Database = {
           accel_z: number | null
           anomaly_score: number | null
           created_at: string | null
+          door_closes: number | null
           door_opened_at: string | null
           door_opens: number | null
           door_status: string | null
@@ -424,6 +425,7 @@ export type Database = {
           accel_z?: number | null
           anomaly_score?: number | null
           created_at?: string | null
+          door_closes?: number | null
           door_opened_at?: string | null
           door_opens?: number | null
           door_status?: string | null
@@ -457,6 +459,7 @@ export type Database = {
           accel_z?: number | null
           anomaly_score?: number | null
           created_at?: string | null
+          door_closes?: number | null
           door_opened_at?: string | null
           door_opens?: number | null
           door_status?: string | null
