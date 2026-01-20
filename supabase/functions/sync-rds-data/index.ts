@@ -9,11 +9,17 @@ const corsHeaders = {
 interface SyncResponse {
   success: boolean;
   synced_count: number;
-  rds_info?: any;
+  rds_info?: {
+    connection_status: string;
+    latest_timestamp: string;
+    total_count: number;
+  };
   error?: string;
 }
 
 serve(async (req) => {
+  const requestId = crypto.randomUUID();
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -31,28 +37,56 @@ serve(async (req) => {
       }
     );
 
-    // Get authorization header
+    // Get authorization header and verify user
     const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      supabaseClient.auth.setSession({
-        access_token: authHeader.replace('Bearer ', ''),
-        refresh_token: ''
-      });
+    if (!authHeader) {
+      console.warn(`[${requestId}] Missing authorization header`);
+      return new Response(
+        JSON.stringify({ success: false, synced_count: 0, error: 'Unauthorized' } as SyncResponse),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('Starting RDS data synchronization...');
+    // Verify the JWT token and get user
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.warn(`[${requestId}] Invalid or expired token`);
+      return new Response(
+        JSON.stringify({ success: false, synced_count: 0, error: 'Invalid authentication' } as SyncResponse),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if user is admin
+    const { data: userRole } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!userRole || userRole.role !== 'admin') {
+      console.warn(`[${requestId}] User ${user.id} is not an admin`);
+      return new Response(
+        JSON.stringify({ success: false, synced_count: 0, error: 'Admin access required' } as SyncResponse),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[${requestId}] Starting RDS data synchronization for admin user ${user.id}`);
 
     // First, check RDS connection status
     const { data: rdsInfo, error: rdsError } = await supabaseClient
       .rpc('get_rds_sensor_data_info');
 
     if (rdsError) {
-      console.error('Failed to get RDS info:', rdsError);
+      console.error(`[${requestId}] Failed to get RDS info:`, rdsError);
       return new Response(
         JSON.stringify({
           success: false,
           synced_count: 0,
-          error: `RDS connection failed: ${rdsError.message}`
+          error: 'RDS connection failed'
         } as SyncResponse),
         {
           status: 500,
@@ -61,20 +95,20 @@ serve(async (req) => {
       );
     }
 
-    console.log('RDS Info:', rdsInfo);
+    console.log(`[${requestId}] RDS Info:`, rdsInfo);
 
     // Sync data from RDS to local tables
     const { data: syncResult, error: syncError } = await supabaseClient
       .rpc('sync_sensor_data_from_rds');
 
     if (syncError) {
-      console.error('Sync failed:', syncError);
+      console.error(`[${requestId}] Sync failed:`, syncError);
       return new Response(
         JSON.stringify({
           success: false,
           synced_count: 0,
           rds_info: rdsInfo?.[0],
-          error: `Sync failed: ${syncError.message}`
+          error: 'Sync operation failed'
         } as SyncResponse),
         {
           status: 500,
@@ -83,11 +117,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Successfully synced ${syncResult} records from RDS`);
+    console.log(`[${requestId}] Successfully synced ${syncResult} records from RDS`);
 
     // If we synced data, trigger some basic ML processing
     if (syncResult > 0) {
-      console.log('Triggering anomaly detection for new data...');
+      console.log(`[${requestId}] Triggering anomaly detection for new data...`);
       
       // Update anomaly scores for recently synced data
       await supabaseClient
@@ -111,13 +145,13 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
-    console.error('Edge function error:', error);
+  } catch (error: unknown) {
+    console.error(`[${requestId}] Internal error:`, error);
     return new Response(
       JSON.stringify({
         success: false,
         synced_count: 0,
-        error: (error as any)?.message || 'Unknown error occurred'
+        error: 'Internal server error'
       } as SyncResponse),
       {
         status: 500,
