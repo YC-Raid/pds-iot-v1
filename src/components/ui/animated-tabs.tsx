@@ -95,7 +95,7 @@ export const AnimatedTabs = ({
             }}
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
-            className={cn("relative px-4 py-2 rounded-full flex items-center gap-2", tabClassName)}
+            className={cn("relative px-4 py-2 rounded-full flex items-center justify-center gap-2", tabClassName)}
             style={{
               transformStyle: "preserve-3d",
             }}
@@ -105,13 +105,13 @@ export const AnimatedTabs = ({
                 layoutId="clickedbutton"
                 transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
                 className={cn(
-                  "absolute inset-0 bg-muted dark:bg-accent rounded-full ",
+                  "absolute inset-0 bg-muted dark:bg-accent rounded-full",
                   activeTabClassName
                 )}
               />
             )}
 
-            <span className="relative flex items-center gap-2 text-foreground">
+            <span className="relative flex items-center justify-center gap-2 text-foreground whitespace-nowrap">
               {tab.icon}
               {tab.title}
             </span>
