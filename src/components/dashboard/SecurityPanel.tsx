@@ -11,12 +11,15 @@ import {
   Clock,
   History,
   ShieldAlert,
-  CheckCircle2
+  CheckCircle2,
+  Timer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSensorData } from "@/hooks/useSensorData";
+import { useSecuritySettings } from "@/hooks/useSecuritySettings";
 import { supabase } from "@/integrations/supabase/client";
+import { SecuritySettings } from "@/components/settings/SecuritySettings";
 
 interface SecurityEvent {
   id: string;
@@ -35,15 +38,48 @@ interface SecurityAlertLog {
 
 export const SecurityPanel = () => {
   const { sensorReadings } = useSensorData();
+  const { calculateSecurityStatus, isNightMode, settings } = useSecuritySettings();
   const latestReading = sensorReadings[0];
+  
   const [flashState, setFlashState] = useState(true);
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlertLog[]>([]);
   const [doorEvents, setDoorEvents] = useState<SecurityEvent[]>([]);
+  const [doorOpenDuration, setDoorOpenDuration] = useState(0);
+  const [doorOpenedAt, setDoorOpenedAt] = useState<Date | null>(null);
 
   const doorStatus = (latestReading?.door_status as "OPEN" | "CLOSED") || "CLOSED";
   const doorOpens = latestReading?.door_opens || 0;
   const doorCloses = latestReading?.door_closes || 0;
-  const intrusionAlert = latestReading?.intrusion_alert || false;
+
+  // Track when door opens and calculate duration
+  useEffect(() => {
+    if (doorStatus === "OPEN") {
+      if (!doorOpenedAt) {
+        setDoorOpenedAt(new Date());
+      }
+    } else {
+      setDoorOpenedAt(null);
+      setDoorOpenDuration(0);
+    }
+  }, [doorStatus, doorOpenedAt]);
+
+  // Update door open duration every second
+  useEffect(() => {
+    if (doorStatus !== "OPEN" || !doorOpenedAt) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const durationSeconds = Math.floor((now.getTime() - doorOpenedAt.getTime()) / 1000);
+      setDoorOpenDuration(durationSeconds);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [doorStatus, doorOpenedAt]);
+
+  // Calculate security status using frontend logic
+  const securityStatus = useMemo(() => {
+    return calculateSecurityStatus(doorStatus, doorOpenDuration);
+  }, [doorStatus, doorOpenDuration, calculateSecurityStatus]);
 
   // Fetch security alerts
   useEffect(() => {
@@ -82,18 +118,8 @@ export const SecurityPanel = () => {
   useEffect(() => {
     const events: SecurityEvent[] = [];
     
-    // Create door events from readings history
     sensorReadings.slice(0, 50).forEach((reading, index) => {
       const prevReading = sensorReadings[index + 1];
-      
-      if (reading.intrusion_alert) {
-        events.push({
-          id: `intrusion-${reading.id}`,
-          timestamp: reading.recorded_at,
-          event_type: "intrusion",
-          details: "Intrusion detected during restricted hours",
-        });
-      }
       
       if (prevReading && reading.door_status !== prevReading.door_status) {
         if (reading.door_status === "OPEN") {
@@ -117,22 +143,29 @@ export const SecurityPanel = () => {
     setDoorEvents(events.slice(0, 20));
   }, [sensorReadings]);
 
-  // Flashing effect for intrusion alert
+  // Flashing effect for red alert
   useEffect(() => {
-    if (!intrusionAlert) return;
+    if (!securityStatus.isRedAlert) {
+      setFlashState(true);
+      return;
+    }
     
     const interval = setInterval(() => {
       setFlashState((prev) => !prev);
     }, 500);
     
     return () => clearInterval(interval);
-  }, [intrusionAlert]);
+  }, [securityStatus.isRedAlert]);
 
-  const getSecurityStatus = () => {
-    if (intrusionAlert) {
+  const getSecurityStatusDisplay = () => {
+    if (securityStatus.isRedAlert) {
+      const isIntrusion = securityStatus.status === "intrusion";
       return {
         icon: ShieldAlert,
-        text: "INTRUSION DETECTED",
+        text: isIntrusion ? "INTRUSION DETECTED" : "DOOR OPEN TOO LONG",
+        subtext: isIntrusion 
+          ? "Door opened during restricted hours" 
+          : `Open for ${formatDuration(doorOpenDuration)}`,
         color: flashState ? "text-red-500" : "text-red-300",
         bgColor: flashState ? "bg-red-500/20" : "bg-red-500/10",
         borderColor: "border-red-500",
@@ -141,10 +174,11 @@ export const SecurityPanel = () => {
       };
     }
     
-    if (doorStatus === "OPEN") {
+    if (securityStatus.isAmberWarning) {
       return {
         icon: DoorOpen,
         text: "Main Door Open",
+        subtext: doorOpenDuration > 0 ? `Open for ${formatDuration(doorOpenDuration)}` : null,
         color: "text-amber-500",
         bgColor: "bg-amber-500/10",
         borderColor: "border-amber-500/50",
@@ -156,6 +190,7 @@ export const SecurityPanel = () => {
     return {
       icon: Shield,
       text: "System Secure",
+      subtext: null,
       color: "text-emerald-500",
       bgColor: "bg-emerald-500/10",
       borderColor: "border-emerald-500/50",
@@ -164,7 +199,16 @@ export const SecurityPanel = () => {
     };
   };
 
-  const status = getSecurityStatus();
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
+
+  const status = getSecurityStatusDisplay();
   const StatusIcon = status.icon;
 
   const getEventIcon = (eventType: string) => {
@@ -197,10 +241,10 @@ export const SecurityPanel = () => {
       <Card className={cn(
         "relative overflow-hidden transition-all duration-300",
         status.borderColor,
-        intrusionAlert && "animate-pulse border-2"
+        securityStatus.isRedAlert && "animate-pulse border-2"
       )}>
         <CardContent className="py-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-6">
             {/* Main Status Display */}
             <div className="flex items-center gap-6">
               <div className={cn(
@@ -210,21 +254,47 @@ export const SecurityPanel = () => {
                 <StatusIcon className={cn(
                   "h-16 w-16 transition-all duration-300",
                   status.color,
-                  intrusionAlert && "animate-bounce"
+                  securityStatus.isRedAlert && "animate-bounce"
                 )} />
               </div>
               <div>
                 <h2 className={cn("text-3xl font-bold", status.color)}>
                   {status.text}
                 </h2>
+                {status.subtext && (
+                  <p className={cn("text-lg mt-1", status.color)}>
+                    {status.subtext}
+                  </p>
+                )}
                 <p className="text-muted-foreground mt-1">
                   Last updated: {latestReading ? new Date(latestReading.recorded_at).toLocaleString() : "N/A"}
                 </p>
               </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="flex gap-8">
+            {/* Quick Stats and Timer */}
+            <div className="flex gap-8 items-center">
+              {/* Door Open Timer */}
+              {doorStatus === "OPEN" && (
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Timer className="h-4 w-4" />
+                    <span className="text-sm">Open Duration</span>
+                  </div>
+                  <span className={cn(
+                    "text-2xl font-mono font-bold",
+                    doorOpenDuration >= settings.maxOpenDurationSeconds ? "text-red-500" : 
+                    doorOpenDuration >= settings.maxOpenDurationSeconds * 0.8 ? "text-amber-500" : 
+                    "text-foreground"
+                  )}>
+                    {formatDuration(doorOpenDuration)}
+                  </span>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Max: {formatDuration(settings.maxOpenDurationSeconds)}
+                  </div>
+                </div>
+              )}
+              
               <div className="text-center">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <DoorOpen className="h-4 w-4" />
@@ -242,8 +312,18 @@ export const SecurityPanel = () => {
             </div>
           </div>
 
-          {/* Intrusion Warning Banner */}
-          {intrusionAlert && (
+          {/* Night Mode Indicator */}
+          <div className="mt-4 flex items-center gap-2 text-sm">
+            <Badge variant={isNightMode() ? "destructive" : "secondary"}>
+              {isNightMode() ? "Night Mode Active" : "Day Mode"}
+            </Badge>
+            <span className="text-muted-foreground">
+              Restricted hours: {settings.nightModeStart} - {settings.nightModeEnd}
+            </span>
+          </div>
+
+          {/* Red Alert Warning Banner */}
+          {securityStatus.isRedAlert && (
             <div className={cn(
               "absolute inset-0 pointer-events-none border-4 rounded-lg transition-opacity duration-300",
               flashState ? "border-red-500 opacity-100" : "border-red-300 opacity-50"
@@ -251,6 +331,9 @@ export const SecurityPanel = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Security Settings */}
+      <SecuritySettings />
 
       {/* Two Column Layout */}
       <div className="grid gap-6 lg:grid-cols-2">
