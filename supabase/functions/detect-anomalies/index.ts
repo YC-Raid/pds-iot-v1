@@ -6,12 +6,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Check if request is from internal trigger (has valid anon key or service role)
+const isInternalRequest = (req: Request): boolean => {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) return false;
+  
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  const token = authHeader.replace('Bearer ', '');
+  return token === anonKey || token === serviceKey;
+};
+
 serve(async (req) => {
+  const requestId = crypto.randomUUID();
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    // Verify request is from internal trigger
+    if (!isInternalRequest(req)) {
+      console.warn(`[${requestId}] Unauthorized request attempt`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -78,7 +101,7 @@ serve(async (req) => {
       thresholdConfig.pressureMin = getMax('alert_threshold_pressure_min', 1000);
     }
 
-    console.log(`Using dynamic thresholds:`, JSON.stringify(thresholdConfig));
+    console.log(`[${requestId}] Using dynamic thresholds:`, JSON.stringify(thresholdConfig));
 
     // Define thresholds using user-configured values
     const thresholds = {
@@ -130,7 +153,7 @@ serve(async (req) => {
       throw readingsError
     }
 
-    console.log(`Processing ${readings?.length || 0} sensor readings for anomaly detection`)
+    console.log(`[${requestId}] Processing ${readings?.length || 0} sensor readings for anomaly detection`)
 
     const alertsToCreate = []
 
@@ -138,7 +161,7 @@ serve(async (req) => {
       const alerts = []
 
       // Check temperature anomalies
-      if (reading.temperature !== null) {
+      if (reading.temperature !== null && typeof reading.temperature === 'number') {
         if (reading.temperature > thresholds.temperature.critical) {
           alerts.push({
             title: `Critical Temperature Alert`,
@@ -169,7 +192,7 @@ serve(async (req) => {
       }
 
       // Check humidity anomalies
-      if (reading.humidity !== null) {
+      if (reading.humidity !== null && typeof reading.humidity === 'number') {
         if (reading.humidity > thresholds.humidity.critical) {
           alerts.push({
             title: `Critical Humidity Alert`,
@@ -200,7 +223,7 @@ serve(async (req) => {
       }
 
       // Check pressure anomalies
-      if (reading.pressure !== null) {
+      if (reading.pressure !== null && typeof reading.pressure === 'number') {
         if (reading.pressure > thresholds.pressure.critical) {
           alerts.push({
             title: `Critical Pressure Alert`,
@@ -231,7 +254,7 @@ serve(async (req) => {
       }
 
       // Check air quality (PM2.5) anomalies
-      if (reading.pm2_5 !== null) {
+      if (reading.pm2_5 !== null && typeof reading.pm2_5 === 'number') {
         if (reading.pm2_5 > thresholds.pm2_5.critical) {
           alerts.push({
             title: `Critical Air Quality Alert`,
@@ -262,14 +285,17 @@ serve(async (req) => {
       }
 
       // Check vibration anomalies
-      if (reading.accel_magnitude !== null) {
+      if (reading.accel_magnitude !== null && typeof reading.accel_magnitude === 'number') {
         // Calculate corrected vibration (removing gravity from Y-axis)
-        const correctedVibration = reading.accel_magnitude ? 
-          Math.sqrt(
-            Math.pow(reading.accel_x || 0, 2) + 
-            Math.pow((reading.accel_y || 0) + 9.81, 2) + 
-            Math.pow(reading.accel_z || 0, 2)
-          ) : 0;
+        const accelX = typeof reading.accel_x === 'number' ? reading.accel_x : 0;
+        const accelY = typeof reading.accel_y === 'number' ? reading.accel_y : 0;
+        const accelZ = typeof reading.accel_z === 'number' ? reading.accel_z : 0;
+        
+        const correctedVibration = Math.sqrt(
+          Math.pow(accelX, 2) + 
+          Math.pow(accelY + 9.81, 2) + 
+          Math.pow(accelZ, 2)
+        );
 
         if (correctedVibration > thresholds.vibration.critical) {
           alerts.push({
@@ -301,7 +327,7 @@ serve(async (req) => {
       }
 
       // Check anomaly score
-      if (reading.anomaly_score !== null) {
+      if (reading.anomaly_score !== null && typeof reading.anomaly_score === 'number') {
         if (reading.anomaly_score > thresholds.anomaly_score.critical) {
           alerts.push({
             title: `Critical Anomaly Detected`,
@@ -332,7 +358,7 @@ serve(async (req) => {
       }
 
       // Check failure probability
-      if (reading.predicted_failure_probability !== null) {
+      if (reading.predicted_failure_probability !== null && typeof reading.predicted_failure_probability === 'number') {
         if (reading.predicted_failure_probability > thresholds.failure_probability.critical) {
           alerts.push({
             title: `Critical Failure Risk`,
@@ -362,20 +388,25 @@ serve(async (req) => {
         }
       }
 
+      // Sanitize location before adding to alerts
+      const safeLocation = typeof reading.location === 'string' 
+        ? reading.location.replace(/[^a-zA-Z0-9\s_-]/g, '').substring(0, 100) 
+        : 'hangar_01';
+
       // Add common fields to each alert
       for (const alert of alerts) {
         alertsToCreate.push({
           ...alert,
           category: 'sensor_anomaly',
           equipment: `Sensor Array`,
-          location: reading.location || 'hangar_01',
+          location: safeLocation,
           sensor: alert.sensor_type,
           status: 'active'
         })
       }
     }
 
-    console.log(`Generated ${alertsToCreate.length} alerts from anomaly detection`)
+    console.log(`[${requestId}] Generated ${alertsToCreate.length} alerts from anomaly detection`)
 
     // Insert alerts into database (avoid duplicates by checking recent alerts)
     if (alertsToCreate.length > 0) {
@@ -402,9 +433,9 @@ serve(async (req) => {
           throw insertError
         }
 
-        console.log(`Successfully created ${newAlerts.length} new alerts`)
+        console.log(`[${requestId}] Successfully created ${newAlerts.length} new alerts`)
       } else {
-        console.log('No new alerts to create (similar alerts already exist)')
+        console.log(`[${requestId}] No new alerts to create (similar alerts already exist)`)
       }
     }
 
@@ -413,7 +444,6 @@ serve(async (req) => {
         success: true,
         processed_readings: readings?.length || 0,
         alerts_generated: alertsToCreate.length,
-        thresholds_used: thresholdConfig,
         message: 'Anomaly detection completed successfully'
       }),
       {
@@ -421,13 +451,13 @@ serve(async (req) => {
         status: 200,
       },
     )
-  } catch (error: any) {
-    console.error('Error in anomaly detection:', error)
+  } catch (error: unknown) {
+    console.error(`[${requestId}] Internal error:`, error)
     return new Response(
-      JSON.stringify({ error: error?.message || 'Unknown error occurred' }),
+      JSON.stringify({ error: 'Internal server error', request_id: requestId }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 500,
       },
     )
   }

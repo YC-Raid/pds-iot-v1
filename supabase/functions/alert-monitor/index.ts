@@ -6,6 +6,33 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// HTML escape function to prevent XSS
+const escapeHtml = (str: string): string => {
+  if (typeof str !== 'string') return String(str);
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+// Input validation helpers
+const isValidNumber = (val: unknown, min: number, max: number): val is number => {
+  return typeof val === 'number' && !isNaN(val) && val >= min && val <= max;
+};
+
+const isValidString = (val: unknown, maxLength: number): val is string => {
+  return typeof val === 'string' && val.length <= maxLength;
+};
+
+const sanitizeLocation = (location: unknown): string => {
+  if (typeof location !== 'string') return 'Unknown';
+  // Only allow alphanumeric, spaces, underscores, and hyphens
+  const sanitized = location.replace(/[^a-zA-Z0-9\s_-]/g, '').substring(0, 100);
+  return sanitized || 'Unknown';
+};
+
 interface SensorData {
   temperature?: number;
   humidity?: number;
@@ -18,6 +45,90 @@ interface SensorData {
   accel_y?: number;
   accel_z?: number;
 }
+
+// Validate sensor data with reasonable ranges
+const validateSensorData = (data: unknown): { valid: boolean; data?: SensorData; error?: string } => {
+  if (!data || typeof data !== 'object') {
+    return { valid: false, error: 'Invalid request body' };
+  }
+
+  const sensorData = data as Record<string, unknown>;
+  const validated: SensorData = {};
+
+  // Validate temperature (-50°C to 100°C)
+  if (sensorData.temperature !== undefined) {
+    if (!isValidNumber(sensorData.temperature, -50, 100)) {
+      return { valid: false, error: 'Temperature must be between -50 and 100' };
+    }
+    validated.temperature = sensorData.temperature;
+  }
+
+  // Validate humidity (0% to 100%)
+  if (sensorData.humidity !== undefined) {
+    if (!isValidNumber(sensorData.humidity, 0, 100)) {
+      return { valid: false, error: 'Humidity must be between 0 and 100' };
+    }
+    validated.humidity = sensorData.humidity;
+  }
+
+  // Validate pressure (800 to 1200 hPa)
+  if (sensorData.pressure !== undefined) {
+    if (!isValidNumber(sensorData.pressure, 800, 1200)) {
+      return { valid: false, error: 'Pressure must be between 800 and 1200 hPa' };
+    }
+    validated.pressure = sensorData.pressure;
+  }
+
+  // Validate vibration (0 to 100 m/s²)
+  if (sensorData.vibration !== undefined) {
+    if (!isValidNumber(sensorData.vibration, 0, 100)) {
+      return { valid: false, error: 'Vibration must be between 0 and 100' };
+    }
+    validated.vibration = sensorData.vibration;
+  }
+
+  // Validate accelerometer values (-100 to 100 m/s²)
+  if (sensorData.accel_x !== undefined) {
+    if (!isValidNumber(sensorData.accel_x, -100, 100)) {
+      return { valid: false, error: 'Accelerometer X must be between -100 and 100' };
+    }
+    validated.accel_x = sensorData.accel_x;
+  }
+
+  if (sensorData.accel_y !== undefined) {
+    if (!isValidNumber(sensorData.accel_y, -100, 100)) {
+      return { valid: false, error: 'Accelerometer Y must be between -100 and 100' };
+    }
+    validated.accel_y = sensorData.accel_y;
+  }
+
+  if (sensorData.accel_z !== undefined) {
+    if (!isValidNumber(sensorData.accel_z, -100, 100)) {
+      return { valid: false, error: 'Accelerometer Z must be between -100 and 100' };
+    }
+    validated.accel_z = sensorData.accel_z;
+  }
+
+  // Validate and sanitize sensor_location
+  validated.sensor_location = sanitizeLocation(sensorData.sensor_location);
+
+  // Validate timestamp if provided
+  if (sensorData.timestamp !== undefined) {
+    if (!isValidString(sensorData.timestamp, 50)) {
+      return { valid: false, error: 'Invalid timestamp format' };
+    }
+    validated.timestamp = sensorData.timestamp;
+  }
+
+  return { valid: true, data: validated };
+};
+
+// Generate cryptographically secure sensor ID
+const generateSecureSensorId = (): string => {
+  const array = new Uint8Array(4);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('').substring(0, 6).toUpperCase();
+};
 
 // Priority mapping and impact generation for different alert types
 // Now uses dynamic thresholds passed from user settings
@@ -62,9 +173,9 @@ const generateImpact = (alertCategory: string, value: number, threshold: number,
       
     case 'vibration':
       if (priority === 'P1') {
-        return `CRITICAL: Dangerous vibration levels (${value} units) indicate potential mechanical failure, bearing damage, or structural issues. IMMEDIATE INSPECTION REQUIRED`;
+        return `CRITICAL: Dangerous vibration levels (${value.toFixed(2)} m/s²) indicate potential mechanical failure, bearing damage, or structural issues. IMMEDIATE INSPECTION REQUIRED`;
       } else if (priority === 'P2') {
-        return `High vibration detected (${value} units). Risk of mechanical wear, component loosening, and eventual equipment failure if not addressed`;
+        return `High vibration detected (${value.toFixed(2)} m/s²). Risk of mechanical wear, component loosening, and eventual equipment failure if not addressed`;
       } else if (priority === 'P3') {
         return `Elevated vibration levels. May indicate developing mechanical issues, misalignment, or need for maintenance`;
       }
@@ -96,15 +207,58 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
+// Check if request is from internal trigger (has valid anon key or service role)
+const isInternalRequest = (req: Request): boolean => {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) return false;
+  
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  const token = authHeader.replace('Bearer ', '');
+  return token === anonKey || token === serviceKey;
+};
+
 const handler = async (req: Request): Promise<Response> => {
+  const requestId = crypto.randomUUID();
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const sensorData: SensorData = await req.json();
-    console.log('Received sensor data:', sensorData);
+    // Verify request is from internal trigger or has valid auth
+    if (!isInternalRequest(req)) {
+      console.warn(`[${requestId}] Unauthorized request attempt`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Parse and validate input
+    let rawData: unknown;
+    try {
+      rawData = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const validation = validateSensorData(rawData);
+    if (!validation.valid || !validation.data) {
+      console.warn(`[${requestId}] Validation failed: ${validation.error}`);
+      return new Response(
+        JSON.stringify({ error: 'Invalid sensor data' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const sensorData = validation.data;
+    console.log(`[${requestId}] Received validated sensor data`);
 
     // Get all users' notification settings including vibration threshold
     const { data: settings, error: settingsError } = await supabase
@@ -112,8 +266,11 @@ const handler = async (req: Request): Promise<Response> => {
       .select('user_id, alert_threshold_temp, alert_threshold_humidity, alert_threshold_vibration, email_enabled');
 
     if (settingsError) {
-      console.error('Error fetching notification settings:', settingsError);
-      throw new Error('Failed to fetch notification settings');
+      console.error(`[${requestId}] Error fetching notification settings:`, settingsError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to process request' }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     // Use the most restrictive (lowest) user-defined vibration threshold as global threshold
@@ -123,10 +280,11 @@ const handler = async (req: Request): Promise<Response> => {
       return threshold < min ? threshold : min;
     }, 30); // Default to 30 if no settings
 
-    console.log(`Using vibration threshold: ${vibrationThreshold} m/s²`);
+    console.log(`[${requestId}] Using vibration threshold: ${vibrationThreshold} m/s²`);
 
     const alerts = [];
     const dbAlerts = [];
+    const safeLocation = escapeHtml(sensorData.sensor_location || 'Unknown');
 
     // Check temperature alerts
     if (sensorData.temperature !== undefined) {
@@ -138,7 +296,7 @@ const handler = async (req: Request): Promise<Response> => {
           const alertData = {
             user_id: setting.user_id,
             title: `${priority} Temperature Alert`,
-            message: `Temperature reading of ${sensorData.temperature}°C exceeds threshold of ${setting.alert_threshold_temp}°C at ${sensorData.sensor_location || 'unknown location'}`,
+            message: `Temperature reading of ${sensorData.temperature}°C exceeds threshold of ${setting.alert_threshold_temp}°C at ${safeLocation}`,
             type: type,
             send_email: shouldEmailP1P2
           };
@@ -159,7 +317,7 @@ const handler = async (req: Request): Promise<Response> => {
             category: 'environmental',
             equipment: 'Temperature Sensor',
             location: sensorData.sensor_location || 'Unknown',
-            sensor: `Temp-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
+            sensor: `Temp-${generateSecureSensorId()}`,
             value: sensorData.temperature.toString(),
             threshold: setting.alert_threshold_temp.toString(),
             unit: '°C',
@@ -179,7 +337,7 @@ const handler = async (req: Request): Promise<Response> => {
           const alertData = {
             user_id: setting.user_id,
             title: `${priority} Humidity Alert`,
-            message: `Humidity reading of ${sensorData.humidity}% exceeds threshold of ${setting.alert_threshold_humidity}% at ${sensorData.sensor_location || 'unknown location'}`,
+            message: `Humidity reading of ${sensorData.humidity}% exceeds threshold of ${setting.alert_threshold_humidity}% at ${safeLocation}`,
             type: type,
             send_email: shouldEmailP1P2
           };
@@ -200,7 +358,7 @@ const handler = async (req: Request): Promise<Response> => {
             category: 'environmental',
             equipment: 'Humidity Sensor',
             location: sensorData.sensor_location || 'Unknown',
-            sensor: `Hum-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
+            sensor: `Hum-${generateSecureSensorId()}`,
             value: sensorData.humidity.toString(),
             threshold: setting.alert_threshold_humidity.toString(),
             unit: '%',
@@ -231,7 +389,7 @@ const handler = async (req: Request): Promise<Response> => {
         const alertData = {
           user_id: setting.user_id,
           title: `${priority} Vibration Alert`,
-          message: `Dangerous vibration level detected: ${correctedVibration.toFixed(4)} m/s² (threshold: ${vibrationThreshold}) at ${sensorData.sensor_location || 'unknown location'}. ${priority === 'P1' ? 'IMMEDIATE INSPECTION REQUIRED!' : 'Urgent inspection required.'}`,
+          message: `Dangerous vibration level detected: ${correctedVibration.toFixed(4)} m/s² (threshold: ${vibrationThreshold}) at ${safeLocation}. ${priority === 'P1' ? 'IMMEDIATE INSPECTION REQUIRED!' : 'Urgent inspection required.'}`,
           type: type,
           send_email: shouldEmailP1P2
         };
@@ -252,7 +410,7 @@ const handler = async (req: Request): Promise<Response> => {
           category: 'equipment',
           equipment: 'Vibration Sensor',
           location: sensorData.sensor_location || 'Unknown',
-          sensor: `Vib-${Math.random().toString(36).substr(2, 3).toUpperCase()}`,
+          sensor: `Vib-${generateSecureSensorId()}`,
           value: correctedVibration.toFixed(4),
           threshold: vibrationThreshold.toString(),
           unit: 'm/s²',
@@ -263,21 +421,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Insert alerts into database
     if (dbAlerts.length > 0) {
-      console.log(`Creating ${dbAlerts.length} alerts in database...`);
+      console.log(`[${requestId}] Creating ${dbAlerts.length} alerts in database...`);
       const { error: alertError } = await supabase
         .from('alerts')
         .insert(dbAlerts);
       
       if (alertError) {
-        console.error('Error creating alerts in database:', alertError);
+        console.error(`[${requestId}] Error creating alerts:`, alertError);
       } else {
-        console.log('Successfully created alerts in database');
+        console.log(`[${requestId}] Successfully created alerts in database`);
       }
     }
 
     // Send alerts through notification service
     if (alerts.length > 0) {
-      console.log(`Sending ${alerts.length} alerts...`);
+      console.log(`[${requestId}] Sending ${alerts.length} alerts...`);
       
       for (const alert of alerts) {
         try {
@@ -291,10 +449,10 @@ const handler = async (req: Request): Promise<Response> => {
           });
 
           if (!notificationResponse.ok) {
-            console.error('Failed to send notification:', await notificationResponse.text());
+            console.error(`[${requestId}] Failed to send notification`);
           }
         } catch (error) {
-          console.error('Error sending notification:', error);
+          console.error(`[${requestId}] Error sending notification:`, error);
         }
       }
     }
@@ -313,10 +471,10 @@ const handler = async (req: Request): Promise<Response> => {
         },
       }
     );
-  } catch (error: any) {
-    console.error("Error in alert-monitor function:", error);
+  } catch (error: unknown) {
+    console.error(`[${requestId}] Internal error:`, error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error', request_id: requestId }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
