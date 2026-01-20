@@ -17,10 +17,38 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    // Define thresholds for different sensors
+    // Fetch user-defined thresholds from notification_settings
+    // We'll use the most restrictive (lowest) threshold across all users for system-wide alerts
+    const { data: userSettings } = await supabaseClient
+      .from('notification_settings')
+      .select('alert_threshold_temp, alert_threshold_humidity')
+
+    // Calculate the minimum thresholds from user settings (most sensitive)
+    let userTempThreshold = 30 // default max
+    let userHumidityThreshold = 70 // default max
+
+    if (userSettings && userSettings.length > 0) {
+      const validTempThresholds = userSettings
+        .map(s => s.alert_threshold_temp)
+        .filter(t => t !== null && t !== undefined) as number[]
+      const validHumidityThresholds = userSettings
+        .map(s => s.alert_threshold_humidity)
+        .filter(h => h !== null && h !== undefined) as number[]
+
+      if (validTempThresholds.length > 0) {
+        userTempThreshold = Math.min(...validTempThresholds)
+      }
+      if (validHumidityThresholds.length > 0) {
+        userHumidityThreshold = Math.min(...validHumidityThresholds)
+      }
+    }
+
+    console.log(`Using thresholds - Temperature: ${userTempThreshold}°C, Humidity: ${userHumidityThreshold}%`)
+
+    // Define thresholds for different sensors - now using user-defined values where applicable
     const thresholds = {
-      temperature: { min: 15, max: 30, critical: 35 },
-      humidity: { min: 30, max: 70, critical: 85 },
+      temperature: { min: 15, max: userTempThreshold, critical: userTempThreshold + 5 },
+      humidity: { min: 30, max: userHumidityThreshold, critical: userHumidityThreshold + 15 },
       pressure: { min: 1000, max: 1020, critical: 1030 },
       pm2_5: { max: 35, critical: 75 },
       anomaly_score: { warning: 0.6, critical: 0.8 },
@@ -60,6 +88,8 @@ serve(async (req) => {
             sensor_type: 'temperature',
             value: reading.temperature.toString(),
             threshold: thresholds.temperature.critical.toString(),
+            threshold_value: thresholds.temperature.critical,
+            sensor_value: reading.temperature,
             unit: '°C'
           })
         } else if (reading.temperature > thresholds.temperature.max || reading.temperature < thresholds.temperature.min) {
@@ -71,6 +101,8 @@ serve(async (req) => {
             sensor_type: 'temperature',
             value: reading.temperature.toString(),
             threshold: `${thresholds.temperature.min}-${thresholds.temperature.max}`,
+            threshold_value: thresholds.temperature.max,
+            sensor_value: reading.temperature,
             unit: '°C'
           })
         }
@@ -87,6 +119,8 @@ serve(async (req) => {
             sensor_type: 'humidity',
             value: reading.humidity.toString(),
             threshold: thresholds.humidity.critical.toString(),
+            threshold_value: thresholds.humidity.critical,
+            sensor_value: reading.humidity,
             unit: '%'
           })
         } else if (reading.humidity > thresholds.humidity.max || reading.humidity < thresholds.humidity.min) {
@@ -98,6 +132,8 @@ serve(async (req) => {
             sensor_type: 'humidity',
             value: reading.humidity.toString(),
             threshold: `${thresholds.humidity.min}-${thresholds.humidity.max}`,
+            threshold_value: thresholds.humidity.max,
+            sensor_value: reading.humidity,
             unit: '%'
           })
         }
@@ -114,6 +150,8 @@ serve(async (req) => {
             sensor_type: 'pressure',
             value: reading.pressure.toString(),
             threshold: thresholds.pressure.critical.toString(),
+            threshold_value: thresholds.pressure.critical,
+            sensor_value: reading.pressure,
             unit: 'hPa'
           })
         } else if (reading.pressure > thresholds.pressure.max || reading.pressure < thresholds.pressure.min) {
@@ -125,6 +163,8 @@ serve(async (req) => {
             sensor_type: 'pressure',
             value: reading.pressure.toString(),
             threshold: `${thresholds.pressure.min}-${thresholds.pressure.max}`,
+            threshold_value: thresholds.pressure.max,
+            sensor_value: reading.pressure,
             unit: 'hPa'
           })
         }
@@ -141,6 +181,8 @@ serve(async (req) => {
             sensor_type: 'air_quality',
             value: reading.pm2_5.toString(),
             threshold: thresholds.pm2_5.critical.toString(),
+            threshold_value: thresholds.pm2_5.critical,
+            sensor_value: reading.pm2_5,
             unit: 'μg/m³'
           })
         } else if (reading.pm2_5 > thresholds.pm2_5.max) {
@@ -152,6 +194,8 @@ serve(async (req) => {
             sensor_type: 'air_quality',
             value: reading.pm2_5.toString(),
             threshold: thresholds.pm2_5.max.toString(),
+            threshold_value: thresholds.pm2_5.max,
+            sensor_value: reading.pm2_5,
             unit: 'μg/m³'
           })
         }
@@ -168,6 +212,8 @@ serve(async (req) => {
             sensor_type: 'anomaly',
             value: reading.anomaly_score.toFixed(3),
             threshold: thresholds.anomaly_score.critical.toString(),
+            threshold_value: thresholds.anomaly_score.critical,
+            sensor_value: reading.anomaly_score,
             unit: 'score'
           })
         } else if (reading.anomaly_score > thresholds.anomaly_score.warning) {
@@ -179,6 +225,8 @@ serve(async (req) => {
             sensor_type: 'anomaly',
             value: reading.anomaly_score.toFixed(3),
             threshold: thresholds.anomaly_score.warning.toString(),
+            threshold_value: thresholds.anomaly_score.warning,
+            sensor_value: reading.anomaly_score,
             unit: 'score'
           })
         }
@@ -195,6 +243,8 @@ serve(async (req) => {
             sensor_type: 'failure_prediction',
             value: (reading.predicted_failure_probability * 100).toFixed(1),
             threshold: (thresholds.failure_probability.critical * 100).toString(),
+            threshold_value: thresholds.failure_probability.critical,
+            sensor_value: reading.predicted_failure_probability,
             unit: '%'
           })
         } else if (reading.predicted_failure_probability > thresholds.failure_probability.warning) {
@@ -206,6 +256,8 @@ serve(async (req) => {
             sensor_type: 'failure_prediction',
             value: (reading.predicted_failure_probability * 100).toFixed(1),
             threshold: (thresholds.failure_probability.warning * 100).toString(),
+            threshold_value: thresholds.failure_probability.warning,
+            sensor_value: reading.predicted_failure_probability,
             unit: '%'
           })
         }
@@ -228,21 +280,21 @@ serve(async (req) => {
 
     // Insert alerts into database (avoid duplicates by checking recent alerts)
     if (alertsToCreate.length > 0) {
-    // Check for recent similar alerts to avoid spam (extended to 24 hours)
-    const { data: recentAlerts } = await supabaseClient
-      .from('alerts')
-      .select('sensor_type, location, status, sensor_value, threshold_value')
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours instead of 1 hour
-      .in('status', ['active', 'acknowledged', 'in_progress'])
+      // Check for recent similar alerts to avoid spam (extended to 24 hours)
+      const { data: recentAlerts } = await supabaseClient
+        .from('alerts')
+        .select('sensor_type, location, status, sensor_value, threshold_value')
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours instead of 1 hour
+        .in('status', ['active', 'acknowledged', 'in_progress'])
 
-    const recentAlertKeys = new Set(
-      (recentAlerts || []).map(alert => `${alert.sensor_type}-${alert.location}-${alert.sensor_value}-${alert.threshold_value}`)
-    )
+      const recentAlertKeys = new Set(
+        (recentAlerts || []).map(alert => `${alert.sensor_type}-${alert.location}-${alert.sensor_value}-${alert.threshold_value}`)
+      )
 
-    // Filter out alerts that are similar to recent ones (more specific matching)
-    const newAlerts = alertsToCreate.filter(alert => 
-      !recentAlertKeys.has(`${alert.sensor_type}-${alert.location}-${alert.value}-${alert.threshold}`)
-    )
+      // Filter out alerts that are similar to recent ones (more specific matching)
+      const newAlerts = alertsToCreate.filter(alert => 
+        !recentAlertKeys.has(`${alert.sensor_type}-${alert.location}-${alert.sensor_value}-${alert.threshold_value}`)
+      )
 
       if (newAlerts.length > 0) {
         const { error: insertError } = await supabaseClient
@@ -264,6 +316,10 @@ serve(async (req) => {
         success: true,
         processed_readings: readings?.length || 0,
         alerts_generated: alertsToCreate.length,
+        thresholds_used: {
+          temperature: thresholds.temperature,
+          humidity: thresholds.humidity
+        },
         message: 'Anomaly detection completed successfully'
       }),
       {
