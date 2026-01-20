@@ -273,14 +273,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Use the most restrictive (lowest) user-defined vibration threshold as global threshold
-    // This ensures all users with more sensitive thresholds still get alerts
-    const vibrationThreshold = settings.reduce((min, s) => {
-      const threshold = s.alert_threshold_vibration ?? 10;
-      return threshold < min ? threshold : min;
-    }, 30); // Default to 30 if no settings
-
-    console.log(`[${requestId}] Using vibration threshold: ${vibrationThreshold} m/s²`);
+    console.log(`[${requestId}] Processing per-user thresholds for ${settings.length} users`);
 
     const alerts = [];
     const dbAlerts = [];
@@ -380,23 +373,27 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check vibration alerts using user-configurable threshold
-    if (correctedVibration > vibrationThreshold) {
-      for (const setting of settings) {
-        const { priority, type } = getPriorityAndType('vibration', correctedVibration, vibrationThreshold);
+    // Check vibration alerts using per-user configurable thresholds
+    for (const setting of settings) {
+      const userVibrationThreshold = setting.alert_threshold_vibration ?? 30;
+      
+      if (correctedVibration > userVibrationThreshold) {
+        const { priority, type } = getPriorityAndType('vibration', correctedVibration, userVibrationThreshold);
         const shouldEmailP1P2 = (priority === 'P1' || priority === 'P2') && setting.email_enabled;
+        
+        console.log(`[${requestId}] Vibration ${correctedVibration.toFixed(2)} exceeds user threshold ${userVibrationThreshold} for user ${setting.user_id}`);
         
         const alertData = {
           user_id: setting.user_id,
           title: `${priority} Vibration Alert`,
-          message: `Dangerous vibration level detected: ${correctedVibration.toFixed(4)} m/s² (threshold: ${vibrationThreshold}) at ${safeLocation}. ${priority === 'P1' ? 'IMMEDIATE INSPECTION REQUIRED!' : 'Urgent inspection required.'}`,
+          message: `Dangerous vibration level detected: ${correctedVibration.toFixed(4)} m/s² (threshold: ${userVibrationThreshold}) at ${safeLocation}. ${priority === 'P1' ? 'IMMEDIATE INSPECTION REQUIRED!' : 'Urgent inspection required.'}`,
           type: type,
           send_email: shouldEmailP1P2
         };
         
         alerts.push(alertData);
         
-        // Create alert in database
+        // Create alert in database with user's threshold
         dbAlerts.push({
           title: alertData.title,
           description: alertData.message,
@@ -404,7 +401,7 @@ const handler = async (req: Request): Promise<Response> => {
           sensor_type: 'vibration',
           sensor_location: sensorData.sensor_location || 'Unknown',
           sensor_value: correctedVibration,
-          threshold_value: vibrationThreshold,
+          threshold_value: userVibrationThreshold,
           status: 'active',
           severity: priority === 'P1' ? 'critical' : priority === 'P2' ? 'high' : 'medium',
           category: 'equipment',
@@ -412,9 +409,9 @@ const handler = async (req: Request): Promise<Response> => {
           location: sensorData.sensor_location || 'Unknown',
           sensor: `Vib-${generateSecureSensorId()}`,
           value: correctedVibration.toFixed(4),
-          threshold: vibrationThreshold.toString(),
+          threshold: userVibrationThreshold.toString(),
           unit: 'm/s²',
-          impact: generateImpact('vibration', correctedVibration, vibrationThreshold, priority)
+          impact: generateImpact('vibration', correctedVibration, userVibrationThreshold, priority)
         });
       }
     }
