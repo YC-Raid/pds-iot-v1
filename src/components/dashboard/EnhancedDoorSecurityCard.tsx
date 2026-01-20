@@ -9,11 +9,14 @@ import {
   Users,
   Clock,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Timer,
+  ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSensorData } from "@/hooks/useSensorData";
+import { useSecuritySettings } from "@/hooks/useSecuritySettings";
 
 interface DoorEvent {
   id: string;
@@ -23,14 +26,47 @@ interface DoorEvent {
 
 export const EnhancedDoorSecurityCard = () => {
   const { sensorReadings } = useSensorData();
+  const { calculateSecurityStatus, isNightMode, settings } = useSecuritySettings();
   const latestReading = sensorReadings[0];
+  
   const [flashState, setFlashState] = useState(true);
   const [doorEvents, setDoorEvents] = useState<DoorEvent[]>([]);
+  const [doorOpenDuration, setDoorOpenDuration] = useState(0);
+  const [doorOpenedAt, setDoorOpenedAt] = useState<Date | null>(null);
 
   const doorStatus = (latestReading?.door_status as "OPEN" | "CLOSED") || "CLOSED";
   const doorOpens = latestReading?.door_opens || 0;
   const doorCloses = latestReading?.door_closes || 0;
-  const intrusionAlert = latestReading?.intrusion_alert || false;
+
+  // Track when door opens and calculate duration
+  useEffect(() => {
+    if (doorStatus === "OPEN") {
+      if (!doorOpenedAt) {
+        setDoorOpenedAt(new Date());
+      }
+    } else {
+      setDoorOpenedAt(null);
+      setDoorOpenDuration(0);
+    }
+  }, [doorStatus, doorOpenedAt]);
+
+  // Update door open duration every second
+  useEffect(() => {
+    if (doorStatus !== "OPEN" || !doorOpenedAt) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const durationSeconds = Math.floor((now.getTime() - doorOpenedAt.getTime()) / 1000);
+      setDoorOpenDuration(durationSeconds);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [doorStatus, doorOpenedAt]);
+
+  // Calculate security status using frontend logic
+  const securityStatus = useMemo(() => {
+    return calculateSecurityStatus(doorStatus, doorOpenDuration);
+  }, [doorStatus, doorOpenDuration, calculateSecurityStatus]);
 
   // Generate door events from sensor readings
   useEffect(() => {
@@ -59,22 +95,35 @@ export const EnhancedDoorSecurityCard = () => {
     setDoorEvents(events.slice(0, 10));
   }, [sensorReadings]);
 
-  // Flashing effect for intrusion alert
+  // Flashing effect for red alert
   useEffect(() => {
-    if (!intrusionAlert) return;
+    if (!securityStatus.isRedAlert) {
+      setFlashState(true);
+      return;
+    }
     
     const interval = setInterval(() => {
       setFlashState((prev) => !prev);
     }, 500);
     
     return () => clearInterval(interval);
-  }, [intrusionAlert]);
+  }, [securityStatus.isRedAlert]);
 
-  const getSecurityStatus = () => {
-    if (intrusionAlert) {
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
+
+  const getSecurityStatusDisplay = () => {
+    if (securityStatus.isRedAlert) {
+      const isIntrusion = securityStatus.status === "intrusion";
       return {
-        icon: AlertTriangle,
-        text: "INTRUSION DETECTED",
+        icon: ShieldAlert,
+        text: isIntrusion ? "INTRUSION DETECTED" : "DOOR OPEN TOO LONG",
         color: flashState ? "text-red-500" : "text-red-300",
         bgColor: flashState ? "bg-red-500/20" : "bg-red-500/10",
         borderColor: "border-red-500",
@@ -83,7 +132,7 @@ export const EnhancedDoorSecurityCard = () => {
       };
     }
     
-    if (doorStatus === "OPEN") {
+    if (securityStatus.isAmberWarning) {
       return {
         icon: DoorOpen,
         text: "Main Door Open",
@@ -106,14 +155,14 @@ export const EnhancedDoorSecurityCard = () => {
     };
   };
 
-  const status = getSecurityStatus();
+  const status = getSecurityStatusDisplay();
   const StatusIcon = status.icon;
 
   return (
     <Card className={cn(
       "relative overflow-hidden transition-all duration-300 col-span-full",
       status.borderColor,
-      intrusionAlert && "animate-pulse border-2"
+      securityStatus.isRedAlert && "animate-pulse border-2"
     )}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
@@ -121,16 +170,21 @@ export const EnhancedDoorSecurityCard = () => {
             <Shield className="h-6 w-6 text-muted-foreground" />
             Door Security Monitor
           </CardTitle>
-          <Badge variant={status.badgeVariant} className={cn(
-            "text-sm px-3 py-1",
-            intrusionAlert && flashState && "bg-red-600"
-          )}>
-            {status.text}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={isNightMode() ? "destructive" : "secondary"} className="text-xs">
+              {isNightMode() ? "Night Mode" : "Day Mode"}
+            </Badge>
+            <Badge variant={status.badgeVariant} className={cn(
+              "text-sm px-3 py-1",
+              securityStatus.isRedAlert && flashState && "bg-red-600"
+            )}>
+              {status.text}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           {/* Status Display */}
           <div className={cn(
             "flex items-center justify-center py-8 rounded-lg transition-all duration-300",
@@ -144,16 +198,57 @@ export const EnhancedDoorSecurityCard = () => {
                 <StatusIcon className={cn(
                   "h-14 w-14 transition-all duration-300",
                   status.color,
-                  intrusionAlert && "animate-bounce"
+                  securityStatus.isRedAlert && "animate-bounce"
                 )} />
               </div>
               <span className={cn(
-                "text-xl font-bold tracking-wide",
+                "text-xl font-bold tracking-wide text-center",
                 status.color
               )}>
                 {status.text}
               </span>
             </div>
+          </div>
+
+          {/* Duration Timer (visible when door is open) */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Timer className="h-4 w-4" />
+              Open Duration
+            </h3>
+            {doorStatus === "OPEN" ? (
+              <div className="p-4 rounded-lg bg-muted/50 border">
+                <div className={cn(
+                  "text-4xl font-mono font-bold text-center",
+                  doorOpenDuration >= settings.maxOpenDurationSeconds ? "text-red-500" : 
+                  doorOpenDuration >= settings.maxOpenDurationSeconds * 0.8 ? "text-amber-500" : 
+                  "text-foreground"
+                )}>
+                  {formatDuration(doorOpenDuration)}
+                </div>
+                <div className="text-xs text-muted-foreground text-center mt-2">
+                  Alert at: {formatDuration(settings.maxOpenDurationSeconds)}
+                </div>
+                {/* Progress bar */}
+                <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full transition-all duration-1000",
+                      doorOpenDuration >= settings.maxOpenDurationSeconds ? "bg-red-500" : 
+                      doorOpenDuration >= settings.maxOpenDurationSeconds * 0.8 ? "bg-amber-500" : 
+                      "bg-emerald-500"
+                    )}
+                    style={{ 
+                      width: `${Math.min((doorOpenDuration / settings.maxOpenDurationSeconds) * 100, 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg bg-muted/50 border h-[120px] flex items-center justify-center">
+                <span className="text-muted-foreground text-sm">Door is closed</span>
+              </div>
+            )}
           </div>
 
           {/* Counters */}
@@ -224,8 +319,8 @@ export const EnhancedDoorSecurityCard = () => {
           </div>
         )}
 
-        {/* Intrusion Warning Banner */}
-        {intrusionAlert && (
+        {/* Red Alert Warning Banner */}
+        {securityStatus.isRedAlert && (
           <div className={cn(
             "absolute inset-0 pointer-events-none border-4 rounded-lg transition-opacity duration-300",
             flashState ? "border-red-500 opacity-100" : "border-red-300 opacity-50"
