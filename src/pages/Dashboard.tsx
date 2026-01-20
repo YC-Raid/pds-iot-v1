@@ -52,7 +52,7 @@ const Dashboard = () => {
 
   const tabs = [
     {
-      title: "Overview",
+      title: "Dashboard",
       value: "overview",
       icon: <Building className="h-4 w-4" />,
       content: (

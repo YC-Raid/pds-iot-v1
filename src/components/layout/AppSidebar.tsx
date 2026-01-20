@@ -11,7 +11,8 @@ import {
   Waves,
   Timer,
   User,
-  AlertTriangle
+  AlertTriangle,
+  ShieldCheck
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -41,6 +42,7 @@ const mainItems = [
   { title: "Maintenance", url: "/?tab=maintenance", icon: Calendar },
   { title: "Alerts", url: "/?tab=alerts", icon: Bell },
   { title: "Analytics", url: "/?tab=analytics", icon: TrendingUp },
+  { title: "Security", url: "/?tab=security", icon: ShieldCheck },
 ];
 
 

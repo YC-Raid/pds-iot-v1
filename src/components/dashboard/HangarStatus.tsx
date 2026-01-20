@@ -14,7 +14,6 @@ import {
   Eye
 } from "lucide-react";
 import { useSensorData } from "@/hooks/useSensorData";
-import { DoorSecurityCard } from "./DoorSecurityCard";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -162,7 +161,7 @@ const HangarStatus = () => {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       {/* Current Environmental Readings */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -227,14 +226,6 @@ const HangarStatus = () => {
           </Badge>
         </CardContent>
       </Card>
-
-      {/* Door Security Card */}
-      <DoorSecurityCard
-        doorStatus={doorStatus}
-        doorOpens={doorOpens}
-        intrusionAlert={intrusionAlert}
-        lastUpdated={latestReading?.recorded_at}
-      />
 
       {/* System Health Overview */}
       <Card className="md:col-span-2">
