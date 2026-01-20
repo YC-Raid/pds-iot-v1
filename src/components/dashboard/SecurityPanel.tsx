@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState, useMemo } from "react";
 import { useSensorData } from "@/hooks/useSensorData";
 import { useSecuritySettings } from "@/hooks/useSecuritySettings";
+import { useDoorMetrics } from "@/hooks/useDoorMetrics";
 import { supabase } from "@/integrations/supabase/client";
 import { SecuritySettings } from "@/components/settings/SecuritySettings";
 
@@ -39,6 +40,7 @@ interface SecurityAlertLog {
 export const SecurityPanel = () => {
   const { sensorReadings } = useSensorData();
   const { calculateSecurityStatus, isNightMode, settings } = useSecuritySettings();
+  const { doorOpensToday, doorClosesToday } = useDoorMetrics();
   const latestReading = sensorReadings[0];
   
   const [flashState, setFlashState] = useState(true);
@@ -106,33 +108,6 @@ export const SecurityPanel = () => {
   const securityStatus = useMemo(() => {
     return calculateSecurityStatus(doorStatus, doorOpenDuration);
   }, [doorStatus, doorOpenDuration, calculateSecurityStatus]);
-
-  // Calculate entries today from sensor readings (door state transitions that happened today)
-  const { doorOpensToday, doorClosesToday } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    let opens = 0;
-    let closes = 0;
-    
-    for (let i = 0; i < sensorReadings.length - 1; i++) {
-      const current = sensorReadings[i];
-      const next = sensorReadings[i + 1];
-      
-      const recordedAt = new Date(current.recorded_at);
-      if (recordedAt < today) break; // Stop when we go before today
-      
-      if (current.door_status !== next?.door_status) {
-        if (current.door_status === "OPEN") {
-          opens++;
-        } else if (current.door_status === "CLOSED") {
-          closes++;
-        }
-      }
-    }
-    
-    return { doorOpensToday: opens, doorClosesToday: closes };
-  }, [sensorReadings]);
 
   // Fetch security alerts
   useEffect(() => {
