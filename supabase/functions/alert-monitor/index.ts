@@ -106,23 +106,24 @@ const handler = async (req: Request): Promise<Response> => {
     const sensorData: SensorData = await req.json();
     console.log('Received sensor data:', sensorData);
 
-    // Get all users' notification settings and vibration thresholds
+    // Get all users' notification settings including vibration threshold
     const { data: settings, error: settingsError } = await supabase
       .from('notification_settings')
-      .select('user_id, alert_threshold_temp, alert_threshold_humidity, email_enabled');
-
-    const { data: vibrationSettings, error: vibrationError } = await supabase
-      .from('vibration_monitoring_settings')
-      .select('foundation_stress_threshold')
-      .eq('location', sensorData.sensor_location || 'hangar_01')
-      .maybeSingle();
-
-    const vibrationThreshold = vibrationSettings?.foundation_stress_threshold || 10;
+      .select('user_id, alert_threshold_temp, alert_threshold_humidity, alert_threshold_vibration, email_enabled');
 
     if (settingsError) {
       console.error('Error fetching notification settings:', settingsError);
       throw new Error('Failed to fetch notification settings');
     }
+
+    // Use the most restrictive (lowest) user-defined vibration threshold as global threshold
+    // This ensures all users with more sensitive thresholds still get alerts
+    const vibrationThreshold = settings.reduce((min, s) => {
+      const threshold = s.alert_threshold_vibration ?? 10;
+      return threshold < min ? threshold : min;
+    }, 30); // Default to 30 if no settings
+
+    console.log(`Using vibration threshold: ${vibrationThreshold} m/s²`);
 
     const alerts = [];
     const dbAlerts = [];
