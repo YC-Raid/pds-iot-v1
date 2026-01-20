@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { Shield, Bell, Settings, Save, Users } from "lucide-react";
+import { Shield, Bell, Settings, Save, Users, Thermometer, Droplets, Gauge, Wind, Activity, AlertTriangle } from "lucide-react";
 
 interface NotificationSettingsRow {
   id?: string;
@@ -20,7 +20,15 @@ interface NotificationSettingsRow {
   email_enabled: boolean;
   push_enabled: boolean;
   alert_threshold_temp: number | null;
+  alert_threshold_temp_min: number | null;
   alert_threshold_humidity: number | null;
+  alert_threshold_pressure_min: number | null;
+  alert_threshold_pressure_max: number | null;
+  alert_threshold_pm25: number | null;
+  alert_threshold_pm25_critical: number | null;
+  alert_threshold_vibration: number | null;
+  alert_threshold_anomaly_score: number | null;
+  alert_threshold_failure_prob: number | null;
 }
 
 interface SimpleUser {
@@ -43,7 +51,7 @@ export default function SettingsTab() {
       if (!user) return;
       const { data } = await supabase
         .from('notification_settings')
-        .select('id,user_id,in_app_enabled,email_enabled,push_enabled,alert_threshold_temp,alert_threshold_humidity')
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -53,8 +61,16 @@ export default function SettingsTab() {
           in_app_enabled: true,
           email_enabled: true,
           push_enabled: true,
-          alert_threshold_temp: 25,
-          alert_threshold_humidity: 60,
+          alert_threshold_temp: 30,
+          alert_threshold_temp_min: 15,
+          alert_threshold_humidity: 70,
+          alert_threshold_pressure_min: 1000,
+          alert_threshold_pressure_max: 1020,
+          alert_threshold_pm25: 35,
+          alert_threshold_pm25_critical: 75,
+          alert_threshold_vibration: 10,
+          alert_threshold_anomaly_score: 0.6,
+          alert_threshold_failure_prob: 0.4,
         }
       );
     };
@@ -65,38 +81,38 @@ export default function SettingsTab() {
     if (!user || !notif) return;
     setSaving(true);
     try {
-      // If row has id -> update; else insert
+      const settingsData = {
+        in_app_enabled: notif.in_app_enabled,
+        email_enabled: notif.email_enabled,
+        push_enabled: notif.push_enabled,
+        alert_threshold_temp: notif.alert_threshold_temp,
+        alert_threshold_temp_min: notif.alert_threshold_temp_min,
+        alert_threshold_humidity: notif.alert_threshold_humidity,
+        alert_threshold_pressure_min: notif.alert_threshold_pressure_min,
+        alert_threshold_pressure_max: notif.alert_threshold_pressure_max,
+        alert_threshold_pm25: notif.alert_threshold_pm25,
+        alert_threshold_pm25_critical: notif.alert_threshold_pm25_critical,
+        alert_threshold_vibration: notif.alert_threshold_vibration,
+        alert_threshold_anomaly_score: notif.alert_threshold_anomaly_score,
+        alert_threshold_failure_prob: notif.alert_threshold_failure_prob,
+      };
+
       if ((notif as any).id) {
         const { error } = await supabase
           .from('notification_settings')
-          .update({
-            in_app_enabled: notif.in_app_enabled,
-            email_enabled: notif.email_enabled,
-            push_enabled: notif.push_enabled,
-            alert_threshold_temp: notif.alert_threshold_temp,
-            alert_threshold_humidity: notif.alert_threshold_humidity,
-          })
+          .update(settingsData)
           .eq('id', (notif as any).id);
         if (error) throw error;
       } else {
         const { error, data } = await supabase
           .from('notification_settings')
-          .insert([
-            {
-              user_id: user.id,
-              in_app_enabled: notif.in_app_enabled,
-              email_enabled: notif.email_enabled,
-              push_enabled: notif.push_enabled,
-              alert_threshold_temp: notif.alert_threshold_temp,
-              alert_threshold_humidity: notif.alert_threshold_humidity,
-            },
-          ])
+          .insert([{ user_id: user.id, ...settingsData }])
           .select('id')
           .single();
         if (error) throw error;
         setNotif({ ...notif, id: data?.id });
       }
-      toast.success('Notification settings saved');
+      toast.success('Threshold settings saved - alerts will now use your values');
     } catch (e) {
       console.error(e);
       toast.error('Failed to save settings');
@@ -135,7 +151,6 @@ export default function SettingsTab() {
 
   const changeRole = async (user_id: string, role: 'admin' | 'viewer') => {
     try {
-      // Try update first
       const { data: existing } = await supabase
         .from('user_roles')
         .select('id')
@@ -163,127 +178,328 @@ export default function SettingsTab() {
     }
   };
 
+  const handleNumericChange = (field: keyof NotificationSettingsRow, value: string) => {
+    setNotif((n) => n ? { ...n, [field]: value === '' ? null : Number(value) } : n);
+  };
+
   return (
     <div className="space-y-6" role="region" aria-label="Settings">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-          <p className="text-muted-foreground">Manage your preferences and platform administration</p>
+          <p className="text-muted-foreground">Manage alert thresholds and notification preferences</p>
         </div>
         <Badge variant={isAdmin ? 'default' : 'secondary'} className="capitalize">
           <Shield className="h-3 w-3 mr-1" /> {profile?.role || 'viewer'}
         </Badge>
       </div>
 
+      {/* Alert Thresholds Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Alert Thresholds
+          </CardTitle>
+          <CardDescription>
+            Configure when alerts are triggered. The system uses your thresholds for all anomaly detection.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Temperature */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Thermometer className="h-4 w-4 text-orange-500" />
+              <h4 className="font-medium">Temperature (°C)</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="temp-min">Minimum Threshold</Label>
+                <Input
+                  id="temp-min"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="15"
+                  value={notif?.alert_threshold_temp_min ?? ''}
+                  onChange={(e) => handleNumericChange('alert_threshold_temp_min', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="temp-max">Maximum Threshold</Label>
+                <Input
+                  id="temp-max"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="30"
+                  value={notif?.alert_threshold_temp ?? ''}
+                  onChange={(e) => handleNumericChange('alert_threshold_temp', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Humidity */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Droplets className="h-4 w-4 text-blue-500" />
+              <h4 className="font-medium">Humidity (%)</h4>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="humidity-max">Maximum Threshold</Label>
+              <Input
+                id="humidity-max"
+                type="number"
+                inputMode="decimal"
+                placeholder="70"
+                value={notif?.alert_threshold_humidity ?? ''}
+                onChange={(e) => handleNumericChange('alert_threshold_humidity', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Alert triggers above this humidity level</p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Pressure */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Gauge className="h-4 w-4 text-purple-500" />
+              <h4 className="font-medium">Pressure (hPa)</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="pressure-min">Minimum Threshold</Label>
+                <Input
+                  id="pressure-min"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="1000"
+                  value={notif?.alert_threshold_pressure_min ?? ''}
+                  onChange={(e) => handleNumericChange('alert_threshold_pressure_min', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="pressure-max">Maximum Threshold</Label>
+                <Input
+                  id="pressure-max"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="1020"
+                  value={notif?.alert_threshold_pressure_max ?? ''}
+                  onChange={(e) => handleNumericChange('alert_threshold_pressure_max', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Air Quality (PM2.5) */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Wind className="h-4 w-4 text-green-500" />
+              <h4 className="font-medium">Air Quality - PM2.5 (μg/m³)</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="pm25-warning">Warning Threshold</Label>
+                <Input
+                  id="pm25-warning"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="35"
+                  value={notif?.alert_threshold_pm25 ?? ''}
+                  onChange={(e) => handleNumericChange('alert_threshold_pm25', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="pm25-critical">Critical Threshold</Label>
+                <Input
+                  id="pm25-critical"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="75"
+                  value={notif?.alert_threshold_pm25_critical ?? ''}
+                  onChange={(e) => handleNumericChange('alert_threshold_pm25_critical', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Vibration */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-red-500" />
+              <h4 className="font-medium">Vibration (m/s²)</h4>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="vibration">Warning Threshold</Label>
+              <Input
+                id="vibration"
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                placeholder="10"
+                value={notif?.alert_threshold_vibration ?? ''}
+                onChange={(e) => handleNumericChange('alert_threshold_vibration', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Gravity-corrected acceleration magnitude threshold</p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Anomaly & Failure */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+              <h4 className="font-medium">Predictive Analytics</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="anomaly">Anomaly Score (0-1)</Label>
+                <Input
+                  id="anomaly"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  placeholder="0.6"
+                  value={notif?.alert_threshold_anomaly_score ?? ''}
+                  onChange={(e) => handleNumericChange('alert_threshold_anomaly_score', e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="failure">Failure Probability (0-1)</Label>
+                <Input
+                  id="failure"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  placeholder="0.4"
+                  value={notif?.alert_threshold_failure_prob ?? ''}
+                  onChange={(e) => handleNumericChange('alert_threshold_failure_prob', e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Values closer to 0 trigger alerts more frequently; closer to 1 requires higher anomaly/failure risk
+            </p>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button onClick={saveNotif} disabled={saving}>
+              <Save className="h-4 w-4 mr-2" /> Save All Thresholds
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Notifications */}
-        <Card as-child>
-          <section>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Bell className="h-4 w-4" /> Notification Preferences</CardTitle>
-              <CardDescription>Configure alert channels and thresholds</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center justify-between rounded-md border p-3">
-                  <Label htmlFor="inapp">In‑app</Label>
-                  <Switch id="inapp" checked={!!notif?.in_app_enabled} onCheckedChange={(v) => setNotif((n) => n ? { ...n, in_app_enabled: v } : n)} />
-                </div>
-                <div className="flex items-center justify-between rounded-md border p-3">
-                  <Label htmlFor="email">Email</Label>
-                  <Switch id="email" checked={!!notif?.email_enabled} onCheckedChange={(v) => setNotif((n) => n ? { ...n, email_enabled: v } : n)} />
-                </div>
-                <div className="flex items-center justify-between rounded-md border p-3">
-                  <Label htmlFor="push">Push</Label>
-                  <Switch id="push" checked={!!notif?.push_enabled} onCheckedChange={(v) => setNotif((n) => n ? { ...n, push_enabled: v } : n)} />
-                </div>
+        {/* Notification Channels */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              Notification Channels
+            </CardTitle>
+            <CardDescription>Choose how you want to receive alerts</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <Label htmlFor="inapp">In‑app Notifications</Label>
+                <Switch 
+                  id="inapp" 
+                  checked={!!notif?.in_app_enabled} 
+                  onCheckedChange={(v) => setNotif((n) => n ? { ...n, in_app_enabled: v } : n)} 
+                />
               </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="temp">Temperature threshold (°C)</Label>
-                  <Input
-                    id="temp"
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="e.g. 25"
-                    value={notif?.alert_threshold_temp ?? ''}
-                    onChange={(e) => setNotif((n) => n ? { ...n, alert_threshold_temp: e.target.value === '' ? null : Number(e.target.value) } : n)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="hum">Humidity threshold (%)</Label>
-                  <Input
-                    id="hum"
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="e.g. 60"
-                    value={notif?.alert_threshold_humidity ?? ''}
-                    onChange={(e) => setNotif((n) => n ? { ...n, alert_threshold_humidity: e.target.value === '' ? null : Number(e.target.value) } : n)}
-                  />
-                </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <Label htmlFor="email">Email Notifications</Label>
+                <Switch 
+                  id="email" 
+                  checked={!!notif?.email_enabled} 
+                  onCheckedChange={(v) => setNotif((n) => n ? { ...n, email_enabled: v } : n)} 
+                />
               </div>
-
-              <div className="flex justify-end">
-                <Button onClick={saveNotif} disabled={saving}>
-                  <Save className="h-4 w-4 mr-2" /> Save Preferences
-                </Button>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <Label htmlFor="push">Push Notifications</Label>
+                <Switch 
+                  id="push" 
+                  checked={!!notif?.push_enabled} 
+                  onCheckedChange={(v) => setNotif((n) => n ? { ...n, push_enabled: v } : n)} 
+                />
               </div>
-            </CardContent>
-          </section>
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={saveNotif} disabled={saving} variant="outline">
+                <Save className="h-4 w-4 mr-2" /> Save Preferences
+              </Button>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Admin: User Roles */}
-        <Card as-child>
-          <section aria-disabled={!isAdmin} aria-label="User roles">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> User Roles</CardTitle>
-              <CardDescription>Grant or revoke platform roles (admin only)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!isAdmin ? (
-                <p className="text-muted-foreground">You need admin rights to manage roles.</p>
-              ) : (
-                <div className="space-y-3">
-                  {loadingUsers && <p className="text-sm text-muted-foreground">Loading users…</p>}
-                  {users.map((u) => (
-                    <div key={u.user_id} className="flex items-center justify-between rounded-md border p-3">
-                      <div>
-                        <p className="font-medium">{u.nickname}</p>
-                        <p className="text-xs text-muted-foreground">{u.user_id.slice(0,8)}…</p>
-                      </div>
-                      <div className="w-40">
-                        <Select
-                          value={u.role}
-                          onValueChange={(val) => changeRole(u.user_id, val as 'admin' | 'viewer')}
-                        >
-                          <SelectTrigger className="bg-popover z-50">
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover border border-border z-50">
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              User Roles
+            </CardTitle>
+            <CardDescription>Grant or revoke platform roles (admin only)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isAdmin ? (
+              <p className="text-muted-foreground">You need admin rights to manage roles.</p>
+            ) : (
+              <div className="space-y-3">
+                {loadingUsers && <p className="text-sm text-muted-foreground">Loading users…</p>}
+                {users.map((u) => (
+                  <div key={u.user_id} className="flex items-center justify-between rounded-md border p-3">
+                    <div>
+                      <p className="font-medium">{u.nickname}</p>
+                      <p className="text-xs text-muted-foreground">{u.user_id.slice(0,8)}…</p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </section>
+                    <div className="w-32">
+                      <Select
+                        value={u.role}
+                        onValueChange={(val) => changeRole(u.user_id, val as 'admin' | 'viewer')}
+                      >
+                        <SelectTrigger className="bg-popover z-50">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border border-border z-50">
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="viewer">Viewer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Settings className="h-4 w-4" /> Platform</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Platform
+          </CardTitle>
           <CardDescription>General preferences</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Placeholder for future settings */}
           <p className="text-sm text-muted-foreground">More settings coming soon.</p>
         </CardContent>
       </Card>

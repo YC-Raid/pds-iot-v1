@@ -316,8 +316,16 @@ export type Database = {
       }
       notification_settings: {
         Row: {
+          alert_threshold_anomaly_score: number | null
+          alert_threshold_failure_prob: number | null
           alert_threshold_humidity: number | null
+          alert_threshold_pm25: number | null
+          alert_threshold_pm25_critical: number | null
+          alert_threshold_pressure_max: number | null
+          alert_threshold_pressure_min: number | null
           alert_threshold_temp: number | null
+          alert_threshold_temp_min: number | null
+          alert_threshold_vibration: number | null
           created_at: string
           email_enabled: boolean
           id: string
@@ -327,8 +335,16 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alert_threshold_anomaly_score?: number | null
+          alert_threshold_failure_prob?: number | null
           alert_threshold_humidity?: number | null
+          alert_threshold_pm25?: number | null
+          alert_threshold_pm25_critical?: number | null
+          alert_threshold_pressure_max?: number | null
+          alert_threshold_pressure_min?: number | null
           alert_threshold_temp?: number | null
+          alert_threshold_temp_min?: number | null
+          alert_threshold_vibration?: number | null
           created_at?: string
           email_enabled?: boolean
           id?: string
@@ -338,8 +354,16 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alert_threshold_anomaly_score?: number | null
+          alert_threshold_failure_prob?: number | null
           alert_threshold_humidity?: number | null
+          alert_threshold_pm25?: number | null
+          alert_threshold_pm25_critical?: number | null
+          alert_threshold_pressure_max?: number | null
+          alert_threshold_pressure_min?: number | null
           alert_threshold_temp?: number | null
+          alert_threshold_temp_min?: number | null
+          alert_threshold_vibration?: number | null
           created_at?: string
           email_enabled?: boolean
           id?: string

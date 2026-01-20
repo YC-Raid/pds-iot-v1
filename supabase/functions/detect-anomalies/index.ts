@@ -17,42 +17,102 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    // Fetch user-defined thresholds from notification_settings
-    // We'll use the most restrictive (lowest) threshold across all users for system-wide alerts
+    // Fetch ALL user-defined thresholds from notification_settings
     const { data: userSettings } = await supabaseClient
       .from('notification_settings')
-      .select('alert_threshold_temp, alert_threshold_humidity')
+      .select(`
+        alert_threshold_temp,
+        alert_threshold_humidity,
+        alert_threshold_temp_min,
+        alert_threshold_pressure_min,
+        alert_threshold_pressure_max,
+        alert_threshold_pm25,
+        alert_threshold_pm25_critical,
+        alert_threshold_vibration,
+        alert_threshold_anomaly_score,
+        alert_threshold_failure_prob
+      `)
 
-    // Calculate the minimum thresholds from user settings (most sensitive)
-    let userTempThreshold = 30 // default max
-    let userHumidityThreshold = 70 // default max
+    // Default thresholds - will be overridden by user settings
+    let thresholdConfig = {
+      tempMin: 15,
+      tempMax: 30,
+      humidityMax: 70,
+      pressureMin: 1000,
+      pressureMax: 1020,
+      pm25Warning: 35,
+      pm25Critical: 75,
+      vibration: 10,
+      anomalyWarning: 0.6,
+      failureWarning: 0.4,
+    };
 
+    // Calculate the most restrictive (most sensitive) thresholds from all user settings
     if (userSettings && userSettings.length > 0) {
-      const validTempThresholds = userSettings
-        .map(s => s.alert_threshold_temp)
-        .filter(t => t !== null && t !== undefined) as number[]
-      const validHumidityThresholds = userSettings
-        .map(s => s.alert_threshold_humidity)
-        .filter(h => h !== null && h !== undefined) as number[]
+      const getMin = (field: string, defaultVal: number) => {
+        const values = userSettings
+          .map(s => s[field])
+          .filter(v => v !== null && v !== undefined) as number[];
+        return values.length > 0 ? Math.min(...values) : defaultVal;
+      };
 
-      if (validTempThresholds.length > 0) {
-        userTempThreshold = Math.min(...validTempThresholds)
-      }
-      if (validHumidityThresholds.length > 0) {
-        userHumidityThreshold = Math.min(...validHumidityThresholds)
-      }
+      const getMax = (field: string, defaultVal: number) => {
+        const values = userSettings
+          .map(s => s[field])
+          .filter(v => v !== null && v !== undefined) as number[];
+        return values.length > 0 ? Math.max(...values) : defaultVal;
+      };
+
+      // For max thresholds, use the minimum value (most restrictive)
+      thresholdConfig.tempMax = getMin('alert_threshold_temp', 30);
+      thresholdConfig.humidityMax = getMin('alert_threshold_humidity', 70);
+      thresholdConfig.pressureMax = getMin('alert_threshold_pressure_max', 1020);
+      thresholdConfig.pm25Warning = getMin('alert_threshold_pm25', 35);
+      thresholdConfig.pm25Critical = getMin('alert_threshold_pm25_critical', 75);
+      thresholdConfig.vibration = getMin('alert_threshold_vibration', 10);
+      thresholdConfig.anomalyWarning = getMin('alert_threshold_anomaly_score', 0.6);
+      thresholdConfig.failureWarning = getMin('alert_threshold_failure_prob', 0.4);
+
+      // For min thresholds, use the maximum value (most restrictive)
+      thresholdConfig.tempMin = getMax('alert_threshold_temp_min', 15);
+      thresholdConfig.pressureMin = getMax('alert_threshold_pressure_min', 1000);
     }
 
-    console.log(`Using thresholds - Temperature: ${userTempThreshold}°C, Humidity: ${userHumidityThreshold}%`)
+    console.log(`Using dynamic thresholds:`, JSON.stringify(thresholdConfig));
 
-    // Define thresholds for different sensors - now using user-defined values where applicable
+    // Define thresholds using user-configured values
     const thresholds = {
-      temperature: { min: 15, max: userTempThreshold, critical: userTempThreshold + 5 },
-      humidity: { min: 30, max: userHumidityThreshold, critical: userHumidityThreshold + 15 },
-      pressure: { min: 1000, max: 1020, critical: 1030 },
-      pm2_5: { max: 35, critical: 75 },
-      anomaly_score: { warning: 0.6, critical: 0.8 },
-      failure_probability: { warning: 0.4, critical: 0.7 }
+      temperature: { 
+        min: thresholdConfig.tempMin, 
+        max: thresholdConfig.tempMax, 
+        critical: thresholdConfig.tempMax + 5 
+      },
+      humidity: { 
+        min: 30, 
+        max: thresholdConfig.humidityMax, 
+        critical: thresholdConfig.humidityMax + 15 
+      },
+      pressure: { 
+        min: thresholdConfig.pressureMin, 
+        max: thresholdConfig.pressureMax, 
+        critical: thresholdConfig.pressureMax + 10 
+      },
+      pm2_5: { 
+        max: thresholdConfig.pm25Warning, 
+        critical: thresholdConfig.pm25Critical 
+      },
+      vibration: {
+        warning: thresholdConfig.vibration,
+        critical: thresholdConfig.vibration * 1.5
+      },
+      anomaly_score: { 
+        warning: thresholdConfig.anomalyWarning, 
+        critical: thresholdConfig.anomalyWarning + 0.2 
+      },
+      failure_probability: { 
+        warning: thresholdConfig.failureWarning, 
+        critical: thresholdConfig.failureWarning + 0.3 
+      }
     }
 
     // Get recent sensor readings (last 5 minutes to reduce processing load)
@@ -61,10 +121,10 @@ serve(async (req) => {
     const { data: readings, error: readingsError } = await supabaseClient
       .from('processed_sensor_readings')
       .select('*')
-      .gte('recorded_at', sevenDaysAgo) // Only check data from last 7 days
-      .gte('processed_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Recently processed
+      .gte('recorded_at', sevenDaysAgo)
+      .gte('processed_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
       .order('recorded_at', { ascending: false })
-      .limit(100) // Limit processing to recent 100 readings
+      .limit(100)
 
     if (readingsError) {
       throw readingsError
@@ -201,6 +261,45 @@ serve(async (req) => {
         }
       }
 
+      // Check vibration anomalies
+      if (reading.accel_magnitude !== null) {
+        // Calculate corrected vibration (removing gravity from Y-axis)
+        const correctedVibration = reading.accel_magnitude ? 
+          Math.sqrt(
+            Math.pow(reading.accel_x || 0, 2) + 
+            Math.pow((reading.accel_y || 0) + 9.81, 2) + 
+            Math.pow(reading.accel_z || 0, 2)
+          ) : 0;
+
+        if (correctedVibration > thresholds.vibration.critical) {
+          alerts.push({
+            title: `Critical Vibration Alert`,
+            description: `Vibration reading of ${correctedVibration.toFixed(2)} m/s² exceeds critical threshold of ${thresholds.vibration.critical} m/s²`,
+            severity: 'critical',
+            priority: 'P1',
+            sensor_type: 'vibration',
+            value: correctedVibration.toFixed(2),
+            threshold: thresholds.vibration.critical.toString(),
+            threshold_value: thresholds.vibration.critical,
+            sensor_value: correctedVibration,
+            unit: 'm/s²'
+          })
+        } else if (correctedVibration > thresholds.vibration.warning) {
+          alerts.push({
+            title: `Vibration Warning`,
+            description: `Vibration reading of ${correctedVibration.toFixed(2)} m/s² exceeds warning threshold of ${thresholds.vibration.warning} m/s²`,
+            severity: 'high',
+            priority: 'P2',
+            sensor_type: 'vibration',
+            value: correctedVibration.toFixed(2),
+            threshold: thresholds.vibration.warning.toString(),
+            threshold_value: thresholds.vibration.warning,
+            sensor_value: correctedVibration,
+            unit: 'm/s²'
+          })
+        }
+      }
+
       // Check anomaly score
       if (reading.anomaly_score !== null) {
         if (reading.anomaly_score > thresholds.anomaly_score.critical) {
@@ -280,18 +379,16 @@ serve(async (req) => {
 
     // Insert alerts into database (avoid duplicates by checking recent alerts)
     if (alertsToCreate.length > 0) {
-      // Check for recent similar alerts to avoid spam (extended to 24 hours)
       const { data: recentAlerts } = await supabaseClient
         .from('alerts')
         .select('sensor_type, location, status, sensor_value, threshold_value')
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours instead of 1 hour
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .in('status', ['active', 'acknowledged', 'in_progress'])
 
       const recentAlertKeys = new Set(
         (recentAlerts || []).map(alert => `${alert.sensor_type}-${alert.location}-${alert.sensor_value}-${alert.threshold_value}`)
       )
 
-      // Filter out alerts that are similar to recent ones (more specific matching)
       const newAlerts = alertsToCreate.filter(alert => 
         !recentAlertKeys.has(`${alert.sensor_type}-${alert.location}-${alert.sensor_value}-${alert.threshold_value}`)
       )
@@ -316,10 +413,7 @@ serve(async (req) => {
         success: true,
         processed_readings: readings?.length || 0,
         alerts_generated: alertsToCreate.length,
-        thresholds_used: {
-          temperature: thresholds.temperature,
-          humidity: thresholds.humidity
-        },
+        thresholds_used: thresholdConfig,
         message: 'Anomaly detection completed successfully'
       }),
       {
