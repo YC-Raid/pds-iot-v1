@@ -65,7 +65,7 @@ serve(async (req) => {
       pressureMax: 1020,
       pm25Warning: 35,
       pm25Critical: 75,
-      vibration: 10,
+      vibration: 30,
       anomalyWarning: 0.6,
       failureWarning: 0.4,
     };
@@ -92,7 +92,7 @@ serve(async (req) => {
       thresholdConfig.pressureMax = getMin('alert_threshold_pressure_max', 1020);
       thresholdConfig.pm25Warning = getMin('alert_threshold_pm25', 35);
       thresholdConfig.pm25Critical = getMin('alert_threshold_pm25_critical', 75);
-      thresholdConfig.vibration = getMin('alert_threshold_vibration', 10);
+      thresholdConfig.vibration = getMax('alert_threshold_vibration', 30);
       thresholdConfig.anomalyWarning = getMin('alert_threshold_anomaly_score', 0.6);
       thresholdConfig.failureWarning = getMin('alert_threshold_failure_prob', 0.4);
 
