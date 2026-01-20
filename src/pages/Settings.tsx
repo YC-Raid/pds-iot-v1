@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { SEO } from "@/components/seo/SEO";
 import SettingsTab from "@/components/settings/SettingsTab";
 import DataRetentionMonitor from "@/components/settings/DataRetentionMonitor";
+import { RDSIntegration } from "@/components/dashboard/RDSIntegration";
 
 export default function Settings() {
   return (
@@ -12,6 +13,7 @@ export default function Settings() {
           <SettingsTab />
         </Card>
         <DataRetentionMonitor />
+        <RDSIntegration />
       </div>
     </>
   );

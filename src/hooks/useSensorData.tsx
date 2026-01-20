@@ -33,6 +33,7 @@ interface SensorReading {
   // Door security fields
   door_status: string | null;
   door_opens: number | null;
+  door_closes: number | null;
   intrusion_alert: boolean | null;
   door_opened_at: string | null;
 }
