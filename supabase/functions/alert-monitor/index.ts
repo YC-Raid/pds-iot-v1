@@ -20,16 +20,15 @@ interface SensorData {
 }
 
 // Priority mapping and impact generation for different alert types
-const getPriorityAndType = (alertCategory: string, value: number, threshold: number): { priority: 'P1' | 'P2' | 'P3' | 'P4', type: 'error' | 'warning' | 'info' } => {
-  if (alertCategory === 'vibration' && value > 15) {
+// Now uses dynamic thresholds passed from user settings
+const getPriorityAndType = (alertCategory: string, value: number, threshold: number, criticalThreshold?: number): { priority: 'P1' | 'P2' | 'P3' | 'P4', type: 'error' | 'warning' | 'info' } => {
+  const criticalLevel = criticalThreshold || threshold * 1.5;
+  
+  if (value > criticalLevel) {
     return { priority: 'P1', type: 'error' }; // Critical - immediate attention
-  } else if (alertCategory === 'vibration' && value > 10) {
-    return { priority: 'P2', type: 'warning' }; // High - urgent attention
-  } else if (alertCategory === 'temperature' && value > threshold + 10) {
-    return { priority: 'P2', type: 'warning' }; // High temperature variance
-  } else if (alertCategory === 'humidity' && value > threshold + 15) {
-    return { priority: 'P2', type: 'warning' }; // High humidity variance
-  } else if ((alertCategory === 'temperature' || alertCategory === 'humidity') && value > threshold) {
+  } else if (value > threshold * 1.2) {
+    return { priority: 'P2', type: 'warning' }; // High - urgent attention (20% above threshold)
+  } else if (value > threshold) {
     return { priority: 'P3', type: 'warning' }; // Standard threshold exceeded
   } else {
     return { priority: 'P4', type: 'info' }; // Low priority informational
