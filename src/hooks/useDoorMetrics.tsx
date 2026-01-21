@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DoorMetrics {
@@ -17,72 +17,97 @@ export const useDoorMetrics = (): DoorMetrics => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const isSyncingRef = useRef(false);
+  const disableSyncRef = useRef(false);
+  const lastSyncAttemptMsRef = useRef(0);
+
   const fetchDoorMetrics = useCallback(async () => {
     try {
-      // Get start of today in local timezone
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayISO = today.toISOString();
+      // Rolling 24h window (matches "24 hour day" expectation and avoids timezone edge cases)
+      const sinceISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      // Fetch all readings from today with door_status, ordered by recorded_at
-      const { data, error } = await supabase
+      // 1) Fetch latest door status quickly
+      const { data: latestRow, error: latestError } = await supabase
         .from("processed_sensor_readings")
-        .select("id, recorded_at, door_status")
-        .gte("recorded_at", todayISO)
+        .select("recorded_at, door_status")
+        .gte("recorded_at", sinceISO)
         .order("recorded_at", { ascending: false })
-        .limit(500);
+        .limit(1)
+        .maybeSingle();
 
-      if (error) {
-        console.error("Error fetching door metrics:", error);
+      if (latestError) {
+        console.error("Error fetching latest door status:", latestError);
         return;
       }
 
-      if (!data || data.length === 0) {
+      const latestStatus = (latestRow?.door_status as "OPEN" | "CLOSED" | undefined) ?? "CLOSED";
+      setCurrentDoorStatus(latestStatus);
+
+      // 2) Fetch all door statuses in the last 24h (paginate to avoid hidden caps)
+      const pageSize = 1000;
+      let from = 0;
+      const all: Array<{ recorded_at: string; door_status: string | null }> = [];
+
+      while (true) {
+        const { data, error } = await supabase
+          .from("processed_sensor_readings")
+          .select("recorded_at, door_status")
+          .gte("recorded_at", sinceISO)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          console.error("Error fetching door history page:", error);
+          return;
+        }
+
+        if (!data || data.length === 0) break;
+        all.push(...data);
+
+        if (data.length < pageSize) break;
+        from += pageSize;
+
+        // Safety guard (prevents runaway loops if something goes wrong)
+        if (from > 20000) break;
+      }
+
+      if (all.length === 0) {
         setTotalEntriesToday(0);
-        setCurrentDoorStatus(null);
         setDoorOpenedAt(null);
         setLastUpdated(new Date());
         return;
       }
 
-      // Get current door status from the latest reading
-      const latestReading = data[0];
-      const latestStatus = (latestReading.door_status as "OPEN" | "CLOSED") || "CLOSED";
-      setCurrentDoorStatus(latestStatus);
-
-      // Reverse for chronological order to count transitions
-      const chronologicalData = [...data].reverse();
-
-      // Count complete entry cycles (CLOSED -> OPEN transitions = someone entered)
+      // Count CLOSED -> OPEN transitions over the last 24h
       let entries = 0;
-      for (let i = 1; i < chronologicalData.length; i++) {
-        const current = chronologicalData[i];
-        const previous = chronologicalData[i - 1];
-
-        if (current.door_status === "OPEN" && previous.door_status === "CLOSED") {
-          entries++;
-        }
+      for (let i = 1; i < all.length; i++) {
+        const prev = all[i - 1]?.door_status ?? "CLOSED";
+        const curr = all[i]?.door_status ?? "CLOSED";
+        if (prev === "CLOSED" && curr === "OPEN") entries++;
       }
-
       setTotalEntriesToday(entries);
 
-      // Find when door opened (if currently open)
+      // Find when the door last opened (if currently open)
       if (latestStatus === "OPEN") {
-        // Find the most recent transition to OPEN
         let openedAt: Date | null = null;
-        for (let i = 0; i < data.length; i++) {
-          const current = data[i];
-          const next = data[i + 1];
-          
-          if (current.door_status === "OPEN") {
-            if (!next || next.door_status === "CLOSED") {
-              openedAt = new Date(current.recorded_at);
-              break;
+
+        // Walk backwards to find last CLOSED, then the next OPEN is the start of this open period.
+        for (let i = all.length - 1; i >= 0; i--) {
+          const status = all[i]?.door_status ?? "CLOSED";
+          if (status === "CLOSED") {
+            const candidate = all[i + 1];
+            if (candidate?.door_status === "OPEN") {
+              openedAt = new Date(candidate.recorded_at);
             }
-          } else {
             break;
           }
         }
+
+        // If the door has been OPEN for the entire 24h window
+        if (!openedAt && all[0]?.door_status === "OPEN") {
+          openedAt = new Date(all[0].recorded_at);
+        }
+
         setDoorOpenedAt(openedAt);
       } else {
         setDoorOpenedAt(null);
@@ -95,6 +120,35 @@ export const useDoorMetrics = (): DoorMetrics => {
       setIsLoading(false);
     }
   }, []);
+
+  const maybeSyncFromRds = useCallback(async () => {
+    if (disableSyncRef.current) return;
+    if (isSyncingRef.current) return;
+
+    // Throttle sync attempts (avoid hammering RDS)
+    const now = Date.now();
+    if (now - lastSyncAttemptMsRef.current < 30_000) return;
+    lastSyncAttemptMsRef.current = now;
+
+    try {
+      isSyncingRef.current = true;
+      const { error } = await supabase.functions.invoke("sync-rds-data", { body: {} });
+
+      if (error) {
+        // If the user isn't an admin, stop trying (expected 403)
+        const msg = String(error.message ?? "");
+        if (msg.includes("403") || msg.toLowerCase().includes("admin")) {
+          disableSyncRef.current = true;
+        }
+        console.warn("RDS sync attempt failed:", error);
+        return;
+      }
+
+      await fetchDoorMetrics();
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, [fetchDoorMetrics]);
 
   // Initial fetch and set up real-time subscription
   useEffect(() => {
@@ -131,8 +185,11 @@ export const useDoorMetrics = (): DoorMetrics => {
       )
       .subscribe();
 
-    // Also refresh every 10 seconds as backup (reduced from 30s for faster updates)
-    const interval = setInterval(fetchDoorMetrics, 10000);
+    // Fast refresh + opportunistic RDS sync for near-real-time door status
+    const interval = setInterval(() => {
+      fetchDoorMetrics();
+      maybeSyncFromRds();
+    }, 10_000);
 
     return () => {
       supabase.removeChannel(channel);
