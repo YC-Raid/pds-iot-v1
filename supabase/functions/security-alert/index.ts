@@ -149,32 +149,14 @@ serve(async (req) => {
       );
     }
 
-    const { alert_type, reading_id, door_opened_at, recipient_email } = validation.data;
+    const { alert_type, reading_id, door_opened_at } = validation.data;
     console.log(`[${requestId}] Processing security alert: ${alert_type}`);
 
-    // Get admin email from profiles/user_roles instead of using hardcoded email
-    let emailTo = recipient_email;
-    if (!emailTo) {
-      // Fetch admin users to get their email
-      const { data: adminRoles } = await supabaseClient
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'admin')
-        .limit(1);
-      
-      if (adminRoles && adminRoles.length > 0) {
-        const { data: adminUser } = await supabaseClient.auth.admin.getUserById(adminRoles[0].user_id);
-        emailTo = adminUser?.user?.email;
-      }
-    }
-
-    if (!emailTo) {
-      console.warn(`[${requestId}] No valid recipient email found`);
-      return new Response(
-        JSON.stringify({ success: false, error: 'No valid recipient email configured' }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // HARDCODED email addresses for debugging - bypasses auth issues
+    const emailTo = "ycfromraid@gmail.com";
+    const emailFrom = "onboarding@resend.dev";
+    
+    console.log(`[${requestId}] Using hardcoded email - To: ${emailTo}, From: ${emailFrom}`);
 
     // Check if we've already sent this alert recently (prevent duplicates)
     const { data: existingAlert } = await supabaseClient
@@ -252,10 +234,10 @@ serve(async (req) => {
     }
 
     // Send email via Resend
-    console.log(`[${requestId}] Sending ${alert_type} email to: ${emailTo}`);
+    console.log(`[${requestId}] Sending ${alert_type} email to: ${emailTo} from: ${emailFrom}`);
     
     const emailResponse = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: emailFrom,
       to: [emailTo],
       subject: emailSubject,
       html: emailHtml,
