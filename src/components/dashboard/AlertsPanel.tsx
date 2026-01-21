@@ -103,6 +103,10 @@ const AlertsPanel = () => {
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
   const [isAllSelected, setIsAllSelected] = useState(false);
   
+  // Dynamic metrics state
+  const [avgResponseTime, setAvgResponseTime] = useState<string>("--");
+  const [mttr, setMttr] = useState<string>("--");
+  
 
   // Fetch user profiles from Supabase
   useEffect(() => {
@@ -159,9 +163,49 @@ const AlertsPanel = () => {
             })
           );
           setAlerts(alertsWithNotes);
+          
+          // Calculate Avg Response Time (created_at → acknowledged_at)
+          const acknowledgedAlerts = alertsData.filter(a => a.acknowledged_at && a.created_at);
+          if (acknowledgedAlerts.length > 0) {
+            const totalResponseMs = acknowledgedAlerts.reduce((sum, a) => {
+              const created = new Date(a.created_at).getTime();
+              const acknowledged = new Date(a.acknowledged_at).getTime();
+              return sum + (acknowledged - created);
+            }, 0);
+            const avgMs = totalResponseMs / acknowledgedAlerts.length;
+            const avgMinutes = avgMs / (1000 * 60);
+            if (avgMinutes < 60) {
+              setAvgResponseTime(`${Math.round(avgMinutes)}m`);
+            } else {
+              setAvgResponseTime(`${(avgMinutes / 60).toFixed(1)}h`);
+            }
+          } else {
+            setAvgResponseTime("--");
+          }
+          
+          // Calculate MTTR (created_at → resolved_at)
+          const resolvedAlertsData = alertsData.filter(a => a.resolved_at && a.created_at);
+          if (resolvedAlertsData.length > 0) {
+            const totalRepairMs = resolvedAlertsData.reduce((sum, a) => {
+              const created = new Date(a.created_at).getTime();
+              const resolved = new Date(a.resolved_at).getTime();
+              return sum + (resolved - created);
+            }, 0);
+            const avgMs = totalRepairMs / resolvedAlertsData.length;
+            const avgHours = avgMs / (1000 * 60 * 60);
+            if (avgHours < 1) {
+              setMttr(`${Math.round(avgHours * 60)}m`);
+            } else {
+              setMttr(`${avgHours.toFixed(1)}h`);
+            }
+          } else {
+            setMttr("--");
+          }
         } else {
           // No alerts in database
           setAlerts([]);
+          setAvgResponseTime("--");
+          setMttr("--");
         }
       } catch (error) {
         console.error('Error:', error);
@@ -1088,8 +1132,8 @@ const AlertsPanel = () => {
             <Timer className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">8m</div>
-            <p className="text-xs text-muted-foreground">Response time</p>
+            <div className="text-2xl font-bold text-blue-600">{avgResponseTime}</div>
+            <p className="text-xs text-muted-foreground">Time to acknowledge</p>
           </CardContent>
         </Card>
 
@@ -1099,8 +1143,8 @@ const AlertsPanel = () => {
             <Clock className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">2.4h</div>
-            <p className="text-xs text-muted-foreground">Mean time to repair</p>
+            <div className="text-2xl font-bold text-purple-600">{mttr}</div>
+            <p className="text-xs text-muted-foreground">Mean time to resolve</p>
           </CardContent>
         </Card>
 
