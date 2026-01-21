@@ -10,6 +10,38 @@ interface DoorMetrics {
   refetch: () => Promise<void>;
 }
 
+// Check if current time is within night mode (restricted hours)
+const isWithinNightMode = (nightModeStart: string, nightModeEnd: string): boolean => {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  const [startHour, startMin] = nightModeStart.split(":").map(Number);
+  const [endHour, endMin] = nightModeEnd.split(":").map(Number);
+  
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+  
+  // Handle overnight periods (e.g., 23:00 to 06:00)
+  if (startMinutes > endMinutes) {
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  } else {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  }
+};
+
+// Get security settings from localStorage
+const getSecuritySettings = () => {
+  try {
+    const stored = localStorage.getItem("hangar-security-settings");
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error("Failed to read security settings:", e);
+  }
+  return { nightModeStart: "23:00", nightModeEnd: "06:00", maxOpenDurationSeconds: 300 };
+};
+
 export const useDoorMetrics = (): DoorMetrics => {
   const [totalEntriesToday, setTotalEntriesToday] = useState(0);
   const [currentDoorStatus, setCurrentDoorStatus] = useState<"OPEN" | "CLOSED" | null>(null);
@@ -20,6 +52,38 @@ export const useDoorMetrics = (): DoorMetrics => {
   const isSyncingRef = useRef(false);
   const disableSyncRef = useRef(false);
   const lastSyncAttemptMsRef = useRef(0);
+  const lastAlertSentRef = useRef<number>(0); // Track when we last sent an alert
+
+  // Send intrusion alert email via edge function
+  const sendIntrusionAlert = useCallback(async (readingId?: number, openedAt?: Date) => {
+    // Throttle alerts - only send once every 5 minutes
+    const now = Date.now();
+    if (now - lastAlertSentRef.current < 5 * 60 * 1000) {
+      console.log("🚨 Intrusion alert throttled (already sent recently)");
+      return;
+    }
+
+    try {
+      console.log("🚨 Sending intrusion alert email...");
+      const { data, error } = await supabase.functions.invoke("security-alert", {
+        body: {
+          alert_type: "intrusion",
+          reading_id: readingId,
+          door_opened_at: openedAt?.toISOString(),
+        },
+      });
+
+      if (error) {
+        console.error("Failed to send intrusion alert:", error);
+        return;
+      }
+
+      lastAlertSentRef.current = now;
+      console.log("✅ Intrusion alert sent successfully:", data);
+    } catch (err) {
+      console.error("Error sending intrusion alert:", err);
+    }
+  }, []);
 
   const fetchDoorMetrics = useCallback(async () => {
     try {
@@ -167,14 +231,23 @@ export const useDoorMetrics = (): DoorMetrics => {
         (payload) => {
           console.log("🚪 Real-time door update received:", payload.new);
           // Immediately update door status from the new record
-          const newReading = payload.new as { door_status?: string; recorded_at?: string };
+          const newReading = payload.new as { id?: number; door_status?: string; recorded_at?: string };
           if (newReading.door_status) {
+            const prevStatus = currentDoorStatus;
             setCurrentDoorStatus(newReading.door_status as "OPEN" | "CLOSED");
             setLastUpdated(new Date());
             
             // If door just opened, set the opened time
             if (newReading.door_status === "OPEN") {
-              setDoorOpenedAt(new Date(newReading.recorded_at || Date.now()));
+              const openedTime = new Date(newReading.recorded_at || Date.now());
+              setDoorOpenedAt(openedTime);
+              
+              // 🚨 INTRUSION CHECK: Door opened during night mode
+              const settings = getSecuritySettings();
+              if (isWithinNightMode(settings.nightModeStart, settings.nightModeEnd)) {
+                console.log("🚨 INTRUSION DETECTED: Door opened during restricted hours!");
+                sendIntrusionAlert(newReading.id, openedTime);
+              }
             } else {
               setDoorOpenedAt(null);
             }
@@ -195,7 +268,7 @@ export const useDoorMetrics = (): DoorMetrics => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [fetchDoorMetrics]);
+  }, [fetchDoorMetrics, sendIntrusionAlert, currentDoorStatus]);
 
   return {
     totalEntriesToday,
