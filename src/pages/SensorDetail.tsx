@@ -255,6 +255,38 @@ const SensorDetail = () => {
               });
 
               console.log(`📊 [DEBUG] 24-hour acceleration data grouped into ${formatted.length} hour slots (SGT)`);
+            } else if (sensorType === 'rotation') {
+              // 24 hours: Group by hour (Singapore time) and average for gyroscope; include empty hours from 00:00 to current hour
+              // SAME LOGIC AS ACCELEROMETER
+              const currentHourSg = parseInt(formatInTimeZone(new Date(), 'Asia/Singapore', 'HH'));
+              const hoursList = Array.from({ length: currentHourSg + 1 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
+              const slots = new Map(hoursList.map(h => [h, { x: [] as number[], y: [] as number[], z: [] as number[], mag: [] as number[] }]));
+
+              data.forEach((reading: any) => {
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const slot = slots.get(hourLabel);
+                if (!slot) return;
+                if (reading.gyro_x !== null && reading.gyro_x !== undefined) slot.x.push(Number(reading.gyro_x));
+                if (reading.gyro_y !== null && reading.gyro_y !== undefined) slot.y.push(Number(reading.gyro_y));
+                if (reading.gyro_z !== null && reading.gyro_z !== undefined) slot.z.push(Number(reading.gyro_z));
+                if (reading.gyro_magnitude !== null && reading.gyro_magnitude !== undefined) {
+                  slot.mag.push(Number(reading.gyro_magnitude));
+                }
+              });
+
+              formatted = hoursList.map((timeLabel) => {
+                const g = slots.get(timeLabel)!;
+                const avg = (arr: number[]) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null);
+                return {
+                  time: timeLabel,
+                  x_axis: avg(g.x),
+                  y_axis: avg(g.y),
+                  z_axis: avg(g.z),
+                  magnitude: avg(g.mag)
+                };
+              });
+
+              console.log(`📊 [DEBUG] 24-hour gyroscope data grouped into ${formatted.length} hour slots (SGT)`);
             } else {
               // 24 hours: Group by hour (Singapore time) and average for single-value sensors; include empty hours
               const currentHourSg = parseInt(formatInTimeZone(new Date(), 'Asia/Singapore', 'HH'));
@@ -440,78 +472,98 @@ const SensorDetail = () => {
             const maxPoints = hours === 1 ? 60 : 200;
             const step = Math.max(1, Math.ceil(data.length / maxPoints));
             if (hours === 1) {
-              // 1 hour: Group by minute and average gyroscope data - last 60 minutes only
+              // 1 hour: Group by minute and average gyroscope data - current hour only (Singapore timezone)
+              // SAME LOGIC AS ACCELEROMETER
               const minuteGroups = new Map();
               
-              // Get last 60 minutes of data for 1-hour analysis  
-              const now = new Date();
-              const startTime = new Date(now.getTime() - 60 * 60 * 1000); // exactly 1 hour ago
+              // Get current hour bounds in Singapore timezone
+              const nowSingapore = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+              const startOfHour = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), nowSingapore.getHours(), 0, 0, 0);
+              const endOfHour = new Date(nowSingapore.getFullYear(), nowSingapore.getMonth(), nowSingapore.getDate(), nowSingapore.getHours(), 59, 59, 999);
               
               data.forEach(reading => {
-                const readingDate = new Date(reading.recorded_at);
-                if (readingDate >= startTime) {
+                const readingDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+                if (readingDate >= startOfHour && readingDate <= endOfHour) {
                   const singaporeTime = `${readingDate.getHours().toString().padStart(2, '0')}:${readingDate.getMinutes().toString().padStart(2, '0')}`;
                   
                   if (!minuteGroups.has(singaporeTime)) {
                     minuteGroups.set(singaporeTime, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
                   }
                   const group = minuteGroups.get(singaporeTime);
-                  group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                  group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                  group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
-                  group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+                  
+                  if (reading.gyro_x !== null && reading.gyro_x !== undefined) {
+                    group.x.push(Number(reading.gyro_x));
+                  }
+                  if (reading.gyro_y !== null && reading.gyro_y !== undefined) {
+                    group.y.push(Number(reading.gyro_y));
+                  }
+                  if (reading.gyro_z !== null && reading.gyro_z !== undefined) {
+                    group.z.push(Number(reading.gyro_z));
+                  }
+                  if (reading.gyro_magnitude !== null && reading.gyro_magnitude !== undefined) {
+                    group.mag.push(Number(reading.gyro_magnitude));
+                  }
                 }
               });
               
               formatted = Array.from(minuteGroups.entries()).map(([timeLabel, group]) => ({
                 time: timeLabel,
-                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
-                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
-                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
-                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
+                x_axis: group.x.length > 0 ? group.x.reduce((sum, val) => sum + val, 0) / group.x.length : 0,
+                y_axis: group.y.length > 0 ? group.y.reduce((sum, val) => sum + val, 0) / group.y.length : 0,
+                z_axis: group.z.length > 0 ? group.z.reduce((sum, val) => sum + val, 0) / group.z.length : 0,
+                magnitude: group.mag.length > 0 ? group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length : 0
               })).sort((a, b) => a.time.localeCompare(b.time));
               
             } else if (hours === 24) {
-              // 24 hours: Group by hour and average - same pattern as 1h but grouped by hour
-              const hourGroups = new Map();
-              
-              data.forEach(reading => {
-                const singaporeDate = new Date(reading.recorded_at);
-                const singaporeHour = `${singaporeDate.getHours().toString().padStart(2, '0')}:00`;
-                
-                if (!hourGroups.has(singaporeHour)) {
-                  hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+              // 24 hours: This block is a fallback - main 24h processing is done above
+              // Use same SGT timezone-aware grouping as accelerometer
+              console.log(`📊 [DEBUG] Gyroscope 24h rotation fallback - using SGT hourly slots`);
+              const currentHourSg = parseInt(formatInTimeZone(new Date(), 'Asia/Singapore', 'HH'));
+              const hoursList = Array.from({ length: currentHourSg + 1 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
+              const slots = new Map(hoursList.map(h => [h, { x: [] as number[], y: [] as number[], z: [] as number[], mag: [] as number[] }]));
+
+              data.forEach((reading: any) => {
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const slot = slots.get(hourLabel);
+                if (!slot) return;
+                if (reading.gyro_x !== null && reading.gyro_x !== undefined) slot.x.push(Number(reading.gyro_x));
+                if (reading.gyro_y !== null && reading.gyro_y !== undefined) slot.y.push(Number(reading.gyro_y));
+                if (reading.gyro_z !== null && reading.gyro_z !== undefined) slot.z.push(Number(reading.gyro_z));
+                if (reading.gyro_magnitude !== null && reading.gyro_magnitude !== undefined) {
+                  slot.mag.push(Number(reading.gyro_magnitude));
                 }
-                const group = hourGroups.get(singaporeHour);
-                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
-                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+              });
+
+              formatted = hoursList.map((timeLabel) => {
+                const g = slots.get(timeLabel)!;
+                const avg = (arr: number[]) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null);
+                return {
+                  time: timeLabel,
+                  x_axis: avg(g.x),
+                  y_axis: avg(g.y),
+                  z_axis: avg(g.z),
+                  magnitude: avg(g.mag)
+                };
               });
               
-              formatted = Array.from(hourGroups.entries()).map(([timeLabel, group]) => ({
-                time: timeLabel,
-                x_axis: group.x.reduce((sum, val) => sum + val, 0) / group.x.length,
-                y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
-                z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
-                magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
-              })).sort((a, b) => a.time.localeCompare(b.time));
-              
             } else if (hours === 168) {
-              // 1 week: Group by day and average gyroscope data
+              // 1 week: Group by day and average gyroscope data (Asia/Singapore) - SAME AS ACCELEROMETER
               const dayGroups = new Map();
               
               data.forEach(reading => {
-                const singaporeDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
-                const singaporeDay = singaporeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const readingDate = new Date(new Date(reading.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
+                const dayLabel = readingDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 
-                if (!dayGroups.has(singaporeDay)) {
-                  dayGroups.set(singaporeDay, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
+                if (!dayGroups.has(dayLabel)) {
+                  dayGroups.set(dayLabel, { x: [], y: [], z: [], mag: [], sortKey: new Date(readingDate.getFullYear(), readingDate.getMonth(), readingDate.getDate()).getTime() });
                 }
-                const group = dayGroups.get(singaporeDay);
-                group.x.push(Number(reading.gyro_x || reading.avg_gyro_x) || 0);
-                group.y.push(Number(reading.gyro_y || reading.avg_gyro_y) || 0);
-                group.z.push(Number(reading.gyro_z || reading.avg_gyro_z) || 0);
+                const group = dayGroups.get(dayLabel);
+                const gx = Number(reading.gyro_x || reading.avg_gyro_x) || 0;
+                const gy = Number(reading.gyro_y || reading.avg_gyro_y) || 0;
+                const gz = Number(reading.gyro_z || reading.avg_gyro_z) || 0;
+                group.x.push(gx);
+                group.y.push(gy);
+                group.z.push(gz);
                 group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
               });
               
@@ -521,10 +573,10 @@ const SensorDetail = () => {
                 y_axis: group.y.reduce((sum, val) => sum + val, 0) / group.y.length,
                 z_axis: group.z.reduce((sum, val) => sum + val, 0) / group.z.length,
                 magnitude: group.mag.reduce((sum, val) => sum + val, 0) / group.mag.length
-              })).sort((a, b) => new Date(a.time + ', 2024').getTime() - new Date(b.time + ', 2024').getTime());
+              })).sort((a, b) => dayGroups.get(a.time).sortKey - dayGroups.get(b.time).sortKey);
               
             } else if (hours === 720) {
-              // 1 month: Group by day and average gyroscope data (Asia/Singapore)
+              // 1 month: Group by day and average gyroscope data (Asia/Singapore) - SAME AS ACCELEROMETER
               const dayGroups = new Map();
               
               data.forEach(reading => {
