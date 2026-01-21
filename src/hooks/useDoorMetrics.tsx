@@ -64,7 +64,9 @@ export const useDoorMetrics = (): DoorMetrics => {
     }
 
     try {
-      console.log("🚨 Sending intrusion alert email...");
+      console.log("🚨 Sending intrusion alert email via security-alert edge function...");
+      console.log("🚨 Request payload:", { alert_type: "intrusion", reading_id: readingId, door_opened_at: openedAt?.toISOString() });
+      
       const { data, error } = await supabase.functions.invoke("security-alert", {
         body: {
           alert_type: "intrusion",
@@ -74,14 +76,23 @@ export const useDoorMetrics = (): DoorMetrics => {
       });
 
       if (error) {
-        console.error("Failed to send intrusion alert:", error);
+        console.error("❌ INTRUSION ALERT FAILED - Edge function error:", error);
+        console.error("❌ Error details:", JSON.stringify(error, null, 2));
+        return;
+      }
+
+      // Check if the response indicates failure
+      if (data && data.success === false) {
+        console.error("❌ INTRUSION ALERT FAILED - API error:", data.error);
         return;
       }
 
       lastAlertSentRef.current = now;
-      console.log("✅ Intrusion alert sent successfully:", data);
+      console.log("✅ Intrusion alert sent successfully!");
+      console.log("✅ Response:", JSON.stringify(data, null, 2));
     } catch (err) {
-      console.error("Error sending intrusion alert:", err);
+      console.error("❌ INTRUSION ALERT EXCEPTION:", err);
+      console.error("❌ Stack trace:", err instanceof Error ? err.stack : "No stack available");
     }
   }, []);
 

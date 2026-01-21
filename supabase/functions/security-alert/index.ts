@@ -252,16 +252,27 @@ serve(async (req) => {
     }
 
     // Send email via Resend
-    console.log(`[${requestId}] Sending ${alert_type} email`);
+    console.log(`[${requestId}] Sending ${alert_type} email to: ${emailTo}`);
     
     const emailResponse = await resend.emails.send({
-      from: "Hangar Guardian <onboarding@resend.dev>",
+      from: "onboarding@resend.dev",
       to: [emailTo],
       subject: emailSubject,
       html: emailHtml,
     });
 
-    console.log(`[${requestId}] Email sent successfully`);
+    console.log(`[${requestId}] Resend API response:`, JSON.stringify(emailResponse));
+
+    // Check for Resend API errors
+    if (emailResponse.error) {
+      console.error(`[${requestId}] Resend API error:`, emailResponse.error);
+      return new Response(
+        JSON.stringify({ success: false, error: emailResponse.error.message || 'Failed to send email' }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[${requestId}] Email sent successfully, id: ${emailResponse.data?.id}`);
 
     // Log the alert to prevent duplicates
     await supabaseClient.from("security_alert_log").insert({
