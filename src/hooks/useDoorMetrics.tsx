@@ -125,9 +125,9 @@ export const useDoorMetrics = (): DoorMetrics => {
     if (disableSyncRef.current) return;
     if (isSyncingRef.current) return;
 
-    // Throttle sync attempts (avoid hammering RDS)
+    // Throttle sync attempts - 5 seconds for faster door updates
     const now = Date.now();
-    if (now - lastSyncAttemptMsRef.current < 30_000) return;
+    if (now - lastSyncAttemptMsRef.current < 5_000) return;
     lastSyncAttemptMsRef.current = now;
 
     try {
@@ -185,11 +185,11 @@ export const useDoorMetrics = (): DoorMetrics => {
       )
       .subscribe();
 
-    // Fast refresh + opportunistic RDS sync for near-real-time door status
+    // Fast refresh (3s) + opportunistic RDS sync for near-real-time door status
     const interval = setInterval(() => {
       fetchDoorMetrics();
       maybeSyncFromRds();
-    }, 10_000);
+    }, 3_000);
 
     return () => {
       supabase.removeChannel(channel);
