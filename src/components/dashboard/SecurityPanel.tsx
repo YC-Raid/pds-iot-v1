@@ -40,51 +40,24 @@ interface SecurityAlertLog {
 export const SecurityPanel = () => {
   const { sensorReadings } = useSensorData();
   const { calculateSecurityStatus, isNightMode, settings } = useSecuritySettings();
-  const { doorOpensToday, doorClosesToday } = useDoorMetrics();
+  const { totalEntriesToday, currentDoorStatus, doorOpenedAt: hookDoorOpenedAt, lastUpdated } = useDoorMetrics();
   const latestReading = sensorReadings[0];
   
   const [flashState, setFlashState] = useState(true);
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlertLog[]>([]);
   const [doorEvents, setDoorEvents] = useState<SecurityEvent[]>([]);
   const [doorOpenDuration, setDoorOpenDuration] = useState(0);
-  const [doorOpenedAt, setDoorOpenedAt] = useState<Date | null>(null);
 
-  const doorStatus = (latestReading?.door_status as "OPEN" | "CLOSED") || "CLOSED";
+  // Use door status from real-time hook for faster updates
+  const doorStatus = currentDoorStatus || "CLOSED";
+  const doorOpenedAt = hookDoorOpenedAt;
 
-  // Calculate door_opened_at from sensor readings (find when door transitioned to OPEN)
+  // Reset duration when door closes
   useEffect(() => {
     if (doorStatus !== "OPEN") {
-      setDoorOpenedAt(null);
       setDoorOpenDuration(0);
-      return;
     }
-
-    // Find the most recent transition to OPEN by looking back through readings
-    let openedAt: Date | null = null;
-    
-    for (let i = 0; i < sensorReadings.length; i++) {
-      const current = sensorReadings[i];
-      const next = sensorReadings[i + 1];
-      
-      if (current?.door_status === "OPEN") {
-        // Check if this is the transition point
-        if (!next || next.door_status === "CLOSED") {
-          openedAt = new Date(current.recorded_at);
-          break;
-        }
-      } else {
-        // Door was closed, so the previous OPEN reading was the first
-        break;
-      }
-    }
-    
-    // If all readings are OPEN, use the oldest one we have
-    if (!openedAt && sensorReadings.length > 0 && sensorReadings[sensorReadings.length - 1]?.door_status === "OPEN") {
-      openedAt = new Date(sensorReadings[sensorReadings.length - 1].recorded_at);
-    }
-    
-    setDoorOpenedAt(openedAt);
-  }, [doorStatus, sensorReadings]);
+  }, [doorStatus]);
 
   // Update door open duration every second
   useEffect(() => {
@@ -330,16 +303,9 @@ export const SecurityPanel = () => {
               <div className="text-center">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <DoorOpen className="h-4 w-4" />
-                  <span className="text-sm">Opens Today</span>
+                  <span className="text-sm">Entries Today</span>
                 </div>
-                <span className="text-3xl font-bold text-foreground">{doorOpensToday}</span>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <DoorClosed className="h-4 w-4" />
-                  <span className="text-sm">Closes Today</span>
-                </div>
-                <span className="text-3xl font-bold text-foreground">{doorClosesToday}</span>
+                <span className="text-3xl font-bold text-foreground">{totalEntriesToday}</span>
               </div>
             </div>
           </div>

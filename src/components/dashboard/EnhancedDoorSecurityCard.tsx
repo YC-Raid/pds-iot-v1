@@ -28,50 +28,14 @@ interface DoorEvent {
 export const EnhancedDoorSecurityCard = () => {
   const { sensorReadings } = useSensorData();
   const { calculateSecurityStatus, isNightMode, settings } = useSecuritySettings();
-  const { doorOpensToday, doorClosesToday } = useDoorMetrics();
-  const latestReading = sensorReadings[0];
+  const { totalEntriesToday, currentDoorStatus, doorOpenedAt, lastUpdated } = useDoorMetrics();
   
   const [flashState, setFlashState] = useState(true);
   const [doorEvents, setDoorEvents] = useState<DoorEvent[]>([]);
   const [doorOpenDuration, setDoorOpenDuration] = useState(0);
-  const [doorOpenedAt, setDoorOpenedAt] = useState<Date | null>(null);
 
-  const doorStatus = (latestReading?.door_status as "OPEN" | "CLOSED") || "CLOSED";
-
-  // Calculate door_opened_at from sensor readings (find when door transitioned to OPEN)
-  useEffect(() => {
-    if (doorStatus !== "OPEN") {
-      setDoorOpenedAt(null);
-      setDoorOpenDuration(0);
-      return;
-    }
-
-    // Find the most recent transition to OPEN by looking back through readings
-    let openedAt: Date | null = null;
-    
-    for (let i = 0; i < sensorReadings.length; i++) {
-      const current = sensorReadings[i];
-      const next = sensorReadings[i + 1];
-      
-      if (current?.door_status === "OPEN") {
-        // Check if this is the transition point
-        if (!next || next.door_status === "CLOSED") {
-          openedAt = new Date(current.recorded_at);
-          break;
-        }
-      } else {
-        // Door was closed, so the previous OPEN reading was the first
-        break;
-      }
-    }
-    
-    // If all readings are OPEN, use the oldest one we have
-    if (!openedAt && sensorReadings.length > 0 && sensorReadings[sensorReadings.length - 1]?.door_status === "OPEN") {
-      openedAt = new Date(sensorReadings[sensorReadings.length - 1].recorded_at);
-    }
-    
-    setDoorOpenedAt(openedAt);
-  }, [doorStatus, sensorReadings]);
+  // Use door status from real-time hook instead of sensorReadings for faster updates
+  const doorStatus = currentDoorStatus || "CLOSED";
 
   // Update door open duration every second
   useEffect(() => {
@@ -283,27 +247,16 @@ export const EnhancedDoorSecurityCard = () => {
             )}
           </div>
 
-          {/* Counters */}
+          {/* Entry Counter */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Users className="h-4 w-4" />
               Entries Today
             </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <ArrowUpRight className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm text-amber-600">Opens</span>
-                </div>
-                <span className="text-3xl font-bold text-amber-500">{doorOpensToday}</span>
-              </div>
-              <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <ArrowDownRight className="h-4 w-4 text-emerald-500" />
-                  <span className="text-sm text-emerald-600">Closes</span>
-                </div>
-                <span className="text-3xl font-bold text-emerald-500">{doorClosesToday}</span>
-              </div>
+            <div className="p-6 rounded-lg bg-primary/10 border border-primary/20 flex flex-col items-center justify-center">
+              <DoorOpen className="h-8 w-8 text-primary mb-2" />
+              <span className="text-5xl font-bold text-primary">{totalEntriesToday}</span>
+              <span className="text-sm text-muted-foreground mt-1">Total entries</span>
             </div>
           </div>
 
@@ -345,9 +298,9 @@ export const EnhancedDoorSecurityCard = () => {
         </div>
 
         {/* Last Updated */}
-        {latestReading?.recorded_at && (
+        {lastUpdated && (
           <div className="text-xs text-muted-foreground text-right mt-4">
-            Last updated: {new Date(latestReading.recorded_at).toLocaleString()}
+            Last updated: {lastUpdated.toLocaleString()}
           </div>
         )}
 
