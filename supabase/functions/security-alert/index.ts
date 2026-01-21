@@ -70,8 +70,8 @@ const validateRequest = (data: unknown): { valid: boolean; data?: SecurityAlertR
   };
 };
 
-// Check if request is from internal trigger (has valid anon key or service role)
-const isInternalRequest = (req: Request): boolean => {
+// Check if request is authorized (internal trigger OR authenticated user)
+const isAuthorizedRequest = async (req: Request, supabaseClient: ReturnType<typeof createClient>): Promise<boolean> => {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return false;
   
@@ -79,7 +79,23 @@ const isInternalRequest = (req: Request): boolean => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   
   const token = authHeader.replace('Bearer ', '');
-  return token === anonKey || token === serviceKey;
+  
+  // Allow internal requests (anon key or service role)
+  if (token === anonKey || token === serviceKey) {
+    return true;
+  }
+  
+  // Allow authenticated users - verify JWT and check if user exists
+  try {
+    const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+    if (error || !user) {
+      return false;
+    }
+    // User is authenticated - allow the request
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -93,15 +109,6 @@ serve(async (req) => {
   }
 
   try {
-    // Verify request is from internal trigger
-    if (!isInternalRequest(req)) {
-      console.warn(`[${requestId}] Unauthorized request attempt`);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -112,6 +119,15 @@ serve(async (req) => {
         },
       }
     );
+
+    // Verify request is authorized
+    if (!await isAuthorizedRequest(req, supabaseClient)) {
+      console.warn(`[${requestId}] Unauthorized request attempt`);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Parse and validate input
     let rawData: unknown;
