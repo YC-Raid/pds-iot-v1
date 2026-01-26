@@ -40,13 +40,17 @@ serve(async (req) => {
         status: 200,
       },
     )
-  } catch (error: any) {
-    console.error('Function error:', error)
+  } catch (error: unknown) {
+    const requestId = crypto.randomUUID();
+    console.error(`[${requestId}] Aggregation error:`, error);
     return new Response(
-      JSON.stringify({ error: error?.message || 'Unknown error occurred' }),
+      JSON.stringify({ 
+        error: 'Aggregation operation failed',
+        request_id: requestId
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 500,
       },
     )
   }
