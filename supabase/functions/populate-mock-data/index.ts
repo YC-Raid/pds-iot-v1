@@ -105,6 +105,8 @@ function generateSensorReading(id: number, timestamp: Date): MockSensorReading {
 }
 
 Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID();
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -116,7 +118,63 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // SECURITY: Require authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.warn(`[${requestId}] Missing authorization header`);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the JWT token and get user
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.warn(`[${requestId}] Invalid or expired token`);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Require admin role
+    const { data: userRole } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!userRole || userRole.role !== 'admin') {
+      console.warn(`[${requestId}] User ${user.id} is not an admin`);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[${requestId}] Admin user ${user.id} starting mock data population`);
+
     const { startDate: startDateStr, endDate: endDateStr, clearExisting = false } = await req.json()
+
+    // SECURITY: Limit date range to maximum 30 days to prevent abuse
+    const startDate = new Date(startDateStr || '2025-09-01T00:00:00.000Z')
+    const endDate = new Date(endDateStr || '2025-09-01T23:59:50.000Z')
+    const maxDays = 30;
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff > maxDays) {
+      console.warn(`[${requestId}] Date range ${daysDiff} days exceeds maximum ${maxDays} days`);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Date range exceeds maximum of ${maxDays} days` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('🔄 Starting mock data population...')
     
