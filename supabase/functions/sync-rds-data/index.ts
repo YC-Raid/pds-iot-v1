@@ -15,6 +15,7 @@ interface SyncResponse {
     total_count: number;
   };
   error?: string;
+  request_id?: string;
 }
 
 serve(async (req) => {
@@ -86,7 +87,8 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           synced_count: 0,
-          error: 'RDS connection failed'
+          error: 'Database connection failed',
+          request_id: requestId
         } as SyncResponse),
         {
           status: 500,
@@ -107,8 +109,8 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           synced_count: 0,
-          rds_info: rdsInfo?.[0],
-          error: 'Sync operation failed'
+          error: 'Sync operation failed',
+          request_id: requestId
         } as SyncResponse),
         {
           status: 500,
@@ -151,7 +153,8 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         synced_count: 0,
-        error: 'Internal server error'
+        error: 'Internal server error',
+        request_id: requestId
       } as SyncResponse),
       {
         status: 500,
