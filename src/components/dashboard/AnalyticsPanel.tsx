@@ -15,71 +15,226 @@ import {
   PieChart as PieChartIcon,
   Activity,
   Zap,
-  Calendar
+  Calendar,
+  Loader2
 } from "lucide-react";
+import { format, subDays, subMonths, startOfDay, startOfMonth, endOfMonth } from "date-fns";
+
+interface WeeklyTrendPoint {
+  day: string;
+  temperature: number | null;
+  humidity: number | null;
+  airQuality: number | null;
+  alerts: number;
+}
+
+interface MonthlyDataPoint {
+  month: string;
+  avgTemp: number | null;
+  avgHumidity: number | null;
+  maintenanceHours: number;
+  downtime: number;
+}
+
+interface SystemHealthItem {
+  name: string;
+  value: number;
+  color: string;
+}
 
 const AnalyticsPanel = () => {
-  // Mock historical data - replace with real data
-  const weeklyTrends = [
-    { day: "Mon", temperature: 22.1, humidity: 68, airQuality: 82, alerts: 3 },
-    { day: "Tue", temperature: 21.8, humidity: 70, airQuality: 85, alerts: 1 },
-    { day: "Wed", temperature: 23.2, humidity: 65, airQuality: 88, alerts: 2 },
-    { day: "Thu", temperature: 24.1, humidity: 62, airQuality: 91, alerts: 0 },
-    { day: "Fri", temperature: 23.5, humidity: 64, airQuality: 87, alerts: 1 },
-    { day: "Sat", temperature: 22.8, humidity: 66, airQuality: 85, alerts: 2 },
-    { day: "Sun", temperature: 22.3, humidity: 68, airQuality: 84, alerts: 1 }
-  ];
+  // Real data state
+  const [weeklyTrends, setWeeklyTrends] = useState<WeeklyTrendPoint[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyDataPoint[]>([]);
+  const [systemHealth, setSystemHealth] = useState<SystemHealthItem[]>([]);
+  const [overviewMetrics, setOverviewMetrics] = useState({
+    avgTemp: null as number | null,
+    tempChange: null as number | null,
+    uptime: null as number | null,
+    downtimeHours: null as number | null,
+    efficiencyScore: null as number | null,
+    efficiencyChange: null as number | null,
+  });
+  const [loadingCharts, setLoadingCharts] = useState(true);
 
-  const monthlyData = [
-    { month: "Aug", avgTemp: 23.2, avgHumidity: 65, maintenanceHours: 8, downtime: 0.5 },
-    { month: "Sep", avgTemp: 22.8, avgHumidity: 67, maintenanceHours: 12, downtime: 1.2 },
-    { month: "Oct", avgTemp: 21.5, avgHumidity: 69, maintenanceHours: 6, downtime: 0.3 },
-    { month: "Nov", avgTemp: 20.8, avgHumidity: 71, maintenanceHours: 15, downtime: 2.1 },
-    { month: "Dec", avgTemp: 20.2, avgHumidity: 73, maintenanceHours: 10, downtime: 0.8 },
-    { month: "Jan", avgTemp: 22.5, avgHumidity: 65, maintenanceHours: 8, downtime: 0.4 }
-  ];
+  // Fetch real data for overview cards + weekly + monthly + system health
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      setLoadingCharts(true);
+      try {
+        // --- Weekly Trends (last 7 days) ---
+        const sevenDaysAgo = subDays(new Date(), 7).toISOString();
+        const [{ data: weeklyReadings }, { data: weeklyAlerts }] = await Promise.all([
+          supabase
+            .from('sensor_readings_aggregated')
+            .select('time_bucket, avg_temperature, avg_humidity, avg_pm2_5')
+            .eq('aggregation_level', 'day')
+            .gte('time_bucket', sevenDaysAgo)
+            .order('time_bucket', { ascending: true }),
+          supabase
+            .from('alerts')
+            .select('created_at')
+            .gte('created_at', sevenDaysAgo),
+        ]);
 
-  const systemHealth = [
-    { name: "Excellent", value: 65, color: "#22c55e" },
-    { name: "Good", value: 25, color: "#3b82f6" },
-    { name: "Warning", value: 8, color: "#f59e0b" },
-    { name: "Critical", value: 2, color: "#ef4444" }
-  ];
+        // Group alerts by day
+        const alertsByDay = new Map<string, number>();
+        (weeklyAlerts || []).forEach(a => {
+          const day = format(new Date(a.created_at), 'EEE');
+          alertsByDay.set(day, (alertsByDay.get(day) || 0) + 1);
+        });
 
-  const predictiveInsights = [
-    {
-      title: "Temperature Trend",
-      prediction: "Stable with seasonal variation",
-      confidence: 92,
-      trend: "stable",
-      nextAction: "No action required",
-      timeframe: "Next 30 days"
-    },
-    {
-      title: "Humidity Control",
-      prediction: "Slight increase expected",
-      confidence: 78,
-      trend: "up",
-      nextAction: "Monitor dehumidifier",
-      timeframe: "Next 14 days"
-    },
-    {
-      title: "Air Quality",
-      prediction: "Gradual improvement",
-      confidence: 85,
-      trend: "up",
-      nextAction: "Continue current settings",
-      timeframe: "Next 21 days"
-    },
-    {
-      title: "System Health",
-      prediction: "Maintenance needed soon",
-      confidence: 89,
-      trend: "down",
-      nextAction: "Schedule calibration",
-      timeframe: "Next 7 days"
-    }
-  ];
+        const weeklyData: WeeklyTrendPoint[] = (weeklyReadings || []).map(r => ({
+          day: format(new Date(r.time_bucket), 'EEE'),
+          temperature: r.avg_temperature != null ? Math.round(r.avg_temperature * 10) / 10 : null,
+          humidity: r.avg_humidity != null ? Math.round(r.avg_humidity * 10) / 10 : null,
+          airQuality: r.avg_pm2_5 != null ? Math.round(r.avg_pm2_5 * 10) / 10 : null,
+          alerts: alertsByDay.get(format(new Date(r.time_bucket), 'EEE')) || 0,
+        }));
+        setWeeklyTrends(weeklyData);
+
+        // --- Monthly Data (last 6 months) ---
+        const sixMonthsAgo = subMonths(new Date(), 6).toISOString();
+        const [{ data: monthlyReadings }, { data: monthlyTasks }] = await Promise.all([
+          supabase
+            .from('sensor_readings_aggregated')
+            .select('time_bucket, avg_temperature, avg_humidity')
+            .eq('aggregation_level', 'month')
+            .gte('time_bucket', sixMonthsAgo)
+            .order('time_bucket', { ascending: true }),
+          supabase
+            .from('maintenance_tasks')
+            .select('created_at, completed_at, labor_hours, status')
+            .gte('created_at', sixMonthsAgo),
+        ]);
+
+        // Group maintenance by month
+        const maintByMonth = new Map<string, { hours: number; downtime: number }>();
+        (monthlyTasks || []).forEach(t => {
+          const monthKey = format(new Date(t.created_at), 'MMM');
+          const entry = maintByMonth.get(monthKey) || { hours: 0, downtime: 0 };
+          entry.hours += Number(t.labor_hours) || 0;
+          if (t.completed_at && t.status === 'completed') {
+            const dur = (new Date(t.completed_at).getTime() - new Date(t.created_at).getTime()) / (1000 * 3600);
+            entry.downtime += Math.max(0, dur);
+          }
+          maintByMonth.set(monthKey, entry);
+        });
+
+        const monthly: MonthlyDataPoint[] = (monthlyReadings || []).map(r => {
+          const monthKey = format(new Date(r.time_bucket), 'MMM');
+          const maint = maintByMonth.get(monthKey) || { hours: 0, downtime: 0 };
+          return {
+            month: monthKey,
+            avgTemp: r.avg_temperature != null ? Math.round(r.avg_temperature * 10) / 10 : null,
+            avgHumidity: r.avg_humidity != null ? Math.round(r.avg_humidity * 10) / 10 : null,
+            maintenanceHours: Math.round(maint.hours * 10) / 10,
+            downtime: Math.round(maint.downtime * 10) / 10,
+          };
+        });
+        setMonthlyData(monthly);
+
+        // --- System Health (from recent alerts severity distribution) ---
+        const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
+        const { data: healthAlerts } = await supabase
+          .from('alerts')
+          .select('severity')
+          .gte('created_at', thirtyDaysAgo);
+
+        const total = (healthAlerts || []).length;
+        if (total > 0) {
+          const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+          (healthAlerts || []).forEach(a => {
+            const sev = a.severity as keyof typeof counts;
+            if (sev in counts) counts[sev]++;
+          });
+          // "Excellent" = readings with no alerts (inferred), Good = low/info, Warning = medium/high, Critical
+          const criticalPct = Math.round((counts.critical / total) * 100);
+          const warningPct = Math.round(((counts.high + counts.medium) / total) * 100);
+          const goodPct = Math.round(((counts.low + counts.info) / total) * 100);
+          const excellentPct = Math.max(0, 100 - criticalPct - warningPct - goodPct);
+          setSystemHealth([
+            { name: "Excellent", value: excellentPct, color: "#22c55e" },
+            { name: "Good", value: goodPct, color: "#3b82f6" },
+            { name: "Warning", value: warningPct, color: "#f59e0b" },
+            { name: "Critical", value: criticalPct, color: "#ef4444" },
+          ]);
+        } else {
+          setSystemHealth([
+            { name: "Excellent", value: 100, color: "#22c55e" },
+            { name: "Good", value: 0, color: "#3b82f6" },
+            { name: "Warning", value: 0, color: "#f59e0b" },
+            { name: "Critical", value: 0, color: "#ef4444" },
+          ]);
+        }
+
+        // --- Overview Cards ---
+        // Avg Temperature (last 7 days vs previous 7 days)
+        const fourteenDaysAgo = subDays(new Date(), 14).toISOString();
+        const { data: recentReadings } = await supabase
+          .from('sensor_readings_aggregated')
+          .select('time_bucket, avg_temperature')
+          .eq('aggregation_level', 'day')
+          .gte('time_bucket', fourteenDaysAgo)
+          .order('time_bucket', { ascending: true });
+
+        if (recentReadings && recentReadings.length > 0) {
+          const sevenDaysAgoDate = subDays(new Date(), 7);
+          const thisWeek = recentReadings.filter(r => new Date(r.time_bucket) >= sevenDaysAgoDate);
+          const lastWeek = recentReadings.filter(r => new Date(r.time_bucket) < sevenDaysAgoDate);
+          
+          const avgThis = thisWeek.length > 0
+            ? thisWeek.reduce((s, r) => s + (r.avg_temperature || 0), 0) / thisWeek.length
+            : null;
+          const avgLast = lastWeek.length > 0
+            ? lastWeek.reduce((s, r) => s + (r.avg_temperature || 0), 0) / lastWeek.length
+            : null;
+          
+          setOverviewMetrics(prev => ({
+            ...prev,
+            avgTemp: avgThis != null ? Math.round(avgThis * 10) / 10 : null,
+            tempChange: avgThis != null && avgLast != null ? Math.round((avgThis - avgLast) * 10) / 10 : null,
+          }));
+        }
+
+        // Uptime (from sensor reading gaps in last 30 days)
+        const { count: readingCount } = await supabase
+          .from('processed_sensor_readings')
+          .select('id', { count: 'exact', head: true })
+          .gte('recorded_at', thirtyDaysAgo);
+
+        // Rough uptime estimate: if we get readings every ~10s, expect ~259200 in 30 days
+        const expectedReadings = 30 * 24 * 360; // 10-sec intervals
+        const uptimePct = readingCount ? Math.min(100, (readingCount / expectedReadings) * 100) : null;
+        
+        // Efficiency from maintenance task completion rate
+        const { data: effTasks } = await supabase
+          .from('maintenance_tasks')
+          .select('status')
+          .gte('created_at', thirtyDaysAgo);
+
+        let effScore = null as number | null;
+        if (effTasks && effTasks.length > 0) {
+          const completed = effTasks.filter(t => t.status === 'completed').length;
+          effScore = Math.round((completed / effTasks.length) * 100);
+        }
+
+        setOverviewMetrics(prev => ({
+          ...prev,
+          uptime: uptimePct != null ? Math.round(uptimePct * 10) / 10 : null,
+          downtimeHours: uptimePct != null ? Math.round((100 - uptimePct) / 100 * 720 * 10) / 10 : null,
+          efficiencyScore: effScore,
+        }));
+
+      } catch (err) {
+        console.error('Error fetching analytics data:', err);
+      } finally {
+        setLoadingCharts(false);
+      }
+    };
+
+    fetchAnalyticsData();
+  }, []);
 
   const chartConfig = {
     temperature: {
@@ -91,7 +246,7 @@ const AnalyticsPanel = () => {
       color: "hsl(var(--chart-2))",
     },
     airQuality: {
-      label: "Air Quality (AQI)",
+      label: "PM2.5 (μg/m³)",
       color: "hsl(var(--chart-3))",
     },
     alerts: {
@@ -239,7 +394,64 @@ const AnalyticsPanel = () => {
     fetchCosts();
   }, [timeframe]);
 
-  
+  // Static predictive insights (these are rule-based summaries, not ML-generated)
+  const predictiveInsights = useMemo(() => {
+    const insights = [];
+    
+    // Temperature insight based on weekly data
+    if (weeklyTrends.length >= 2) {
+      const temps = weeklyTrends.filter(d => d.temperature != null).map(d => d.temperature!);
+      const trend = temps.length >= 2 ? (temps[temps.length - 1] > temps[0] ? 'up' : temps[temps.length - 1] < temps[0] ? 'down' : 'stable') : 'stable';
+      insights.push({
+        title: "Temperature Trend",
+        prediction: trend === 'up' ? 'Gradual temperature increase detected' : trend === 'down' ? 'Temperature declining' : 'Temperature stable',
+        confidence: Math.min(95, 60 + weeklyTrends.length * 5),
+        trend,
+        nextAction: trend === 'up' ? 'Monitor cooling systems' : 'No action required',
+        timeframe: "Next 7 days"
+      });
+    }
+
+    // Alert frequency insight
+    const totalAlerts = weeklyTrends.reduce((s, d) => s + d.alerts, 0);
+    insights.push({
+      title: "Alert Activity",
+      prediction: totalAlerts > 10 ? 'High alert frequency detected' : totalAlerts > 3 ? 'Moderate alert activity' : 'Low alert activity',
+      confidence: 85,
+      trend: totalAlerts > 10 ? 'down' : 'stable',
+      nextAction: totalAlerts > 10 ? 'Review alert thresholds' : 'Continue monitoring',
+      timeframe: "Next 14 days"
+    });
+
+    // Maintenance insight from monthly data
+    if (monthlyData.length >= 2) {
+      const recentMaint = monthlyData[monthlyData.length - 1]?.maintenanceHours || 0;
+      const prevMaint = monthlyData[monthlyData.length - 2]?.maintenanceHours || 0;
+      const trend = recentMaint > prevMaint ? 'up' : recentMaint < prevMaint ? 'down' : 'stable';
+      insights.push({
+        title: "Maintenance Load",
+        prediction: trend === 'up' ? 'Increasing maintenance demand' : 'Maintenance load stable',
+        confidence: 78,
+        trend: trend === 'up' ? 'down' : 'up',
+        nextAction: trend === 'up' ? 'Schedule additional resources' : 'Continue current schedule',
+        timeframe: "Next 30 days"
+      });
+    }
+
+    // System health insight
+    const criticalPct = systemHealth.find(h => h.name === 'Critical')?.value || 0;
+    insights.push({
+      title: "System Health",
+      prediction: criticalPct > 5 ? 'Elevated failure risk' : 'Operating within normal parameters',
+      confidence: 89,
+      trend: criticalPct > 5 ? 'down' : 'up',
+      nextAction: criticalPct > 5 ? 'Schedule inspection' : 'Continue monitoring',
+      timeframe: "Next 7 days"
+    });
+
+    return insights;
+  }, [weeklyTrends, monthlyData, systemHealth]);
+
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case "up":
@@ -265,16 +477,22 @@ const AnalyticsPanel = () => {
   return (
     <div className="space-y-6">
       {/* Analytics Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Temperature</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">22.5°C</div>
+            <div className="text-2xl font-bold">
+              {overviewMetrics.avgTemp != null ? `${overviewMetrics.avgTemp}°C` : '—'}
+            </div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+0.3°C</span> from last week
+              {overviewMetrics.tempChange != null ? (
+                <span className={overviewMetrics.tempChange >= 0 ? 'text-green-600' : 'text-blue-600'}>
+                  {overviewMetrics.tempChange >= 0 ? '+' : ''}{overviewMetrics.tempChange}°C
+                </span>
+              ) : <span>—</span>} from last week
             </p>
           </CardContent>
         </Card>
@@ -285,9 +503,13 @@ const AnalyticsPanel = () => {
             <Zap className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">99.6%</div>
+            <div className="text-2xl font-bold">
+              {overviewMetrics.uptime != null ? `${overviewMetrics.uptime}%` : '—'}
+            </div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-blue-600">2h 45m</span> downtime this month
+              <span className="text-blue-600">
+                {overviewMetrics.downtimeHours != null ? `${overviewMetrics.downtimeHours}h` : '—'}
+              </span> downtime this month
             </p>
           </CardContent>
         </Card>
@@ -317,21 +539,30 @@ const AnalyticsPanel = () => {
             <BarChart3 className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">94.2%</div>
+            <div className="text-2xl font-bold">
+              {overviewMetrics.efficiencyScore != null ? `${overviewMetrics.efficiencyScore}%` : '—'}
+            </div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+2.1%</span> improvement
+              Task completion rate
             </p>
           </CardContent>
         </Card>
       </div>
 
+      {loadingCharts && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
+          <span className="text-muted-foreground">Loading analytics data...</span>
+        </div>
+      )}
+
       <Tabs defaultValue="trends" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="trends">Weekly Trends</TabsTrigger>
-          <TabsTrigger value="monthly">Monthly Analysis</TabsTrigger>
-          <TabsTrigger value="health">System Health</TabsTrigger>
-          <TabsTrigger value="predictions">Predictions</TabsTrigger>
-          <TabsTrigger value="reliability">Reliability</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto">
+          <TabsTrigger value="trends" className="flex-1 min-w-0 text-xs sm:text-sm">Weekly Trends</TabsTrigger>
+          <TabsTrigger value="monthly" className="flex-1 min-w-0 text-xs sm:text-sm">Monthly</TabsTrigger>
+          <TabsTrigger value="health" className="flex-1 min-w-0 text-xs sm:text-sm">Health</TabsTrigger>
+          <TabsTrigger value="predictions" className="flex-1 min-w-0 text-xs sm:text-sm">Predictions</TabsTrigger>
+          <TabsTrigger value="reliability" className="flex-1 min-w-0 text-xs sm:text-sm">Reliability</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trends" className="space-y-6">
@@ -504,7 +735,7 @@ const AnalyticsPanel = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center">
-                <ChartContainer config={chartConfig} className="h-[300px] w-[300px]">
+                <ChartContainer config={chartConfig} className="h-[300px] w-full max-w-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie

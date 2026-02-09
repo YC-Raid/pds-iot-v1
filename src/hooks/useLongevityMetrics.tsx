@@ -177,15 +177,16 @@ export const useLongevityMetrics = () => {
         maintenanceQuality
       };
 
-      // Debug logging for troubleshooting
-      console.log('Longevity Debug:', {
-        currentAge,
-        expectedLifespan,
-        degradationRate,
-        efficiency,
-        predictedRemainingLife,
-        baseRemainingLife: expectedLifespan - currentAge
-      });
+      // Debug logging (only in development, suppressed for production)
+      if (import.meta.env.DEV) {
+        console.debug('Longevity Debug:', {
+          currentAge: currentAge.toFixed(2),
+          expectedLifespan,
+          degradationRate,
+          efficiency,
+          predictedRemainingLife,
+        });
+      }
 
       setData({
         currentUptime,

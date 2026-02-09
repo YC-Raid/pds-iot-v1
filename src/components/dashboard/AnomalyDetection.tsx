@@ -50,6 +50,9 @@ const AnomalyDetection = ({ data, sensorName, onAnomalyDetected }: AnomalyDetect
 
     const threshold = 2.5; // Z-score threshold
     
+    // If stdDev is 0, all values are identical — no anomalies possible
+    if (stdDev === 0) return [];
+    
     return validData.map((point, index) => {
       const zScore = Math.abs((point.value - mean) / stdDev);
       const isAnomalous = zScore > threshold;
