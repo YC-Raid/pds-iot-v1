@@ -577,9 +577,9 @@ const AnalyticsPanel = () => {
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weeklyTrends} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <LineChart data={weeklyTrends} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
+                    <XAxis dataKey="day" tick={{ fontSize: 11 }} interval={0} />
                     <YAxis width={45} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Line 
@@ -618,9 +618,9 @@ const AnalyticsPanel = () => {
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyTrends} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <BarChart data={weeklyTrends} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
+                    <XAxis dataKey="day" tick={{ fontSize: 11 }} interval={0} />
                     <YAxis width={45} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar 
@@ -647,9 +647,9 @@ const AnalyticsPanel = () => {
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <AreaChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} interval={0} />
                     <YAxis width={45} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Area 
@@ -675,9 +675,9 @@ const AnalyticsPanel = () => {
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} interval={0} />
                       <YAxis width={45} />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Line 
@@ -701,9 +701,9 @@ const AnalyticsPanel = () => {
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} interval={0} />
                       <YAxis width={45} />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Line 
@@ -777,9 +777,12 @@ const AnalyticsPanel = () => {
           {/* Predictive Insights */}
           <Card>
             <CardHeader>
-              <CardTitle>Predictive Insights</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Predictive Maintenance Overview
+              </CardTitle>
               <CardDescription>
-                AI-powered predictions and maintenance recommendations
+                Linear regression analysis on sensor trends for proactive maintenance scheduling
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -809,6 +812,41 @@ const AnalyticsPanel = () => {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Methodology Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Prediction Methodology
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="border rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium text-sm">Linear Regression</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Fits a trend line to recent sensor readings to estimate the rate of change and predict when thresholds will be exceeded.
+                  </p>
+                </div>
+                <div className="border rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium text-sm">Z-Score Anomaly Detection</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Flags sensor readings deviating &gt;2.5 standard deviations from the mean, indicating potential equipment issues.
+                  </p>
+                </div>
+                <div className="border rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium text-sm">Threshold-Based Risk</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Compares current values against your configured alert thresholds to classify risk as low, medium, high, or critical.
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-4 italic">
+                Predictions improve with more historical data. Minimum 5 data points required for trend analysis.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

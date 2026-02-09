@@ -736,6 +736,7 @@ export type Database = {
           location: string
           roof_stability_threshold: number
           updated_at: string
+          user_id: string | null
           wall_integrity_threshold: number
         }
         Insert: {
@@ -746,6 +747,7 @@ export type Database = {
           location?: string
           roof_stability_threshold?: number
           updated_at?: string
+          user_id?: string | null
           wall_integrity_threshold?: number
         }
         Update: {
@@ -756,6 +758,7 @@ export type Database = {
           location?: string
           roof_stability_threshold?: number
           updated_at?: string
+          user_id?: string | null
           wall_integrity_threshold?: number
         }
         Relationships: []
