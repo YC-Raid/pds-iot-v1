@@ -96,12 +96,17 @@ const VibrationMonitoring = () => {
     });
   };
 
-  // Fetch vibration monitoring thresholds
+  // Fetch vibration monitoring thresholds (per-user per-location)
   useEffect(() => {
     const fetchThresholds = async () => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('vibration_monitoring_settings')
         .select('*')
+        .eq('user_id', user.id)
         .eq('location', 'hangar_01')
         .maybeSingle();
       

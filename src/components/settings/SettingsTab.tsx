@@ -87,10 +87,11 @@ export default function SettingsTab() {
         }
       );
 
-      // Load vibration monitoring settings
+      // Load vibration monitoring settings (per-user per-location)
       const { data: vibData } = await supabase
         .from('vibration_monitoring_settings')
         .select('*')
+        .eq('user_id', user.id)
         .eq('location', 'hangar_01')
         .maybeSingle();
       
@@ -167,15 +168,16 @@ export default function SettingsTab() {
         setNotif({ ...notif, id: data?.id });
       }
 
-      // Save vibration monitoring settings
+      // Save vibration monitoring settings (per-user per-location)
       const { error: vibError } = await supabase
         .from('vibration_monitoring_settings')
         .upsert({
+          user_id: user.id,
           location: 'hangar_01' as const,
           foundation_stress_threshold: vibrationSettings.foundation_stress_threshold,
           wall_integrity_threshold: vibrationSettings.wall_integrity_threshold,
           roof_stability_threshold: vibrationSettings.roof_stability_threshold
-        }, { onConflict: 'location' });
+        }, { onConflict: 'user_id,location' });
       
       if (vibError) throw vibError;
 
