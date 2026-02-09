@@ -74,14 +74,14 @@ export default function SettingsTab() {
           in_app_enabled: true,
           email_enabled: true,
           push_enabled: true,
-          alert_threshold_temp: 30,
+          alert_threshold_temp: 25,
           alert_threshold_temp_min: 15,
-          alert_threshold_humidity: 70,
+          alert_threshold_humidity: 60,
           alert_threshold_pressure_min: 1000,
           alert_threshold_pressure_max: 1020,
           alert_threshold_pm25: 35,
           alert_threshold_pm25_critical: 75,
-          alert_threshold_vibration: 10,
+          alert_threshold_vibration: 30,
           alert_threshold_anomaly_score: 0.6,
           alert_threshold_failure_prob: 0.4,
         }
@@ -107,6 +107,32 @@ export default function SettingsTab() {
 
   const saveNotif = async () => {
     if (!user || !notif) return;
+
+    // Validate threshold relationships
+    if (notif.alert_threshold_temp_min != null && notif.alert_threshold_temp != null &&
+        notif.alert_threshold_temp_min >= notif.alert_threshold_temp) {
+      toast.error('Temperature minimum must be less than maximum');
+      return;
+    }
+    if (notif.alert_threshold_pressure_min != null && notif.alert_threshold_pressure_max != null &&
+        notif.alert_threshold_pressure_min >= notif.alert_threshold_pressure_max) {
+      toast.error('Pressure minimum must be less than maximum');
+      return;
+    }
+    if (notif.alert_threshold_pm25 != null && notif.alert_threshold_pm25_critical != null &&
+        notif.alert_threshold_pm25 >= notif.alert_threshold_pm25_critical) {
+      toast.error('PM2.5 warning threshold must be less than critical threshold');
+      return;
+    }
+    if (notif.alert_threshold_anomaly_score != null && (notif.alert_threshold_anomaly_score < 0 || notif.alert_threshold_anomaly_score > 1)) {
+      toast.error('Anomaly score must be between 0 and 1');
+      return;
+    }
+    if (notif.alert_threshold_failure_prob != null && (notif.alert_threshold_failure_prob < 0 || notif.alert_threshold_failure_prob > 1)) {
+      toast.error('Failure probability must be between 0 and 1');
+      return;
+    }
+
     setSaving(true);
     try {
       const settingsData = {
