@@ -116,7 +116,7 @@ export const useLongevityMetrics = () => {
         sensorReadings // Pass sensor readings for anomaly-based calculation
       );
 
-      // Calculate monthly uptime data — only include months that have sensor data
+      // Calculate monthly uptime data — show all months from system start
       const monthlyUptimeData: MonthlyUptimeData[] = [];
       
       // Start from August 2025 and go up to current month
@@ -134,7 +134,6 @@ export const useLongevityMetrics = () => {
           return readingDate >= monthStart && readingDate <= actualMonthEnd;
         });
 
-        // Only include months that actually have data
         if (monthReadings.length > 0) {
           const daysInThisMonth = Math.max(1, Math.round((actualMonthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)));
           const monthMetrics = calculateUptimeMetrics(monthReadings, daysInThisMonth, actualMonthEnd, monthStart);
@@ -144,6 +143,14 @@ export const useLongevityMetrics = () => {
             uptime: monthMetrics.uptime,
             downtime: monthMetrics.downtime,
             incidents: monthMetrics.incidents
+          });
+        } else {
+          // Show 0% for months with no data
+          monthlyUptimeData.push({
+            month: format(monthStart, 'MMM yyyy'),
+            uptime: 0,
+            downtime: 100,
+            incidents: 0
           });
         }
         
