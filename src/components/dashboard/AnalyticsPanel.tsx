@@ -77,20 +77,37 @@ const AnalyticsPanel = () => {
             .gte('created_at', sevenDaysAgo),
         ]);
 
-        // Group alerts by day
+        // Group alerts by day label
         const alertsByDay = new Map<string, number>();
         (weeklyAlerts || []).forEach(a => {
           const day = format(new Date(a.created_at), 'EEE');
           alertsByDay.set(day, (alertsByDay.get(day) || 0) + 1);
         });
 
-        const weeklyData: WeeklyTrendPoint[] = (weeklyReadings || []).map(r => ({
-          day: format(new Date(r.time_bucket), 'EEE'),
-          temperature: r.avg_temperature != null ? Math.round(r.avg_temperature * 10) / 10 : null,
-          humidity: r.avg_humidity != null ? Math.round(r.avg_humidity * 10) / 10 : null,
-          airQuality: r.avg_pm2_5 != null ? Math.round(r.avg_pm2_5 * 10) / 10 : null,
-          alerts: alertsByDay.get(format(new Date(r.time_bucket), 'EEE')) || 0,
-        }));
+        // Build a lookup from DB data keyed by day label
+        const weeklyLookup = new Map<string, { temperature: number; humidity: number; airQuality: number }>();
+        (weeklyReadings || []).forEach(r => {
+          const dayLabel = format(new Date(r.time_bucket), 'EEE');
+          weeklyLookup.set(dayLabel, {
+            temperature: r.avg_temperature != null ? Math.round(r.avg_temperature * 10) / 10 : 0,
+            humidity: r.avg_humidity != null ? Math.round(r.avg_humidity * 10) / 10 : 0,
+            airQuality: r.avg_pm2_5 != null ? Math.round(r.avg_pm2_5 * 10) / 10 : 0,
+          });
+        });
+
+        // Always generate all 7 days, filling missing with 0
+        const weeklyData: WeeklyTrendPoint[] = Array.from({ length: 7 }, (_, i) => {
+          const date = subDays(new Date(), 6 - i);
+          const dayLabel = format(date, 'EEE');
+          const existing = weeklyLookup.get(dayLabel);
+          return {
+            day: dayLabel,
+            temperature: existing?.temperature ?? 0,
+            humidity: existing?.humidity ?? 0,
+            airQuality: existing?.airQuality ?? 0,
+            alerts: alertsByDay.get(dayLabel) || 0,
+          };
+        });
         setWeeklyTrends(weeklyData);
 
         // --- Monthly Data (last 6 months) ---
@@ -121,13 +138,26 @@ const AnalyticsPanel = () => {
           maintByMonth.set(monthKey, entry);
         });
 
-        const monthly: MonthlyDataPoint[] = (monthlyReadings || []).map(r => {
+        // Build monthly lookup
+        const monthlyLookup = new Map<string, { avgTemp: number; avgHumidity: number }>();
+        (monthlyReadings || []).forEach(r => {
           const monthKey = format(new Date(r.time_bucket), 'MMM');
+          monthlyLookup.set(monthKey, {
+            avgTemp: r.avg_temperature != null ? Math.round(r.avg_temperature * 10) / 10 : 0,
+            avgHumidity: r.avg_humidity != null ? Math.round(r.avg_humidity * 10) / 10 : 0,
+          });
+        });
+
+        // Always generate all 6 months, filling missing with 0
+        const monthly: MonthlyDataPoint[] = Array.from({ length: 6 }, (_, i) => {
+          const date = subMonths(new Date(), 5 - i);
+          const monthKey = format(date, 'MMM');
+          const existing = monthlyLookup.get(monthKey);
           const maint = maintByMonth.get(monthKey) || { hours: 0, downtime: 0 };
           return {
             month: monthKey,
-            avgTemp: r.avg_temperature != null ? Math.round(r.avg_temperature * 10) / 10 : null,
-            avgHumidity: r.avg_humidity != null ? Math.round(r.avg_humidity * 10) / 10 : null,
+            avgTemp: existing?.avgTemp ?? 0,
+            avgHumidity: existing?.avgHumidity ?? 0,
             maintenanceHours: Math.round(maint.hours * 10) / 10,
             downtime: Math.round(maint.downtime * 10) / 10,
           };
