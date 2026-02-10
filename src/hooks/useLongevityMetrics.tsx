@@ -59,13 +59,16 @@ export const useLongevityMetrics = () => {
     try {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Fetch sensor readings with additional fields needed for new calculations
+      // Fetch sensor readings — use a reasonable sample for uptime/longevity calculations
+      // Supabase default limit is 1000 rows; we need coverage across all months
+      // Fetch up to 10,000 rows to ensure adequate monthly coverage
       const sixMonthsAgo = subMonths(new Date(), 6);
       const { data: sensorReadings, error: sensorError } = await supabase
         .from('processed_sensor_readings')
         .select('recorded_at, quality_score, anomaly_score, temperature, humidity, pressure, accel_magnitude, gyro_magnitude, pm2_5, pm10')
         .gte('recorded_at', sixMonthsAgo.toISOString())
-        .order('recorded_at', { ascending: true });
+        .order('recorded_at', { ascending: true })
+        .limit(10000);
 
       if (sensorError) throw sensorError;
 
@@ -188,16 +191,15 @@ export const useLongevityMetrics = () => {
         maintenanceQuality
       };
 
-      // Debug logging (only in development, suppressed for production)
-      if (import.meta.env.DEV) {
-        console.debug('Longevity Debug:', {
-          currentAge: currentAge.toFixed(2),
-          expectedLifespan,
-          degradationRate,
-          efficiency,
-          predictedRemainingLife,
-        });
-      }
+      // Debug logging
+      console.debug('Longevity Debug:', {
+        currentAge: currentAge.toFixed(2),
+        expectedLifespan,
+        degradationRate,
+        efficiency,
+        predictedRemainingLife,
+        monthlyUptimeData: monthlyUptimeData.map(m => `${m.month}: ${m.uptime}%`),
+      });
 
       setData({
         currentUptime,
