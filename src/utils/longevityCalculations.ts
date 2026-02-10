@@ -48,21 +48,24 @@ export interface LongevityMetrics {
 export function calculateUptimeMetrics(
   sensorReadings: Array<{ recorded_at: string; quality_score?: number }>,
   periodDays: number = 30,
-  periodEnd?: Date
+  periodEnd?: Date,
+  periodStartOverride?: Date
 ): UptimeMetrics {
   if (!sensorReadings || sensorReadings.length === 0) {
     return { uptime: 0, downtime: 100, totalDowntimeHours: 0, incidents: 0 };
   }
 
   const end = periodEnd ?? new Date();
-  const periodStart = subDays(end, periodDays);
-  const totalPeriodHours = periodDays * 24;
+  const periodStart = periodStartOverride ?? subDays(end, periodDays);
+  const totalPeriodHours = Math.max(1, (end.getTime() - periodStart.getTime()) / (1000 * 60 * 60));
 
-  // Filter readings within the period
-  const readings = sensorReadings.filter(reading => {
-    const d = new Date(reading.recorded_at);
-    return d >= periodStart && d <= end;
-  });
+  // Use readings as-is if caller already filtered, otherwise filter
+  const readings = periodStartOverride
+    ? [...sensorReadings]
+    : sensorReadings.filter(reading => {
+        const d = new Date(reading.recorded_at);
+        return d >= periodStart && d <= end;
+      });
 
   if (readings.length === 0) {
     return { uptime: 0, downtime: 100, totalDowntimeHours: totalPeriodHours, incidents: 0 };
@@ -74,6 +77,14 @@ export function calculateUptimeMetrics(
   let totalDowntimeMinutes = 0;
   let incidents = 0;
   const maxGapMinutes = 15; // Consider system down if gap > 15 minutes
+
+  // Check gap from period start to first reading
+  const firstReading = readings[0];
+  const gapFromStart = differenceInMinutes(new Date(firstReading.recorded_at), periodStart);
+  if (gapFromStart > maxGapMinutes) {
+    totalDowntimeMinutes += gapFromStart - maxGapMinutes;
+    incidents++;
+  }
 
   for (let i = 1; i < readings.length; i++) {
     const currentTime = new Date(readings[i].recorded_at);

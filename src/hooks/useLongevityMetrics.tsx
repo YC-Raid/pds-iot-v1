@@ -116,7 +116,7 @@ export const useLongevityMetrics = () => {
         sensorReadings // Pass sensor readings for anomaly-based calculation
       );
 
-      // Calculate monthly uptime data starting from August 2025
+      // Calculate monthly uptime data — only include months that have sensor data
       const monthlyUptimeData: MonthlyUptimeData[] = [];
       
       // Start from August 2025 and go up to current month
@@ -134,16 +134,18 @@ export const useLongevityMetrics = () => {
           return readingDate >= monthStart && readingDate <= actualMonthEnd;
         });
 
-        // Use the actual number of days in this month (or partial if current month)
-        const daysInThisMonth = Math.max(1, Math.round((actualMonthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)));
-        const monthMetrics = calculateUptimeMetrics(monthReadings, daysInThisMonth, actualMonthEnd);
-        
-        monthlyUptimeData.push({
-          month: format(monthStart, 'MMM'),
-          uptime: monthMetrics.uptime,
-          downtime: monthMetrics.downtime,
-          incidents: monthMetrics.incidents
-        });
+        // Only include months that actually have data
+        if (monthReadings.length > 0) {
+          const daysInThisMonth = Math.max(1, Math.round((actualMonthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)));
+          const monthMetrics = calculateUptimeMetrics(monthReadings, daysInThisMonth, actualMonthEnd, monthStart);
+          
+          monthlyUptimeData.push({
+            month: format(monthStart, 'MMM yyyy'),
+            uptime: monthMetrics.uptime,
+            downtime: monthMetrics.downtime,
+            incidents: monthMetrics.incidents
+          });
+        }
         
         // Move to next month
         currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
