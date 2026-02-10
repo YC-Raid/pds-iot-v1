@@ -57,7 +57,6 @@ export function calculateUptimeMetrics(
 
   const end = periodEnd ?? new Date();
   const periodStart = periodStartOverride ?? subDays(end, periodDays);
-  const totalPeriodHours = Math.max(1, (end.getTime() - periodStart.getTime()) / (1000 * 60 * 60));
 
   // Use readings as-is if caller already filtered, otherwise filter
   const readings = periodStartOverride
@@ -68,24 +67,23 @@ export function calculateUptimeMetrics(
       });
 
   if (readings.length === 0) {
-    return { uptime: 0, downtime: 100, totalDowntimeHours: totalPeriodHours, incidents: 0 };
+    return { uptime: 0, downtime: 100, totalDowntimeHours: 0, incidents: 0 };
   }
 
   // Sort readings by time
   readings.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
 
+  // Calculate the "monitored span" = first reading to last reading
+  // We only measure uptime within the window the system was actually active
+  const firstTime = new Date(readings[0].recorded_at).getTime();
+  const lastTime = new Date(readings[readings.length - 1].recorded_at).getTime();
+  const monitoredSpanHours = Math.max(1, (lastTime - firstTime) / (1000 * 60 * 60));
+
   let totalDowntimeMinutes = 0;
   let incidents = 0;
   const maxGapMinutes = 15; // Consider system down if gap > 15 minutes
 
-  // Check gap from period start to first reading
-  const firstReading = readings[0];
-  const gapFromStart = differenceInMinutes(new Date(firstReading.recorded_at), periodStart);
-  if (gapFromStart > maxGapMinutes) {
-    totalDowntimeMinutes += gapFromStart - maxGapMinutes;
-    incidents++;
-  }
-
+  // Only count gaps between consecutive readings (not from period boundaries)
   for (let i = 1; i < readings.length; i++) {
     const currentTime = new Date(readings[i].recorded_at);
     const previousTime = new Date(readings[i - 1].recorded_at);
@@ -97,16 +95,8 @@ export function calculateUptimeMetrics(
     }
   }
 
-  // Check if there's a gap from the last reading to period end
-  const lastReading = readings[readings.length - 1];
-  const gapFromLastReading = differenceInMinutes(end, new Date(lastReading.recorded_at));
-  if (gapFromLastReading > maxGapMinutes) {
-    totalDowntimeMinutes += gapFromLastReading - maxGapMinutes;
-    incidents++;
-  }
-
   const totalDowntimeHours = totalDowntimeMinutes / 60;
-  const uptime = Math.max(0, ((totalPeriodHours - totalDowntimeHours) / totalPeriodHours) * 100);
+  const uptime = Math.max(0, ((monitoredSpanHours - totalDowntimeHours) / monitoredSpanHours) * 100);
   const downtime = 100 - uptime;
 
   return {
