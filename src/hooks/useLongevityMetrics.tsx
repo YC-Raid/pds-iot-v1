@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  calculateUptimeMetrics,
   calculateDegradationRate,
   calculateMaintenanceEfficiency,
   calculateComponentLifespan,
@@ -15,7 +14,7 @@ import {
   type LongevityMetrics,
   type ComponentLifespan
 } from '@/utils/longevityCalculations';
-import { subMonths, format, differenceInDays, getDaysInMonth } from 'date-fns';
+import { subMonths, format, differenceInDays, differenceInHours } from 'date-fns';
 
 interface MonthlyUptimeData {
   month: string;
@@ -31,6 +30,60 @@ export interface LongevityData {
   monthlyUptimeData: MonthlyUptimeData[];
   isLoading: boolean;
   error: string | null;
+}
+
+/**
+ * Calculate uptime from hourly aggregated data.
+ * Each hour with data = 1 hour uptime. Missing hours = downtime.
+ * Consecutive missing hours = 1 incident.
+ */
+function calculateUptimeFromHourly(
+  hourlyData: Array<{ time_bucket: string; data_points_count: number | null }>,
+  periodStart: Date,
+  periodEnd: Date
+): UptimeMetrics {
+  if (hourlyData.length === 0) {
+    return { uptime: 0, downtime: 100, totalDowntimeHours: 0, incidents: 0 };
+  }
+
+  const totalHours = Math.max(1, differenceInHours(periodEnd, periodStart));
+  
+  // Create a set of hours that have data
+  const activeHours = new Set(
+    hourlyData.map(d => new Date(d.time_bucket).getTime())
+  );
+
+  let downtimeHours = 0;
+  let incidents = 0;
+  let inDowntime = false;
+
+  // Walk through each hour in the period
+  for (let h = 0; h < totalHours; h++) {
+    const hourTime = new Date(periodStart.getTime() + h * 3600000).getTime();
+    // Round to hour
+    const roundedHour = new Date(hourTime);
+    roundedHour.setMinutes(0, 0, 0);
+    
+    if (!activeHours.has(roundedHour.getTime())) {
+      downtimeHours++;
+      if (!inDowntime) {
+        incidents++;
+        inDowntime = true;
+      }
+    } else {
+      inDowntime = false;
+    }
+  }
+
+  const uptime = Math.max(0, ((totalHours - downtimeHours) / totalHours) * 100);
+  const downtime = 100 - uptime;
+
+  return {
+    uptime: Math.round(uptime * 10) / 10,
+    downtime: Math.round(downtime * 10) / 10,
+    totalDowntimeHours: Math.round(downtimeHours * 10) / 10,
+    incidents
+  };
 }
 
 export const useLongevityMetrics = () => {
@@ -59,38 +112,30 @@ export const useLongevityMetrics = () => {
     try {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Fetch sensor readings — sample from each month to ensure coverage
-      // With 60K+ rows per month, a single query can't cover all months
-      // Strategy: fetch newest data first (most important for current metrics)
-      // then backfill older months
       const sixMonthsAgo = subMonths(new Date(), 6);
-      
-      // Fetch recent data first (last 30 days) for current uptime metrics
-      const thirtyDaysAgo = subMonths(new Date(), 1);
-      const { data: recentReadings, error: recentError } = await supabase
-        .from('processed_sensor_readings')
-        .select('recorded_at, quality_score, anomaly_score, temperature, humidity, pressure, accel_magnitude, gyro_magnitude, pm2_5, pm10')
-        .gte('recorded_at', thirtyDaysAgo.toISOString())
-        .order('recorded_at', { ascending: false })
-        .limit(15000);
+      const currentDate = new Date();
 
-      if (recentError) throw recentError;
+      // ── Fetch ALL data from the aggregated tables (tiny row counts) ──
 
-      // Fetch older data for historical monthly trends
-      const { data: olderReadings, error: olderError } = await supabase
-        .from('processed_sensor_readings')
-        .select('recorded_at, quality_score, anomaly_score, temperature, humidity, pressure, accel_magnitude, gyro_magnitude, pm2_5, pm10')
-        .gte('recorded_at', sixMonthsAgo.toISOString())
-        .lt('recorded_at', thirtyDaysAgo.toISOString())
-        .order('recorded_at', { ascending: true })
-        .limit(10000);
+      // Hourly aggregated data for uptime calculations (~180 rows)
+      const { data: hourlyAggregated, error: hourlyError } = await supabase
+        .from('sensor_readings_aggregated')
+        .select('time_bucket, data_points_count, avg_temperature, avg_humidity, avg_pressure, avg_accel_magnitude, avg_gyro_magnitude, avg_pm2_5, avg_pm10')
+        .eq('aggregation_level', 'hour')
+        .gte('time_bucket', sixMonthsAgo.toISOString())
+        .order('time_bucket', { ascending: true });
 
-      if (olderError) throw olderError;
+      if (hourlyError) throw hourlyError;
 
-      // Combine all readings
-      const sensorReadings = [...(olderReadings || []), ...(recentReadings || [])];
+      // Daily aggregated data for trend calculations (~30 rows)
+      const { data: dailyAggregated, error: dailyError } = await supabase
+        .from('sensor_readings_aggregated')
+        .select('time_bucket, data_points_count, avg_temperature, avg_humidity, avg_pressure, avg_accel_magnitude, avg_gyro_magnitude, avg_pm2_5, avg_pm10, min_temperature, max_temperature, avg_gas_resistance')
+        .eq('aggregation_level', 'day')
+        .gte('time_bucket', sixMonthsAgo.toISOString())
+        .order('time_bucket', { ascending: true });
 
-      // errors already handled above
+      if (dailyError) throw dailyError;
 
       // Fetch maintenance tasks
       const { data: maintenanceTasks, error: maintenanceError } = await supabase
@@ -100,7 +145,7 @@ export const useLongevityMetrics = () => {
 
       if (maintenanceError) throw maintenanceError;
 
-      // Fetch alerts for component health calculation
+      // Fetch alerts
       const { data: alerts, error: alertsError } = await supabase
         .from('alerts')
         .select('sensor, severity, created_at, resolved_at')
@@ -108,59 +153,71 @@ export const useLongevityMetrics = () => {
 
       if (alertsError) throw alertsError;
 
-      // Calculate current uptime (last 30 days)
-      const currentUptime = calculateUptimeMetrics(sensorReadings || [], 30);
+      // ── Calculate current uptime (last 30 days) from hourly data ──
+      const thirtyDaysAgo = subMonths(currentDate, 1);
+      const recentHourly = (hourlyAggregated || []).filter(
+        d => new Date(d.time_bucket) >= thirtyDaysAgo
+      );
+      const currentUptime = calculateUptimeFromHourly(recentHourly, thirtyDaysAgo, currentDate);
+
+      // ── Build synthetic sensor readings from daily aggregated data ──
+      // These are used by the existing calculation functions that expect sensor reading arrays
+      const syntheticReadings = (dailyAggregated || []).map(d => ({
+        recorded_at: d.time_bucket,
+        temperature: d.avg_temperature,
+        humidity: d.avg_humidity,
+        pressure: d.avg_pressure,
+        accel_magnitude: d.avg_accel_magnitude,
+        gyro_magnitude: d.avg_gyro_magnitude,
+        pm2_5: d.avg_pm2_5,
+        pm10: d.avg_pm10,
+        quality_score: null as number | null,
+        anomaly_score: null as number | null,
+      }));
 
       // Calculate degradation rate
-      const degradationRate = calculateDegradationRate(sensorReadings || []);
+      const degradationRate = calculateDegradationRate(syntheticReadings);
 
-      // Calculate maintenance efficiency using both tasks and sensor data
+      // Calculate maintenance efficiency
       const { efficiency, costEfficiency } = calculateMaintenanceEfficiency(
         maintenanceTasks || [],
-        sensorReadings // Pass sensor readings for anomaly-based efficiency calculation
+        syntheticReadings
       );
 
       // Calculate system age from August 1, 2025 in Asia/Singapore timezone
       const systemStartDate = new Date('2025-08-01T00:00:00+08:00');
-      const currentDate = new Date();
       const daysSinceStart = differenceInDays(currentDate, systemStartDate);
       const currentAge = Math.max(0, daysSinceStart / 365.25);
 
-      // Calculate component lifespan (pass system age so it's not hardcoded)
-      const componentLifespan = calculateComponentLifespan(sensorReadings || [], alerts || [], currentAge);
+      // Calculate component lifespan
+      const componentLifespan = calculateComponentLifespan(syntheticReadings, alerts || [], currentAge);
       
-      // Set expected lifespan to 1 year
+      // Calculate predicted remaining life
       const expectedLifespan = 1;
       const predictedRemainingLife = calculatePredictedRemainingLife(
         currentAge,
         expectedLifespan,
         degradationRate,
         efficiency,
-        sensorReadings // Pass sensor readings for anomaly-based calculation
+        syntheticReadings
       );
 
-      // Calculate monthly uptime data — show all months from system start
+      // ── Calculate monthly uptime data from hourly aggregated ──
       const monthlyUptimeData: MonthlyUptimeData[] = [];
-      
-      // Start from August 2025 and go up to current month
       let currentMonth = new Date(systemStartDate);
       
       while (currentMonth <= currentDate) {
         const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
         const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59);
-        
-        // If monthEnd is in the future, use current date as end
         const actualMonthEnd = monthEnd > currentDate ? currentDate : monthEnd;
-        
-        const monthReadings = (sensorReadings || []).filter(reading => {
-          const readingDate = new Date(reading.recorded_at);
-          return readingDate >= monthStart && readingDate <= actualMonthEnd;
+
+        const monthHourly = (hourlyAggregated || []).filter(d => {
+          const dt = new Date(d.time_bucket);
+          return dt >= monthStart && dt <= actualMonthEnd;
         });
 
-        if (monthReadings.length > 0) {
-          const daysInThisMonth = Math.max(1, Math.round((actualMonthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)));
-          const monthMetrics = calculateUptimeMetrics(monthReadings, daysInThisMonth, actualMonthEnd, monthStart);
-          
+        if (monthHourly.length > 0) {
+          const monthMetrics = calculateUptimeFromHourly(monthHourly, monthStart, actualMonthEnd);
           monthlyUptimeData.push({
             month: format(monthStart, 'MMM yyyy'),
             uptime: monthMetrics.uptime,
@@ -168,7 +225,6 @@ export const useLongevityMetrics = () => {
             incidents: monthMetrics.incidents
           });
         } else {
-          // Show 0% for months with no data
           monthlyUptimeData.push({
             month: format(monthStart, 'MMM yyyy'),
             uptime: 0,
@@ -177,24 +233,21 @@ export const useLongevityMetrics = () => {
           });
         }
         
-        // Move to next month
         currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-        
-        // Safety limit - don't show more than 12 months
         if (monthlyUptimeData.length >= 12) break;
       }
 
       // Calculate equipment wear and usage intensity
-      const equipmentWear = calculateEquipmentWear(sensorReadings || [], alerts || []);
+      const equipmentWear = calculateEquipmentWear(syntheticReadings, alerts || []);
       const usageIntensity = calculateUsageIntensity(
-        sensorReadings || [], 
+        syntheticReadings, 
         maintenanceTasks || [], 
         alerts || []
       );
 
-      // Calculate new longevity factors
-      const environmentalConditions = calculateEnvironmentalConditions(sensorReadings || []);
-      const structuralIntegrity = calculateStructuralIntegrity(sensorReadings || []);
+      // Calculate longevity factors
+      const environmentalConditions = calculateEnvironmentalConditions(syntheticReadings);
+      const structuralIntegrity = calculateStructuralIntegrity(syntheticReadings);
       const maintenanceQuality = calculateMaintenanceQualityScore(alerts || [], maintenanceTasks || []);
 
       const longevityMetrics: LongevityMetrics = {
@@ -211,13 +264,14 @@ export const useLongevityMetrics = () => {
         maintenanceQuality
       };
 
-      // Debug logging
       console.debug('Longevity Debug:', {
         currentAge: currentAge.toFixed(2),
         expectedLifespan,
         degradationRate,
         efficiency,
         predictedRemainingLife,
+        hourlyDataPoints: (hourlyAggregated || []).length,
+        dailyDataPoints: (dailyAggregated || []).length,
         monthlyUptimeData: monthlyUptimeData.map(m => `${m.month}: ${m.uptime}%`),
       });
 
@@ -240,51 +294,28 @@ export const useLongevityMetrics = () => {
     }
   };
 
-  // Set up real-time subscription for sensor readings
   useEffect(() => {
-    // Initial fetch
     fetchLongevityData();
 
-    // Set up real-time subscription
     const channel = supabase
       .channel('longevity-updates')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'processed_sensor_readings'
-        },
-        () => {
-          // Debounce updates to avoid too frequent recalculations
-          setTimeout(fetchLongevityData, 5000);
-        }
+        { event: '*', schema: 'public', table: 'sensor_readings_aggregated' },
+        () => { setTimeout(fetchLongevityData, 5000); }
       )
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'maintenance_tasks'
-        },
-        () => {
-          setTimeout(fetchLongevityData, 2000);
-        }
+        { event: '*', schema: 'public', table: 'maintenance_tasks' },
+        () => { setTimeout(fetchLongevityData, 2000); }
       )
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'alerts'
-        },
-        () => {
-          setTimeout(fetchLongevityData, 3000);
-        }
+        { event: '*', schema: 'public', table: 'alerts' },
+        () => { setTimeout(fetchLongevityData, 3000); }
       )
       .subscribe();
 
-    // Refresh data every 10 minutes
     const interval = setInterval(fetchLongevityData, 10 * 60 * 1000);
 
     return () => {
