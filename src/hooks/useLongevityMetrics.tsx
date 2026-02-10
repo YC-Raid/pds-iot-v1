@@ -71,7 +71,7 @@ export const useLongevityMetrics = () => {
         .from('processed_sensor_readings')
         .select('recorded_at, quality_score, anomaly_score, temperature, humidity, pressure, accel_magnitude, gyro_magnitude, pm2_5, pm10')
         .gte('recorded_at', thirtyDaysAgo.toISOString())
-        .order('recorded_at', { ascending: true })
+        .order('recorded_at', { ascending: false })
         .limit(15000);
 
       if (recentError) throw recentError;
