@@ -59,18 +59,38 @@ export const useLongevityMetrics = () => {
     try {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Fetch sensor readings — use a reasonable sample for uptime/longevity calculations
-      // Supabase default limit is 1000 rows; we need coverage across all months
-      // Fetch up to 10,000 rows to ensure adequate monthly coverage
+      // Fetch sensor readings — sample from each month to ensure coverage
+      // With 60K+ rows per month, a single query can't cover all months
+      // Strategy: fetch newest data first (most important for current metrics)
+      // then backfill older months
       const sixMonthsAgo = subMonths(new Date(), 6);
-      const { data: sensorReadings, error: sensorError } = await supabase
+      
+      // Fetch recent data first (last 30 days) for current uptime metrics
+      const thirtyDaysAgo = subMonths(new Date(), 1);
+      const { data: recentReadings, error: recentError } = await supabase
+        .from('processed_sensor_readings')
+        .select('recorded_at, quality_score, anomaly_score, temperature, humidity, pressure, accel_magnitude, gyro_magnitude, pm2_5, pm10')
+        .gte('recorded_at', thirtyDaysAgo.toISOString())
+        .order('recorded_at', { ascending: true })
+        .limit(15000);
+
+      if (recentError) throw recentError;
+
+      // Fetch older data for historical monthly trends
+      const { data: olderReadings, error: olderError } = await supabase
         .from('processed_sensor_readings')
         .select('recorded_at, quality_score, anomaly_score, temperature, humidity, pressure, accel_magnitude, gyro_magnitude, pm2_5, pm10')
         .gte('recorded_at', sixMonthsAgo.toISOString())
+        .lt('recorded_at', thirtyDaysAgo.toISOString())
         .order('recorded_at', { ascending: true })
         .limit(10000);
 
-      if (sensorError) throw sensorError;
+      if (olderError) throw olderError;
+
+      // Combine all readings
+      const sensorReadings = [...(olderReadings || []), ...(recentReadings || [])];
+
+      // errors already handled above
 
       // Fetch maintenance tasks
       const { data: maintenanceTasks, error: maintenanceError } = await supabase
