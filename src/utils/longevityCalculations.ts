@@ -243,14 +243,16 @@ export function calculateComponentLifespan(
     accel_magnitude?: number;
     gyro_magnitude?: number;
   }>,
-  alerts: Array<{ sensor: string; severity: string; created_at: string }>
+  alerts: Array<{ sensor: string; severity: string; created_at: string }>,
+  systemAgeYears: number = 0
 ): ComponentLifespan[] {
+  // All components installed at system start (Aug 1, 2025), so current age = system age
   const baseComponents = [
-    { component: "HVAC System", current: 5, expected: 15, baseHealth: 85 },
-    { component: "Structural Steel", current: 8, expected: 50, baseHealth: 95 },
-    { component: "Electrical Systems", current: 3, expected: 20, baseHealth: 90 },
-    { component: "Sensors Network", current: 2, expected: 10, baseHealth: 88 },
-    { component: "Door Mechanisms", current: 4, expected: 12, baseHealth: 75 },
+    { component: "HVAC System", expected: 15, baseHealth: 85 },
+    { component: "Structural Steel", expected: 50, baseHealth: 95 },
+    { component: "Electrical Systems", expected: 20, baseHealth: 90 },
+    { component: "Sensors Network", expected: 10, baseHealth: 88 },
+    { component: "Door Mechanisms", expected: 12, baseHealth: 75 },
   ];
 
   return baseComponents.map(component => {
@@ -298,9 +300,12 @@ export function calculateComponentLifespan(
 
     const finalHealth = Math.max(0, Math.min(100, component.baseHealth + healthModifier));
     
+    // Round system age to 1 decimal for display
+    const currentAge = Math.round(systemAgeYears * 10) / 10;
+    
     return {
       component: component.component,
-      current: component.current,
+      current: currentAge,
       expected: component.expected,
       health: Math.round(finalHealth)
     };

@@ -97,14 +97,14 @@ export const useLongevityMetrics = () => {
         sensorReadings // Pass sensor readings for anomaly-based efficiency calculation
       );
 
-      // Calculate component lifespan
-      const componentLifespan = calculateComponentLifespan(sensorReadings || [], alerts || []);
-
       // Calculate system age from August 1, 2025 in Asia/Singapore timezone
-      const systemStartDate = new Date('2025-08-01T00:00:00+08:00'); // August 1, 2025 in Singapore time
+      const systemStartDate = new Date('2025-08-01T00:00:00+08:00');
       const currentDate = new Date();
       const daysSinceStart = differenceInDays(currentDate, systemStartDate);
-      const currentAge = Math.max(0, daysSinceStart / 365.25); // Convert days to years
+      const currentAge = Math.max(0, daysSinceStart / 365.25);
+
+      // Calculate component lifespan (pass system age so it's not hardcoded)
+      const componentLifespan = calculateComponentLifespan(sensorReadings || [], alerts || [], currentAge);
       
       // Set expected lifespan to 1 year
       const expectedLifespan = 1;

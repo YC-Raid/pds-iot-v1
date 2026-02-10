@@ -158,8 +158,10 @@ const SystemLongevity = () => {
             <p className="text-xs text-muted-foreground">
               Per year
             </p>
-            <Badge className="mt-2 text-green-600 bg-green-100">
-              Within normal range
+            <Badge className={`mt-2 ${longevityMetrics.degradationRate <= 3 ? 'text-green-600 bg-green-100' : 
+              longevityMetrics.degradationRate <= 5 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100'}`}>
+              {longevityMetrics.degradationRate <= 3 ? 'Within normal range' : 
+               longevityMetrics.degradationRate <= 5 ? 'Elevated' : 'Critical'}
             </Badge>
           </CardContent>
         </Card>
@@ -177,9 +179,9 @@ const SystemLongevity = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
+          <ChartContainer config={chartConfig} className="h-[300px] w-full aspect-auto">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyUptimeData}>
+              <LineChart data={monthlyUptimeData} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
