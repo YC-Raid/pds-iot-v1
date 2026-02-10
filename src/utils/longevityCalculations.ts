@@ -44,22 +44,25 @@ export interface LongevityMetrics {
 }
 
 // Calculate uptime/downtime from sensor readings
+// periodEnd defaults to now; for historical months pass the month's end date
 export function calculateUptimeMetrics(
   sensorReadings: Array<{ recorded_at: string; quality_score?: number }>,
-  periodDays: number = 30
+  periodDays: number = 30,
+  periodEnd?: Date
 ): UptimeMetrics {
   if (!sensorReadings || sensorReadings.length === 0) {
     return { uptime: 0, downtime: 100, totalDowntimeHours: 0, incidents: 0 };
   }
 
-  const now = new Date();
-  const periodStart = subDays(now, periodDays);
+  const end = periodEnd ?? new Date();
+  const periodStart = subDays(end, periodDays);
   const totalPeriodHours = periodDays * 24;
 
   // Filter readings within the period
-  const readings = sensorReadings.filter(
-    reading => new Date(reading.recorded_at) >= periodStart
-  );
+  const readings = sensorReadings.filter(reading => {
+    const d = new Date(reading.recorded_at);
+    return d >= periodStart && d <= end;
+  });
 
   if (readings.length === 0) {
     return { uptime: 0, downtime: 100, totalDowntimeHours: totalPeriodHours, incidents: 0 };
@@ -83,9 +86,9 @@ export function calculateUptimeMetrics(
     }
   }
 
-  // Check if there's a gap from the last reading to now
+  // Check if there's a gap from the last reading to period end
   const lastReading = readings[readings.length - 1];
-  const gapFromLastReading = differenceInMinutes(now, new Date(lastReading.recorded_at));
+  const gapFromLastReading = differenceInMinutes(end, new Date(lastReading.recorded_at));
   if (gapFromLastReading > maxGapMinutes) {
     totalDowntimeMinutes += gapFromLastReading - maxGapMinutes;
     incidents++;

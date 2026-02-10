@@ -15,7 +15,7 @@ import {
   type LongevityMetrics,
   type ComponentLifespan
 } from '@/utils/longevityCalculations';
-import { subMonths, format, differenceInDays } from 'date-fns';
+import { subMonths, format, differenceInDays, getDaysInMonth } from 'date-fns';
 
 interface MonthlyUptimeData {
   month: string;
@@ -134,7 +134,9 @@ export const useLongevityMetrics = () => {
           return readingDate >= monthStart && readingDate <= actualMonthEnd;
         });
 
-        const monthMetrics = calculateUptimeMetrics(monthReadings, 30);
+        // Use the actual number of days in this month (or partial if current month)
+        const daysInThisMonth = Math.max(1, Math.round((actualMonthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)));
+        const monthMetrics = calculateUptimeMetrics(monthReadings, daysInThisMonth, actualMonthEnd);
         
         monthlyUptimeData.push({
           month: format(monthStart, 'MMM'),
