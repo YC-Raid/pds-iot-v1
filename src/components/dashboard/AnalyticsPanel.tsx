@@ -605,7 +605,7 @@ const AnalyticsPanel = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-[400px]">
+              <ChartContainer config={chartConfig} className="h-[400px] w-full aspect-auto">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={weeklyTrends} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -646,7 +646,7 @@ const AnalyticsPanel = () => {
               <CardDescription>Number of alerts triggered each day</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-[300px]">
+              <ChartContainer config={chartConfig} className="h-[300px] w-full aspect-auto">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weeklyTrends} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -675,7 +675,7 @@ const AnalyticsPanel = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-[400px]">
+              <ChartContainer config={chartConfig} className="h-[400px] w-full aspect-auto">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -703,7 +703,7 @@ const AnalyticsPanel = () => {
                 <CardDescription>Monthly temperature trends</CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+                <ChartContainer config={chartConfig} className="h-[300px] w-full aspect-auto">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -712,7 +712,7 @@ const AnalyticsPanel = () => {
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Line 
                         type="monotone" 
-                        dataKey="avgTemp" 
+                        dataKey="avgTemp"
                         stroke="var(--color-temperature)" 
                         strokeWidth={3}
                         dot={{ fill: "var(--color-temperature)", strokeWidth: 2, r: 4 }}
@@ -729,7 +729,7 @@ const AnalyticsPanel = () => {
                 <CardDescription>Monthly humidity trends</CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
+                <ChartContainer config={chartConfig} className="h-[300px] w-full aspect-auto">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 25 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -738,7 +738,7 @@ const AnalyticsPanel = () => {
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Line 
                         type="monotone" 
-                        dataKey="avgHumidity" 
+                        dataKey="avgHumidity"
                         stroke="var(--color-humidity)" 
                         strokeWidth={3}
                         dot={{ fill: "var(--color-humidity)", strokeWidth: 2, r: 4 }}
