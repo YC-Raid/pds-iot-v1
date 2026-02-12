@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import { MainLayout } from "./components/layout/MainLayout";
-import DashboardHome from "./pages/DashboardHome";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -15,15 +14,10 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import SensorDetail from "./pages/SensorDetail";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { useSensorData, isDataFresh } from "./hooks/useSensorData";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { sensorReadings } = useSensorData();
-  const latestReading = sensorReadings[0];
-  const dataIsFresh = latestReading ? isDataFresh(latestReading.recorded_at) : false;
-
   return (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
