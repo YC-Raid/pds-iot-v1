@@ -9,16 +9,13 @@ import { CriticalAlertsPanel } from "@/components/dashboard/CriticalAlertsPanel"
 import { AnomalyAlertsPanel } from "@/components/dashboard/AnomalyAlertsPanel";
 import { AnalyticsPanel } from "@/components/dashboard/AnalyticsPanel";
 import { HangarStatus } from "@/components/dashboard/HangarStatus";
-import CriticalAlertsOverview from "@/components/dashboard/CriticalAlertsOverview";
 import { VibrationMonitoring } from "@/components/dashboard/VibrationMonitoring";
 import { SystemLongevity } from "@/components/dashboard/SystemLongevity";
 import { SecurityPanel } from "@/components/dashboard/SecurityPanel";
 import { EnhancedDoorSecurityCard } from "@/components/dashboard/EnhancedDoorSecurityCard";
 
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
-import { GlowingEffect } from "@/components/ui/glowing-effect";
-import { DataExport } from "@/components/ui/data-export";
-import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Activity, Calendar, Bell, TrendingUp, Building, Waves, Timer, ShieldCheck } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/seo/SEO";
 import { JsonLd } from "@/components/seo/JsonLd";
