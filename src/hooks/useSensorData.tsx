@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+
 interface SensorReading {
   id: number;
   original_id: number;
@@ -151,54 +151,55 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
     }
   };
 
+  // Helper: map aggregated row to raw-like format for compatibility with existing chart formatting
+  const mapAggregatedToRaw = (row: any) => ({
+    recorded_at: row.time_bucket,
+    temperature: row.avg_temperature,
+    humidity: row.avg_humidity,
+    pressure: row.avg_pressure,
+    gas_resistance: row.avg_gas_resistance,
+    pm1_0: row.avg_pm1_0,
+    pm2_5: row.avg_pm2_5,
+    pm10: row.avg_pm10,
+    accel_magnitude: row.avg_accel_magnitude,
+    gyro_magnitude: row.avg_gyro_magnitude,
+    accel_x: null,
+    accel_y: null,
+    accel_z: null,
+    gyro_x: null,
+    gyro_y: null,
+    gyro_z: null,
+    location: row.location,
+    // Keep aggregated fields too for isAggregated detection
+    avg_temperature: row.avg_temperature,
+    avg_humidity: row.avg_humidity,
+    avg_pressure: row.avg_pressure,
+    avg_gas_resistance: row.avg_gas_resistance,
+    avg_pm1_0: row.avg_pm1_0,
+    avg_pm2_5: row.avg_pm2_5,
+    avg_pm10: row.avg_pm10,
+    avg_accel_magnitude: row.avg_accel_magnitude,
+    avg_gyro_magnitude: row.avg_gyro_magnitude,
+    time_bucket: row.time_bucket,
+    data_points_count: row.data_points_count,
+    aggregation_level: row.aggregation_level,
+  });
+
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
-      let startTime: Date;
-      let endTime: Date;
-      
-      // Always use current time as end point for better real-time experience
-      endTime = new Date();
-      startTime = new Date(endTime.getTime() - hours * 60 * 60 * 1000);
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - hours * 60 * 60 * 1000);
       
       console.log(`⏱️ [DEBUG] ${hours}h window: ${startTime.toISOString()} to ${endTime.toISOString()}`);
+
+      // Determine the best aggregation tier based on time range
+      // 1h → try raw first, fallback to 1min aggregates
+      // 24h → hourly aggregates
+      // 7d+ → daily aggregates
       
-      // For longer periods, use pagination to ensure we get all data
-      if (hours > 24) {
-        const pageSize = 1000;
-        let from = 0;
-        let to = pageSize - 1;
-        let allData: any[] = [];
-
-        while (true) {
-          const { data, error } = await supabase
-            .from('processed_sensor_readings')
-            .select('*')
-            .gte('recorded_at', startTime.toISOString())
-            .lte('recorded_at', endTime.toISOString())
-            .order('recorded_at', { ascending: true })
-            .range(from, to);
-
-          if (error) throw error;
-          const batchCount = data?.length || 0;
-          allData = allData.concat(data || []);
-          console.log(`📦 [DEBUG] Fetched batch ${from}-${to} (${batchCount} rows), total so far: ${allData.length}`);
-
-          if (batchCount < pageSize) break;
-          from += pageSize;
-          to += pageSize;
-          if (from > 200000) { // safety guard for very large datasets
-            console.warn('⚠️ [DEBUG] Stopping pagination after 200k rows to avoid runaway requests');
-            break;
-          }
-        }
-
-        // Sort and return only real data
-        allData = allData.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
-        console.log(`📈 [DEBUG] Total time range data fetched (real only): ${allData.length} records`);
-        return allData;
-      } else {
-        // For short periods, use single query with reasonable limit
-        const { data, error } = await supabase
+      if (hours <= 2) {
+        // Try raw data first
+        const { data: rawData, error: rawError } = await supabase
           .from('processed_sensor_readings')
           .select('*')
           .gte('recorded_at', startTime.toISOString())
@@ -206,11 +207,56 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
           .order('recorded_at', { ascending: true })
           .limit(10000);
 
-        if (error) throw error;
-        console.log(`📈 [DEBUG] Short time range data fetched: ${data?.length || 0} records`);
-        const allData = (data || []).sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
-        return allData;
+        if (!rawError && rawData && rawData.length >= 10) {
+          console.log(`📈 [DEBUG] Using ${rawData.length} raw records for ${hours}h view`);
+          return rawData;
+        }
+
+        // Fallback to 1min aggregates
+        console.log(`⚠️ [DEBUG] Raw data insufficient (${rawData?.length || 0}), falling back to 1min aggregates`);
+        const { data: aggData, error: aggError } = await supabase
+          .from('sensor_readings_aggregated')
+          .select('*')
+          .eq('aggregation_level', '1min')
+          .gte('time_bucket', startTime.toISOString())
+          .lte('time_bucket', endTime.toISOString())
+          .order('time_bucket', { ascending: true })
+          .limit(10000);
+
+        if (aggError) throw aggError;
+        console.log(`📈 [DEBUG] Using ${aggData?.length || 0} 1min aggregated records for ${hours}h view`);
+        return (aggData || []).map(mapAggregatedToRaw);
       }
+      
+      if (hours <= 36) {
+        // Use hourly aggregates for 24h view
+        const { data: aggData, error: aggError } = await supabase
+          .from('sensor_readings_aggregated')
+          .select('*')
+          .eq('aggregation_level', 'hour')
+          .gte('time_bucket', startTime.toISOString())
+          .lte('time_bucket', endTime.toISOString())
+          .order('time_bucket', { ascending: true })
+          .limit(1000);
+
+        if (aggError) throw aggError;
+        console.log(`📈 [DEBUG] Using ${aggData?.length || 0} hourly aggregated records for ${hours}h view`);
+        return (aggData || []).map(mapAggregatedToRaw);
+      }
+      
+      // 7d+ → use daily aggregates
+      const { data: aggData, error: aggError } = await supabase
+        .from('sensor_readings_aggregated')
+        .select('*')
+        .eq('aggregation_level', 'day')
+        .gte('time_bucket', startTime.toISOString())
+        .lte('time_bucket', endTime.toISOString())
+        .order('time_bucket', { ascending: true })
+        .limit(1000);
+
+      if (aggError) throw aggError;
+      console.log(`📈 [DEBUG] Using ${aggData?.length || 0} daily aggregated records for ${hours}h+ view`);
+      return (aggData || []).map(mapAggregatedToRaw);
     } catch (err) {
       console.error('Failed to fetch time range data:', err);
       return [];
@@ -221,124 +267,46 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
     try {
       console.log(`🚀 [DEBUG] Starting getHourlyAveragedData for: ${sensorType}`);
       
-      // Map sensor type to column in processed_sensor_readings
       const sensorColumnMap = {
-        'temperature': 'temperature',
-        'humidity': 'humidity', 
-        'pressure': 'pressure',
-        'gas': 'gas_resistance',
-        'pm1': 'pm1_0',
-        'pm25': 'pm2_5',
-        'pm10': 'pm10'
+        'temperature': 'avg_temperature',
+        'humidity': 'avg_humidity', 
+        'pressure': 'avg_pressure',
+        'gas': 'avg_gas_resistance',
+        'pm1': 'avg_pm1_0',
+        'pm25': 'avg_pm2_5',
+        'pm10': 'avg_pm10'
       } as const;
       
-      const sensorColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'temperature';
-      console.log(`📊 [DEBUG] Using sensor column: ${sensorColumn}`);
+      const aggColumn = sensorColumnMap[sensorType as keyof typeof sensorColumnMap] || 'avg_temperature';
       
-      // Use same approach as getSensorReadingsByTimeRange - get most recent and go back 24h
-      const { data: recentData, error: recentError } = await supabase
-        .from('processed_sensor_readings')
-        .select('recorded_at')
-        .order('recorded_at', { ascending: false })
-        .limit(1);
-        
-      if (recentError) throw recentError;
+      // Get last 24 hours of hourly aggregated data
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
       
-      if (!recentData || recentData.length === 0) {
-        console.log(`⚠️ [DEBUG] No data found in processed_sensor_readings table`);
-        return [];
-      }
+      const { data, error } = await supabase
+        .from('sensor_readings_aggregated')
+        .select('*')
+        .eq('aggregation_level', 'hour')
+        .gte('time_bucket', startTime.toISOString())
+        .lte('time_bucket', endTime.toISOString())
+        .order('time_bucket', { ascending: true });
+
+      if (error) throw error;
       
-      const mostRecentTime = new Date(recentData[0].recorded_at);
-      const endTime = mostRecentTime;
-      const startTime = new Date(mostRecentTime.getTime() - 24 * 60 * 60 * 1000);
-
-      console.log(`⏰ [DEBUG] Time window (treating as SG time): ${startTime.toISOString()} to ${endTime.toISOString()}`);
-
-      // Fetch readings from processed_sensor_readings with pagination (PostgREST default limit ~1000)
-      const pageSize = 1000;
-      let from = 0;
-      let to = pageSize - 1;
-      let allData: any[] = [];
-
-      while (true) {
-        const { data, error } = await supabase
-          .from('processed_sensor_readings')
-          .select(`recorded_at, ${sensorColumn}`)
-          .not(sensorColumn, 'is', null)
-          .gte('recorded_at', startTime.toISOString())
-          .lte('recorded_at', endTime.toISOString())
-          .order('recorded_at', { ascending: true })
-          .range(from, to);
-
-        if (error) throw error;
-        const batchCount = data?.length || 0;
-        allData = allData.concat(data || []);
-        console.log(`📦 [DEBUG] Fetched batch ${from}-${to} (${batchCount} rows), total so far: ${allData.length}`);
-
-        if (batchCount < pageSize) break;
-        from += pageSize;
-        to += pageSize;
-        if (from > 100000) { // safety guard
-          console.warn('⚠️ [DEBUG] Stopping pagination after 100k rows to avoid runaway requests');
-          break;
-        }
-      }
-
-      console.log(`📈 [DEBUG] Raw data fetched total: ${allData.length} records`);
-      if (allData && allData.length > 0) {
-        console.log(`📈 [DEBUG] First record time: ${allData[0]?.recorded_at}`);
-        console.log(`📈 [DEBUG] Last record time: ${allData[allData.length - 1]?.recorded_at}`);
-      }
-
-      // Optional: peek at latest records to ensure window alignment
-      try {
-        const { data: broadData } = await supabase
-          .from('processed_sensor_readings')
-          .select(`recorded_at, ${sensorColumn}`)
-          .not(sensorColumn, 'is', null)
-          .order('recorded_at', { ascending: false })
-          .limit(5);
-        if (broadData) {
-          console.log(`🔍 [DEBUG] Latest 5 records in DB:`, broadData.map(r => r.recorded_at));
-        }
-      } catch {}
-
-
-      // Group by hour buckets - data is already in Singapore time
-      const hourlyData = new Map<string, { values: number[]; hour_bucket: string }>();
-
-      allData?.forEach((row: any) => {
-        const recordTime = new Date(row.recorded_at);
-        // Create hour bucket key (already in Singapore time)
-        const hourKey = recordTime.getFullYear() + '-' + 
-                       (recordTime.getMonth() + 1).toString().padStart(2, '0') + '-' + 
-                       recordTime.getDate().toString().padStart(2, '0') + ' ' + 
-                       recordTime.getHours().toString().padStart(2, '0') + ':00:00';
-                       
-        if (!hourlyData.has(hourKey)) {
-          hourlyData.set(hourKey, { values: [], hour_bucket: hourKey });
-        }
-        hourlyData.get(hourKey)!.values.push(Number(row[sensorColumn]));
-      });
-
-      console.log(`🗂️ [DEBUG] Hour buckets created: ${hourlyData.size}`);
-      console.log(`🗂️ [DEBUG] Hour bucket keys:`, Array.from(hourlyData.keys()).sort());
-
-      // Return sorted buckets
-      const result = Array.from(hourlyData.values())
-        .map((bucket) => ({
-          hour_bucket: bucket.hour_bucket,
-          avg_value: bucket.values.reduce((s, v) => s + v, 0) / bucket.values.length,
-          reading_count: bucket.values.length,
-        }))
-        .sort((a, b) => a.hour_bucket.localeCompare(b.hour_bucket));
-
-      console.log(`✅ [DEBUG] Returning ${result.length} hourly averages`);
-      if (result.length > 0) {
-        console.log(`📊 [DEBUG] Sample result:`, result.slice(0, 3));
-      }
-
+      console.log(`📈 [DEBUG] Fetched ${data?.length || 0} hourly aggregated records`);
+      
+      const result = (data || [])
+        .filter(row => row[aggColumn] !== null)
+        .map(row => ({
+          hour_bucket: new Date(row.time_bucket).getFullYear() + '-' + 
+            (new Date(row.time_bucket).getMonth() + 1).toString().padStart(2, '0') + '-' + 
+            new Date(row.time_bucket).getDate().toString().padStart(2, '0') + ' ' + 
+            new Date(row.time_bucket).getHours().toString().padStart(2, '0') + ':00:00',
+          avg_value: Number(row[aggColumn]),
+          reading_count: row.data_points_count || 0,
+        }));
+      
+      console.log(`✅ [DEBUG] Returning ${result.length} hourly averages from aggregated data`);
       return result;
     } catch (err) {
       console.error('❌ [DEBUG] Failed to fetch hourly averaged data:', err);

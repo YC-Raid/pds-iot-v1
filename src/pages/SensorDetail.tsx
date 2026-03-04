@@ -127,83 +127,41 @@ const SensorDetail = () => {
         const hours = parseInt(timeRange);
         let data: any[] = [];
 
+        // getSensorReadingsByTimeRange now automatically selects the right aggregation tier:
+        // 1h → raw data or 1min aggregates
+        // 24h → hourly aggregates
+        // 7d/30d → daily aggregates
+        
         if (hours === 24) {
-          // 24h view: filter to TODAY (00:00 -> now) using Asia/Singapore timezone, no UTC math
-          console.log(`📊 [DEBUG] 24h view: filtering to today's Singapore day`);
-          const raw = await getSensorReadingsByTimeRange(36); // buffer to ensure coverage around midnight
+          // 24h view: get hourly aggregated data for today
+          console.log(`📊 [DEBUG] 24h view: fetching hourly aggregated data`);
+          data = await getSensorReadingsByTimeRange(36); // buffer for timezone coverage
           const todayStr = formatInTimeZone(new Date(), 'Asia/Singapore', 'yyyy-MM-dd');
-          data = raw.filter((r: any) => {
+          data = data.filter((r: any) => {
             const d = new Date(r.recorded_at);
             return formatInTimeZone(d, 'Asia/Singapore', 'yyyy-MM-dd') === todayStr;
           });
           console.log(`📊 [DEBUG] Today's filtered readings: ${data.length}`);
         } else if (hours === 1) {
-          // 1h view: Get current hour only
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
-          // 1 week: Try aggregated data first, fallback to raw data
-          console.log(`📊 [DEBUG] Trying aggregated data for 1 week view`);
-          try {
-            const aggregatedData = await getAggregatedSensorData('day', 7);
-            console.log(`📊 [DEBUG] Aggregated data result:`, aggregatedData?.length || 0, 'records');
-            // Need at least 4 days of aggregated data to show meaningful 1-week view
-            if (aggregatedData && aggregatedData.length >= 4) {
-              console.log(`✅ [DEBUG] Using ${aggregatedData.length} aggregated day records`);
-              data = aggregatedData;
-            } else {
-              console.log(`⚠️ [DEBUG] Insufficient aggregated data (${aggregatedData?.length || 0} days), falling back to raw data for 1 week`);
-              data = await getSensorReadingsByTimeRange(hours);
-              console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
-            }
-          } catch (error) {
-            console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
-            data = await getSensorReadingsByTimeRange(hours);
-            console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
-          }
+          // 1 week: getSensorReadingsByTimeRange returns daily aggregates automatically
+          console.log(`📊 [DEBUG] Fetching daily aggregated data for 1 week view`);
+          data = await getSensorReadingsByTimeRange(hours);
+          console.log(`📊 [DEBUG] Weekly data result: ${data?.length || 0} records`);
         } else if (hours === 720) {
-          // 1 month: Use daily aggregated data for current month
+          // 1 month: getSensorReadingsByTimeRange returns daily aggregates automatically
           console.log(`📊 [DEBUG] Fetching daily aggregated data for 1 month view`);
-          try {
-            const aggregatedData = await getAggregatedSensorData('day', 31);
-            console.log(`📊 [DEBUG] Raw aggregated data result:`, aggregatedData?.length || 0, 'records');
-            
-            if (aggregatedData && aggregatedData.length > 0) {
-              // Filter to current month only
-              const now = new Date();
-              const currentMonth = now.getMonth();
-              const currentYear = now.getFullYear();
-              
-              console.log(`📅 [DEBUG] Current month: ${currentMonth + 1}/${currentYear}, checking data...`);
-              console.log(`📅 [DEBUG] Sample aggregated records:`, aggregatedData.slice(0, 3));
-              
-              const monthlyData = aggregatedData.filter(record => {
-                const recordDate = new Date(record.time_bucket);
-                const isCurrentMonth = recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
-                console.log(`📅 [DEBUG] Record ${record.time_bucket} -> Date: ${recordDate.toISOString()}, Month: ${recordDate.getMonth() + 1}, Match: ${isCurrentMonth}`);
-                return isCurrentMonth;
-              });
-              
-              console.log(`✅ [DEBUG] Using ${monthlyData.length} daily records for month ${currentMonth + 1}/${currentYear}`);
-              console.log(`✅ [DEBUG] Monthly data sample:`, monthlyData.slice(0, 3));
-              
-              // Use daily data regardless of how many days we have
-              if (monthlyData.length > 0) {
-                data = monthlyData;
-              } else {
-                console.log(`⚠️ [DEBUG] No daily data for current month, falling back to raw data`);
-                data = await getSensorReadingsByTimeRange(hours);
-                console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
-              }
-            } else {
-              console.log(`⚠️ [DEBUG] No aggregated data available, falling back to raw data`);
-              data = await getSensorReadingsByTimeRange(hours);
-              console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
-            }
-          } catch (error) {
-            console.error(`❌ [DEBUG] Error with aggregated data, using raw data:`, error);
-            data = await getSensorReadingsByTimeRange(hours);
-            console.log(`📊 [DEBUG] Raw data fallback result:`, data?.length || 0, 'records');
-          }
+          data = await getSensorReadingsByTimeRange(hours);
+          // Filter to current month only
+          const now = new Date();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+          data = data.filter(record => {
+            const recordDate = new Date(record.recorded_at);
+            return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+          });
+          console.log(`📊 [DEBUG] Monthly filtered data: ${data.length} records`);
         }
         
         if (data.length > 0) {
