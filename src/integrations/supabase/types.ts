@@ -650,8 +650,14 @@ export type Database = {
         Row: {
           aggregation_level: string
           avg_accel_magnitude: number | null
+          avg_accel_x: number | null
+          avg_accel_y: number | null
+          avg_accel_z: number | null
           avg_gas_resistance: number | null
           avg_gyro_magnitude: number | null
+          avg_gyro_x: number | null
+          avg_gyro_y: number | null
+          avg_gyro_z: number | null
           avg_humidity: number | null
           avg_pm1_0: number | null
           avg_pm10: number | null
@@ -669,8 +675,14 @@ export type Database = {
         Insert: {
           aggregation_level: string
           avg_accel_magnitude?: number | null
+          avg_accel_x?: number | null
+          avg_accel_y?: number | null
+          avg_accel_z?: number | null
           avg_gas_resistance?: number | null
           avg_gyro_magnitude?: number | null
+          avg_gyro_x?: number | null
+          avg_gyro_y?: number | null
+          avg_gyro_z?: number | null
           avg_humidity?: number | null
           avg_pm1_0?: number | null
           avg_pm10?: number | null
@@ -688,8 +700,14 @@ export type Database = {
         Update: {
           aggregation_level?: string
           avg_accel_magnitude?: number | null
+          avg_accel_x?: number | null
+          avg_accel_y?: number | null
+          avg_accel_z?: number | null
           avg_gas_resistance?: number | null
           avg_gyro_magnitude?: number | null
+          avg_gyro_x?: number | null
+          avg_gyro_y?: number | null
+          avg_gyro_z?: number | null
           avg_humidity?: number | null
           avg_pm1_0?: number | null
           avg_pm10?: number | null
