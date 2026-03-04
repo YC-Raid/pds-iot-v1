@@ -191,10 +191,6 @@ Deno.serve(async (req) => {
         console.log('✅ Cleared all existing mock data')
       }
     }
-
-    // Use provided date range or default to single day
-    const startDate = new Date(startDateStr || '2025-09-01T00:00:00.000Z')
-    const endDate = new Date(endDateStr || '2025-09-01T23:59:50.000Z')
     const intervalMs = 10 * 1000 // 10 seconds
     
     const mockData: MockSensorReading[] = []
