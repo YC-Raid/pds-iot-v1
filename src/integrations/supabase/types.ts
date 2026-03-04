@@ -783,6 +783,7 @@ export type Database = {
       }
     }
     Functions: {
+      aggregate_sensor_data_1min: { Args: never; Returns: undefined }
       aggregate_sensor_data_daily: { Args: never; Returns: undefined }
       aggregate_sensor_data_hourly: { Args: never; Returns: undefined }
       aggregate_sensor_data_monthly: { Args: never; Returns: undefined }
