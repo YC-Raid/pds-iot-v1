@@ -60,7 +60,13 @@ export function isDataFresh(timestamp: string, thresholdMinutes = 10): boolean {
   return diffMinutes <= thresholdMinutes;
 }
 
-export function useSensorData() {
+interface UseSensorDataOptions {
+  autoSync?: boolean;
+}
+
+let syncRDSInFlight: Promise<any> | null = null;
+
+export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
   const [sensorReadings, setSensorReadings] = useState<SensorReading[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,23 +107,35 @@ export function useSensorData() {
   };
 
   const syncRDSData = async () => {
+    if (syncRDSInFlight) {
+      return syncRDSInFlight;
+    }
+
+    syncRDSInFlight = (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('sync-rds-data');
+
+        if (error) throw error;
+
+        // Store sync time in localStorage for persistence
+        const now = new Date();
+        localStorage.setItem('lastSyncTime', now.toISOString());
+
+        // Refresh data after sync
+        await fetchSensorReadings();
+        await fetchDashboardData();
+
+        return data;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to sync RDS data');
+        throw err;
+      }
+    })();
+
     try {
-      const { data, error } = await supabase.functions.invoke('sync-rds-data');
-      
-      if (error) throw error;
-      
-      // Store sync time in localStorage for persistence
-      const now = new Date();
-      localStorage.setItem('lastSyncTime', now.toISOString());
-      
-      // Refresh data after sync
-      await fetchSensorReadings();
-      await fetchDashboardData();
-      
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sync RDS data');
-      throw err;
+      return await syncRDSInFlight;
+    } finally {
+      syncRDSInFlight = null;
     }
   };
 
@@ -393,18 +411,6 @@ export function useSensorData() {
 
     loadData();
 
-    // Perform initial sync when component mounts
-    const performInitialSync = async () => {
-      try {
-        await syncRDSData();
-      } catch (error) {
-        console.error('Initial sync failed:', error);
-      }
-    };
-
-    // Trigger initial sync after a short delay
-    const initialSyncTimeout = setTimeout(performInitialSync, 2000);
-
     // Set up real-time subscription for new sensor data
     const channel = supabase
       .channel('processed-sensor-data-changes')
@@ -424,41 +430,58 @@ export function useSensorData() {
       )
       .subscribe();
 
-    // Auto-sync every 5 minutes
-    const autoSyncInterval = setInterval(async () => {
-      try {
-        const syncStartTime = new Date().toISOString();
-        const result = await syncRDSData();
-        
-        // Store sync time even if no new records
-        localStorage.setItem('lastSyncTime', syncStartTime);
-        
-        // Show notification with sync details
-        const syncedCount = result.synced_count || 0;
-        toast({
-          title: "Data Sync Complete",
-          description: `Synced ${syncedCount} new records from AWS RDS`,
-          duration: 3000,
-        });
-      } catch (error) {
-        console.error('Auto-sync failed:', error);
-        
-        // Show error notification for failed sync
-        toast({
-          title: "Sync Failed",
-          description: "Failed to sync data from AWS RDS. Will retry in 5 minutes.",
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
-    }, 5 * 60 * 1000); // 5 minutes
+    let initialSyncTimeout: ReturnType<typeof setTimeout> | null = null;
+    let autoSyncInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (autoSync) {
+      // Perform initial sync when component mounts
+      const performInitialSync = async () => {
+        try {
+          await syncRDSData();
+        } catch (error) {
+          console.error('Initial sync failed:', error);
+        }
+      };
+
+      // Trigger initial sync after a short delay
+      initialSyncTimeout = setTimeout(performInitialSync, 2000);
+
+      // Auto-sync every 5 minutes
+      autoSyncInterval = setInterval(async () => {
+        try {
+          const syncStartTime = new Date().toISOString();
+          const result = await syncRDSData();
+
+          // Store sync time even if no new records
+          localStorage.setItem('lastSyncTime', syncStartTime);
+
+          // Show notification with sync details
+          const syncedCount = result.synced_count || 0;
+          toast({
+            title: "Data Sync Complete",
+            description: `Synced ${syncedCount} new records from AWS RDS`,
+            duration: 3000,
+          });
+        } catch (error) {
+          console.error('Auto-sync failed:', error);
+
+          // Show error notification for failed sync
+          toast({
+            title: "Sync Failed",
+            description: "Failed to sync data from AWS RDS. Will retry in 5 minutes.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+      }, 5 * 60 * 1000); // 5 minutes
+    }
 
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(autoSyncInterval);
-      clearTimeout(initialSyncTimeout);
+      if (autoSyncInterval) clearInterval(autoSyncInterval);
+      if (initialSyncTimeout) clearTimeout(initialSyncTimeout);
     };
-  }, []);
+  }, [autoSync]);
 
   return {
     sensorReadings,

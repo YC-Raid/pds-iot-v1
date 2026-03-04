@@ -22,7 +22,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { useEffect } from "react";
 
 const Dashboard = () => {
-  const { sensorReadings } = useSensorData();
+  const { sensorReadings } = useSensorData({ autoSync: true });
   const latestReading = sensorReadings[0];
   const dataIsFresh = latestReading ? isDataFresh(latestReading.recorded_at) : false;
   
