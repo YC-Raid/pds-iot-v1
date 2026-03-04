@@ -152,11 +152,11 @@ serve(async (req) => {
     const { alert_type, reading_id, door_opened_at } = validation.data;
     console.log(`[${requestId}] Processing security alert: ${alert_type}`);
 
-    // HARDCODED email addresses for debugging - bypasses auth issues
-    const emailTo = "ycfromraid@gmail.com";
+    // Use environment variable for recipient, fallback to request parameter
+    const emailTo = Deno.env.get("SECURITY_ALERT_EMAIL") || validation.data.recipient_email || "ycfromraid@gmail.com";
     const emailFrom = "onboarding@resend.dev";
     
-    console.log(`[${requestId}] Using hardcoded email - To: ${emailTo}, From: ${emailFrom}`);
+    console.log(`[${requestId}] Sending alert to configured recipient`);
 
     // Check if we've already sent this alert recently (prevent duplicates)
     const { data: existingAlert } = await supabaseClient

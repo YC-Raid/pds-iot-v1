@@ -791,6 +791,7 @@ export type Database = {
         Args: never
         Returns: {
           deleted_alerts: number
+          deleted_notifications: number
           deleted_readings: number
         }[]
       }
