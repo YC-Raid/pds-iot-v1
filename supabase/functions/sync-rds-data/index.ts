@@ -27,9 +27,21 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const publishableKey = Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+
+    if (!supabaseUrl || !serviceRoleKey || !publishableKey) {
+      console.error(`[${requestId}] Missing required Supabase environment variables`);
+      return new Response(
+        JSON.stringify({ success: false, synced_count: 0, error: 'Server configuration error', request_id: requestId } as SyncResponse),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      supabaseUrl,
+      serviceRoleKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -40,8 +52,8 @@ serve(async (req) => {
 
     // Get authorization header and verify user
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.warn(`[${requestId}] Missing authorization header`);
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.warn(`[${requestId}] Missing or invalid authorization header`);
       return new Response(
         JSON.stringify({ success: false, synced_count: 0, error: 'Unauthorized' } as SyncResponse),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -75,10 +87,26 @@ serve(async (req) => {
       );
     }
 
+    const userScopedClient = createClient(
+      supabaseUrl,
+      publishableKey,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
     console.log(`[${requestId}] Starting RDS data synchronization for admin user ${user.id}`);
 
-    // First, check RDS connection status
-    const { data: rdsInfo, error: rdsError } = await supabaseClient
+    // Call admin-protected RPCs with user JWT context so auth.uid() is available
+    const { data: rdsInfo, error: rdsError } = await userScopedClient
       .rpc('get_rds_sensor_data_info');
 
     if (rdsError) {
@@ -100,7 +128,7 @@ serve(async (req) => {
     console.log(`[${requestId}] RDS Info:`, rdsInfo);
 
     // Sync data from RDS to local tables
-    const { data: syncResult, error: syncError } = await supabaseClient
+    const { data: syncResult, error: syncError } = await userScopedClient
       .rpc('sync_sensor_data_from_rds');
 
     if (syncError) {
@@ -126,7 +154,7 @@ serve(async (req) => {
       console.log(`[${requestId}] Triggering anomaly detection for new data...`);
       
       // Update anomaly scores for recently synced data
-      await supabaseClient
+      await userScopedClient
         .from('processed_sensor_readings')
         .update({
           anomaly_score: Math.random() * 0.3, // Simple placeholder - replace with real ML
