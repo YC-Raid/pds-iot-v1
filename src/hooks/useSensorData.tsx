@@ -229,7 +229,7 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
       }
       
       if (hours <= 36) {
-        // Use hourly aggregates for 24h view
+        // Prefer hourly aggregates for 24h view, but fall back if they are stale/missing
         const { data: aggData, error: aggError } = await supabase
           .from('sensor_readings_aggregated')
           .select('*')
@@ -240,8 +240,51 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
           .limit(1000);
 
         if (aggError) throw aggError;
-        console.log(`📈 [DEBUG] Using ${aggData?.length || 0} hourly aggregated records for ${hours}h view`);
-        return (aggData || []).map(mapAggregatedToRaw);
+
+        const latestHourlyBucket = aggData?.length
+          ? new Date(aggData[aggData.length - 1].time_bucket)
+          : null;
+        const hourlyIsFresh = latestHourlyBucket
+          ? endTime.getTime() - latestHourlyBucket.getTime() <= 2 * 60 * 60 * 1000
+          : false;
+
+        if (aggData && aggData.length > 0 && hourlyIsFresh) {
+          console.log(`📈 [DEBUG] Using ${aggData.length} hourly aggregated records for ${hours}h view`);
+          return aggData.map(mapAggregatedToRaw);
+        }
+
+        console.log(
+          `⚠️ [DEBUG] Hourly aggregates ${aggData?.length ? 'stale' : 'missing'} for ${hours}h view, falling back to 1min aggregates`
+        );
+
+        const { data: minuteData, error: minuteError } = await supabase
+          .from('sensor_readings_aggregated')
+          .select('*')
+          .eq('aggregation_level', '1min')
+          .gte('time_bucket', startTime.toISOString())
+          .lte('time_bucket', endTime.toISOString())
+          .order('time_bucket', { ascending: true })
+          .limit(10000);
+
+        if (minuteError) throw minuteError;
+
+        if (minuteData && minuteData.length > 0) {
+          console.log(`📈 [DEBUG] Using ${minuteData.length} 1min aggregated records for ${hours}h view fallback`);
+          return minuteData.map(mapAggregatedToRaw);
+        }
+
+        console.log(`⚠️ [DEBUG] 1min aggregates also unavailable for ${hours}h view, falling back to raw data`);
+        const { data: rawData, error: rawError } = await supabase
+          .from('processed_sensor_readings')
+          .select('*')
+          .gte('recorded_at', startTime.toISOString())
+          .lte('recorded_at', endTime.toISOString())
+          .order('recorded_at', { ascending: true })
+          .limit(10000);
+
+        if (rawError) throw rawError;
+        console.log(`📈 [DEBUG] Using ${rawData?.length || 0} raw records for ${hours}h fallback view`);
+        return rawData || [];
       }
       
       // 7d+ → use daily aggregates
