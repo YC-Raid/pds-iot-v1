@@ -133,15 +133,10 @@ const SensorDetail = () => {
         // 7d/30d → daily aggregates
         
         if (hours === 24) {
-          // 24h view: get hourly aggregated data for today
-          console.log(`📊 [DEBUG] 24h view: fetching hourly aggregated data`);
-          data = await getSensorReadingsByTimeRange(36); // buffer for timezone coverage
-          const todayStr = formatInTimeZone(new Date(), 'Asia/Singapore', 'yyyy-MM-dd');
-          data = data.filter((r: any) => {
-            const d = new Date(r.recorded_at);
-            return formatInTimeZone(d, 'Asia/Singapore', 'yyyy-MM-dd') === todayStr;
-          });
-          console.log(`📊 [DEBUG] Today's filtered readings: ${data.length}`);
+          // 24h view: fetch a rolling 24-hour window and let chart formatting build the hour slots
+          console.log(`📊 [DEBUG] 24h view: fetching rolling 24-hour data`);
+          data = await getSensorReadingsByTimeRange(24);
+          console.log(`📊 [DEBUG] Rolling 24h readings fetched: ${data.length}`);
         } else if (hours === 1) {
           data = await getSensorReadingsByTimeRange(hours);
         } else if (hours === 168) {
@@ -183,20 +178,30 @@ const SensorDetail = () => {
             }
             
             if (sensorType === 'acceleration') {
-              // 24 hours: Group by hour (Singapore time) and average; include empty hours from 00:00 to current hour
-              const currentHourSg = parseInt(formatInTimeZone(new Date(), 'Asia/Singapore', 'HH'));
-              const hoursList = Array.from({ length: currentHourSg + 1 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
+              // 24 hours: rolling hourly slots for the last 24 hours in Singapore time
+              const nowSg = toZonedTime(new Date(), 'Asia/Singapore');
+              const slotStart = new Date(nowSg);
+              slotStart.setMinutes(0, 0, 0);
+              slotStart.setHours(slotStart.getHours() - 23);
+              const hoursList = Array.from({ length: 24 }, (_, i) => {
+                const slot = new Date(slotStart);
+                slot.setHours(slotStart.getHours() + i);
+                return formatInTimeZone(slot, 'Asia/Singapore', 'MMM d HH:00');
+              });
               const slots = new Map(hoursList.map(h => [h, { x: [] as number[], y: [] as number[], z: [] as number[], mag: [] as number[] }]));
 
               data.forEach((reading: any) => {
-                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const ax = reading.accel_x ?? reading.avg_accel_x;
+                const ay = reading.accel_y ?? reading.avg_accel_y;
+                const az = reading.accel_z ?? reading.avg_accel_z;
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'MMM d HH:00');
                 const slot = slots.get(hourLabel);
                 if (!slot) return;
-                if (reading.accel_x !== null && reading.accel_x !== undefined) slot.x.push(Number(reading.accel_x));
-                if (reading.accel_y !== null && reading.accel_y !== undefined) slot.y.push(Number(reading.accel_y));
-                if (reading.accel_z !== null && reading.accel_z !== undefined) slot.z.push(Number(reading.accel_z));
-                if (reading.accel_x != null && reading.accel_y != null && reading.accel_z != null) {
-                  slot.mag.push(calculateCorrectedAccelMagnitude(Number(reading.accel_x), Number(reading.accel_y), Number(reading.accel_z)));
+                if (ax !== null && ax !== undefined) slot.x.push(Number(ax));
+                if (ay !== null && ay !== undefined) slot.y.push(Number(ay));
+                if (az !== null && az !== undefined) slot.z.push(Number(az));
+                if (ax != null && ay != null && az != null) {
+                  slot.mag.push(calculateCorrectedAccelMagnitude(Number(ax), Number(ay), Number(az)));
                 }
               });
 
@@ -212,24 +217,32 @@ const SensorDetail = () => {
                 };
               });
 
-              console.log(`📊 [DEBUG] 24-hour acceleration data grouped into ${formatted.length} hour slots (SGT)`);
+              console.log(`📊 [DEBUG] 24-hour acceleration data grouped into ${formatted.length} rolling hour slots (SGT)`);
             } else if (sensorType === 'rotation') {
-              // 24 hours: Group by hour (Singapore time) and average for gyroscope; include empty hours from 00:00 to current hour
-              // SAME LOGIC AS ACCELEROMETER
-              const currentHourSg = parseInt(formatInTimeZone(new Date(), 'Asia/Singapore', 'HH'));
-              const hoursList = Array.from({ length: currentHourSg + 1 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
+              // 24 hours: rolling hourly slots for the last 24 hours in Singapore time
+              const nowSg = toZonedTime(new Date(), 'Asia/Singapore');
+              const slotStart = new Date(nowSg);
+              slotStart.setMinutes(0, 0, 0);
+              slotStart.setHours(slotStart.getHours() - 23);
+              const hoursList = Array.from({ length: 24 }, (_, i) => {
+                const slot = new Date(slotStart);
+                slot.setHours(slotStart.getHours() + i);
+                return formatInTimeZone(slot, 'Asia/Singapore', 'MMM d HH:00');
+              });
               const slots = new Map(hoursList.map(h => [h, { x: [] as number[], y: [] as number[], z: [] as number[], mag: [] as number[] }]));
 
               data.forEach((reading: any) => {
-                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const gx = reading.gyro_x ?? reading.avg_gyro_x;
+                const gy = reading.gyro_y ?? reading.avg_gyro_y;
+                const gz = reading.gyro_z ?? reading.avg_gyro_z;
+                const gm = reading.gyro_magnitude ?? reading.avg_gyro_magnitude;
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'MMM d HH:00');
                 const slot = slots.get(hourLabel);
                 if (!slot) return;
-                if (reading.gyro_x !== null && reading.gyro_x !== undefined) slot.x.push(Number(reading.gyro_x));
-                if (reading.gyro_y !== null && reading.gyro_y !== undefined) slot.y.push(Number(reading.gyro_y));
-                if (reading.gyro_z !== null && reading.gyro_z !== undefined) slot.z.push(Number(reading.gyro_z));
-                if (reading.gyro_magnitude !== null && reading.gyro_magnitude !== undefined) {
-                  slot.mag.push(Number(reading.gyro_magnitude));
-                }
+                if (gx !== null && gx !== undefined) slot.x.push(Number(gx));
+                if (gy !== null && gy !== undefined) slot.y.push(Number(gy));
+                if (gz !== null && gz !== undefined) slot.z.push(Number(gz));
+                if (gm !== null && gm !== undefined) slot.mag.push(Number(gm));
               });
 
               formatted = hoursList.map((timeLabel) => {
@@ -244,11 +257,18 @@ const SensorDetail = () => {
                 };
               });
 
-              console.log(`📊 [DEBUG] 24-hour gyroscope data grouped into ${formatted.length} hour slots (SGT)`);
+              console.log(`📊 [DEBUG] 24-hour gyroscope data grouped into ${formatted.length} rolling hour slots (SGT)`);
             } else {
-              // 24 hours: Group by hour (Singapore time) and average for single-value sensors; include empty hours
-              const currentHourSg = parseInt(formatInTimeZone(new Date(), 'Asia/Singapore', 'HH'));
-              const hoursList = Array.from({ length: currentHourSg + 1 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
+              // 24 hours: rolling hourly slots for single-value sensors in Singapore time
+              const nowSg = toZonedTime(new Date(), 'Asia/Singapore');
+              const slotStart = new Date(nowSg);
+              slotStart.setMinutes(0, 0, 0);
+              slotStart.setHours(slotStart.getHours() - 23);
+              const hoursList = Array.from({ length: 24 }, (_, i) => {
+                const slot = new Date(slotStart);
+                slot.setHours(slotStart.getHours() + i);
+                return formatInTimeZone(slot, 'Asia/Singapore', 'MMM d HH:00');
+              });
               const slots = new Map(hoursList.map(h => [h, { values: [] as number[] }]));
               const dataKey = {
                 'temperature': 'temperature',
@@ -260,12 +280,12 @@ const SensorDetail = () => {
                 'pm10': 'pm10'
               }[sensorType] || 'temperature';
 
-              console.log(`📊 [DEBUG] Processing 24-hour ${sensorType} data using column: ${dataKey} (SGT hourly)`);
+              console.log(`📊 [DEBUG] Processing rolling 24-hour ${sensorType} data using column: ${dataKey}`);
 
               data.forEach((reading: any) => {
                 const value = reading[dataKey];
                 if (value === null || value === undefined || isNaN(Number(value))) return;
-                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'MMM d HH:00');
                 const slot = slots.get(hourLabel);
                 if (!slot) return;
                 slot.values.push(Number(value));
@@ -276,11 +296,12 @@ const SensorDetail = () => {
                 const g = slots.get(timeLabel)!;
                 return {
                   time: timeLabel,
-                  value: avg(g.values)
+                  value: avg(g.values),
+                  timestamp: timeLabel
                 };
               });
 
-              console.log(`📊 [DEBUG] 24-hour ${sensorType} data grouped into ${formatted.length} hour slots (SGT)`);
+              console.log(`📊 [DEBUG] 24-hour ${sensorType} data grouped into ${formatted.length} rolling hour slots (SGT)`);
               console.log(`📊 [DEBUG] Sample hour data:`, formatted.slice(0, 3));
             }
             } else if (sensorType === 'acceleration') {
