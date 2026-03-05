@@ -204,13 +204,14 @@ const SensorDetail = () => {
         // 7d/30d → daily aggregates
         
         if (hours === 24) {
-          // 24h view: today only in Singapore time, with a larger fetch window so hourly/minutely fallbacks still cover the full day
+          // 24h view: today only in Singapore time, with a larger fetch window so hourly/minutely/raw fallbacks still cover the full day
           console.log(`📊 [DEBUG] 24h view: fetching today-only data (SGT)`);
           data = await getSensorReadingsByTimeRange(36);
           const todayStr = formatInTimeZone(new Date(), 'Asia/Singapore', 'yyyy-MM-dd');
           data = data.filter((reading: any) => {
             const readingTimestamp = reading.recorded_at || reading.time_bucket;
-            return formatInTimeZone(new Date(readingTimestamp), 'Asia/Singapore', 'yyyy-MM-dd') === todayStr;
+            if (!readingTimestamp) return false;
+            return formatInTimeZone(readingTimestamp, 'Asia/Singapore', 'yyyy-MM-dd') === todayStr;
           });
           console.log(`📊 [DEBUG] Today-only readings fetched: ${data.length}`);
         } else if (hours === 1) {

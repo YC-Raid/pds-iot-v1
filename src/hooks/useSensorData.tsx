@@ -185,6 +185,33 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
     aggregation_level: row.aggregation_level,
   });
 
+  const fetchAllProcessedReadingsInRange = useCallback(async (startIso: string, endIso: string) => {
+    const pageSize = 1000;
+    let from = 0;
+    let hasMore = true;
+    const allRows: any[] = [];
+
+    while (hasMore) {
+      const to = from + pageSize - 1;
+      const { data, error } = await supabase
+        .from('processed_sensor_readings')
+        .select('*')
+        .gte('recorded_at', startIso)
+        .lte('recorded_at', endIso)
+        .order('recorded_at', { ascending: true })
+        .range(from, to);
+
+      if (error) throw error;
+
+      const rows = data || [];
+      allRows.push(...rows);
+      hasMore = rows.length === pageSize;
+      from += pageSize;
+    }
+
+    return allRows;
+  }, []);
+
   const getSensorReadingsByTimeRange = useCallback(async (hours: number = 24) => {
     try {
       const endTime = new Date();
@@ -199,15 +226,12 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
       
       if (hours <= 2) {
         // Try raw data first
-        const { data: rawData, error: rawError } = await supabase
-          .from('processed_sensor_readings')
-          .select('*')
-          .gte('recorded_at', startTime.toISOString())
-          .lte('recorded_at', endTime.toISOString())
-          .order('recorded_at', { ascending: true })
-          .limit(10000);
+        const rawData = await fetchAllProcessedReadingsInRange(
+          startTime.toISOString(),
+          endTime.toISOString()
+        );
 
-        if (!rawError && rawData && rawData.length >= 10) {
+        if (rawData && rawData.length >= 10) {
           console.log(`📈 [DEBUG] Using ${rawData.length} raw records for ${hours}h view`);
           return rawData;
         }
@@ -268,21 +292,26 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
 
         if (minuteError) throw minuteError;
 
-        if (minuteData && minuteData.length > 0) {
+        const latestMinuteBucket = minuteData?.length
+          ? new Date(minuteData[minuteData.length - 1].time_bucket)
+          : null;
+        const minuteIsFresh = latestMinuteBucket
+          ? endTime.getTime() - latestMinuteBucket.getTime() <= 2 * 60 * 60 * 1000
+          : false;
+
+        if (minuteData && minuteData.length > 0 && minuteIsFresh) {
           console.log(`📈 [DEBUG] Using ${minuteData.length} 1min aggregated records for ${hours}h view fallback`);
           return minuteData.map(mapAggregatedToRaw);
         }
 
-        console.log(`⚠️ [DEBUG] 1min aggregates also unavailable for ${hours}h view, falling back to raw data`);
-        const { data: rawData, error: rawError } = await supabase
-          .from('processed_sensor_readings')
-          .select('*')
-          .gte('recorded_at', startTime.toISOString())
-          .lte('recorded_at', endTime.toISOString())
-          .order('recorded_at', { ascending: true })
-          .limit(10000);
+        console.log(
+          `⚠️ [DEBUG] 1min aggregates ${minuteData?.length ? 'stale' : 'missing'} for ${hours}h view, falling back to raw data`
+        );
+        const rawData = await fetchAllProcessedReadingsInRange(
+          startTime.toISOString(),
+          endTime.toISOString()
+        );
 
-        if (rawError) throw rawError;
         console.log(`📈 [DEBUG] Using ${rawData?.length || 0} raw records for ${hours}h fallback view`);
         return rawData || [];
       }
@@ -304,7 +333,7 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
       console.error('Failed to fetch time range data:', err);
       return [];
     }
-  }, []);
+  }, [fetchAllProcessedReadingsInRange]);
 
   const getHourlyAveragedData = useCallback(async (sensorType: string): Promise<Array<{hour_bucket: string, avg_value: number, reading_count: number}>> => {
     try {
