@@ -20,6 +20,77 @@ const calculateCorrectedAccelMagnitude = (x: number, y: number, z: number) => {
   return Math.sqrt(x * x + correctedY * correctedY + z * z);
 };
 
+const normalizeColumnName = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[_\s]+/g, " ")
+    .trim();
+
+const findNumericFieldValue = (record: Record<string, any>, possibleKeys: string[]) => {
+  const entries = Object.entries(record ?? {});
+
+  for (const key of possibleKeys) {
+    const value = record?.[key];
+    if (value !== null && value !== undefined && !Number.isNaN(Number(value))) {
+      return Number(value);
+    }
+  }
+
+  const normalizedEntries = entries.map(([key, value]) => ({
+    key,
+    normalizedKey: normalizeColumnName(key),
+    value,
+  }));
+
+  const normalizedTargets = possibleKeys.map(normalizeColumnName);
+
+  for (const target of normalizedTargets) {
+    const exact = normalizedEntries.find((entry) => entry.normalizedKey === target);
+    if (exact && exact.value !== null && exact.value !== undefined && !Number.isNaN(Number(exact.value))) {
+      return Number(exact.value);
+    }
+  }
+
+  for (const target of normalizedTargets) {
+    const startsWith = normalizedEntries.find((entry) => entry.normalizedKey.startsWith(target));
+    if (startsWith && startsWith.value !== null && startsWith.value !== undefined && !Number.isNaN(Number(startsWith.value))) {
+      return Number(startsWith.value);
+    }
+  }
+
+  for (const target of normalizedTargets) {
+    const contains = normalizedEntries.find((entry) => entry.normalizedKey.includes(target));
+    if (contains && contains.value !== null && contains.value !== undefined && !Number.isNaN(Number(contains.value))) {
+      return Number(contains.value);
+    }
+  }
+
+  return null;
+};
+
+const getResolvedSensorValue = (reading: Record<string, any>, sensorType: string) => {
+  const sensorKeyMap: Record<string, string[]> = {
+    temperature: ['temperature', 'avg_temperature'],
+    humidity: ['humidity', 'avg_humidity'],
+    pressure: ['pressure', 'avg_pressure'],
+    gas: ['gas_resistance', 'avg_gas_resistance'],
+    pm1: ['pm1_0', 'avg_pm1_0'],
+    pm25: ['pm2_5', 'avg_pm2_5'],
+    pm10: ['pm10', 'avg_pm10'],
+  };
+
+  return findNumericFieldValue(reading, sensorKeyMap[sensorType] ?? ['temperature', 'avg_temperature']);
+};
+
+const getResolvedAxisValue = (reading: Record<string, any>, axisType: 'accel' | 'gyro', axis: 'x' | 'y' | 'z' | 'magnitude') => {
+  return findNumericFieldValue(reading, [
+    `${axisType}_${axis}`,
+    `avg_${axisType}_${axis}`,
+    `${axisType} ${axis}`,
+    `avg ${axisType} ${axis}`,
+  ]);
+};
+
 const SensorDetail = () => {
   const { sensorType } = useParams();
   const navigate = useNavigate();
@@ -196,17 +267,17 @@ const SensorDetail = () => {
               const slots = new Map(hoursList.map(h => [h, { x: [] as number[], y: [] as number[], z: [] as number[], mag: [] as number[] }]));
 
               data.forEach((reading: any) => {
-                const ax = reading.accel_x ?? reading.avg_accel_x;
-                const ay = reading.accel_y ?? reading.avg_accel_y;
-                const az = reading.accel_z ?? reading.avg_accel_z;
-                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const ax = getResolvedAxisValue(reading, 'accel', 'x');
+                const ay = getResolvedAxisValue(reading, 'accel', 'y');
+                const az = getResolvedAxisValue(reading, 'accel', 'z');
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at || reading.time_bucket), 'Asia/Singapore', 'HH:00');
                 const slot = slots.get(hourLabel);
                 if (!slot) return;
-                if (ax !== null && ax !== undefined) slot.x.push(Number(ax));
-                if (ay !== null && ay !== undefined) slot.y.push(Number(ay));
-                if (az !== null && az !== undefined) slot.z.push(Number(az));
-                if (ax != null && ay != null && az != null) {
-                  slot.mag.push(calculateCorrectedAccelMagnitude(Number(ax), Number(ay), Number(az)));
+                if (ax !== null) slot.x.push(ax);
+                if (ay !== null) slot.y.push(ay);
+                if (az !== null) slot.z.push(az);
+                if (ax !== null && ay !== null && az !== null) {
+                  slot.mag.push(calculateCorrectedAccelMagnitude(ax, ay, az));
                 }
               });
 
@@ -237,17 +308,17 @@ const SensorDetail = () => {
               const slots = new Map(hoursList.map(h => [h, { x: [] as number[], y: [] as number[], z: [] as number[], mag: [] as number[] }]));
 
               data.forEach((reading: any) => {
-                const gx = reading.gyro_x ?? reading.avg_gyro_x;
-                const gy = reading.gyro_y ?? reading.avg_gyro_y;
-                const gz = reading.gyro_z ?? reading.avg_gyro_z;
-                const gm = reading.gyro_magnitude ?? reading.avg_gyro_magnitude;
-                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const gx = getResolvedAxisValue(reading, 'gyro', 'x');
+                const gy = getResolvedAxisValue(reading, 'gyro', 'y');
+                const gz = getResolvedAxisValue(reading, 'gyro', 'z');
+                const gm = getResolvedAxisValue(reading, 'gyro', 'magnitude');
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at || reading.time_bucket), 'Asia/Singapore', 'HH:00');
                 const slot = slots.get(hourLabel);
                 if (!slot) return;
-                if (gx !== null && gx !== undefined) slot.x.push(Number(gx));
-                if (gy !== null && gy !== undefined) slot.y.push(Number(gy));
-                if (gz !== null && gz !== undefined) slot.z.push(Number(gz));
-                if (gm !== null && gm !== undefined) slot.mag.push(Number(gm));
+                if (gx !== null) slot.x.push(gx);
+                if (gy !== null) slot.y.push(gy);
+                if (gz !== null) slot.z.push(gz);
+                if (gm !== null) slot.mag.push(gm);
               });
 
               formatted = hoursList.map((timeLabel) => {
@@ -288,12 +359,12 @@ const SensorDetail = () => {
               console.log(`📊 [DEBUG] Processing today-only 24-hour ${sensorType} data using column: ${dataKey}`);
 
               data.forEach((reading: any) => {
-                const value = reading[dataKey];
-                if (value === null || value === undefined || isNaN(Number(value))) return;
-                const hourLabel = formatInTimeZone(new Date(reading.recorded_at), 'Asia/Singapore', 'HH:00');
+                const value = getResolvedSensorValue(reading, sensorType);
+                if (value === null) return;
+                const hourLabel = formatInTimeZone(new Date(reading.recorded_at || reading.time_bucket), 'Asia/Singapore', 'HH:00');
                 const slot = slots.get(hourLabel);
                 if (!slot) return;
-                slot.values.push(Number(value));
+                slot.values.push(value);
               });
 
               const avg = (arr: number[]) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null);
@@ -374,13 +445,13 @@ const SensorDetail = () => {
                   hourGroups.set(singaporeHour, { x: [], y: [], z: [], mag: [], timestamp: reading.recorded_at });
                 }
                 const group = hourGroups.get(singaporeHour);
-                group.x.push(Number(reading.accel_x || reading.avg_accel_x) || 0);
-                group.y.push(Number(reading.accel_y || reading.avg_accel_y) || 0);
-                group.z.push(Number(reading.accel_z || reading.avg_accel_z) || 0);
+                const accelX = getResolvedAxisValue(reading, 'accel', 'x') ?? 0;
+                const accelY = getResolvedAxisValue(reading, 'accel', 'y') ?? 0;
+                const accelZ = getResolvedAxisValue(reading, 'accel', 'z') ?? 0;
+                group.x.push(accelX);
+                group.y.push(accelY);
+                group.z.push(accelZ);
                 // Calculate corrected magnitude from individual components instead of raw magnitude
-                const accelX = Number(reading.accel_x || reading.avg_accel_x) || 0;
-                const accelY = Number(reading.accel_y || reading.avg_accel_y) || 0;
-                const accelZ = Number(reading.accel_z || reading.avg_accel_z) || 0;
                 const correctedMag = calculateCorrectedAccelMagnitude(accelX, accelY, accelZ);
                 group.mag.push(correctedMag);
               });
@@ -542,13 +613,13 @@ const SensorDetail = () => {
                   dayGroups.set(dayLabel, { x: [], y: [], z: [], mag: [], sortKey: new Date(readingDate.getFullYear(), readingDate.getMonth(), readingDate.getDate()).getTime() });
                 }
                 const group = dayGroups.get(dayLabel);
-                const gx = Number(reading.gyro_x || reading.avg_gyro_x) || 0;
-                const gy = Number(reading.gyro_y || reading.avg_gyro_y) || 0;
-                const gz = Number(reading.gyro_z || reading.avg_gyro_z) || 0;
+                const gx = getResolvedAxisValue(reading, 'gyro', 'x') ?? 0;
+                const gy = getResolvedAxisValue(reading, 'gyro', 'y') ?? 0;
+                const gz = getResolvedAxisValue(reading, 'gyro', 'z') ?? 0;
                 group.x.push(gx);
                 group.y.push(gy);
                 group.z.push(gz);
-                group.mag.push(Number(reading.gyro_magnitude || reading.avg_gyro_magnitude) || 0);
+                group.mag.push(getResolvedAxisValue(reading, 'gyro', 'magnitude') ?? 0);
               });
               
               formatted = Array.from(dayGroups.entries()).map(([timeLabel, group]) => ({
@@ -791,8 +862,8 @@ const SensorDetail = () => {
                       
                       return {
                         time: timeLabel,
-                        value: Number(reading[dataKey] || reading[`avg_${dataKey}`]) || 0,
-                        timestamp: reading.recorded_at || reading.utc_timestamp
+                        value: getResolvedSensorValue(reading, sensorType) ?? 0,
+                        timestamp: reading.recorded_at || reading.utc_timestamp || reading.time_bucket
                       };
                     });
                   }
