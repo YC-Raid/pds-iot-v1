@@ -56,7 +56,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.sync-rds-data]
-verify_jwt = true
+verify_jwt = false
 
 [functions.get-singapore-aqi]
 verify_jwt = false
