@@ -129,7 +129,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
           <div className="flex gap-2">
             <Button 
               onClick={handleSync} 
-              disabled={isSyncing || isPopulating}
+              disabled={isSyncing}
               size="sm"
               variant="outline"
             >
@@ -139,24 +139,6 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
                 <RotateCw className="h-4 w-4 mr-2" />
               )}
               {isSyncing ? 'Syncing...' : 'Sync Now'}
-            </Button>
-            <Button 
-              onClick={handlePopulateMockData} 
-              disabled={isSyncing || isPopulating}
-              size="sm"
-              variant="default"
-            >
-              {isPopulating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  {populateProgress ? `Day ${populateProgress.current}/${populateProgress.total}` : 'Starting...'}
-                </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4 mr-2" />
-                  Generate Full Mock Dataset
-                </>
-              )}
             </Button>
           </div>
         </div>
