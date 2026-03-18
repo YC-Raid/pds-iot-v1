@@ -531,7 +531,6 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
     fetchSensorReadings,
     fetchDashboardData,
     syncRDSData,
-    populateMockData,
     getSensorReadingsByTimeRange,
     getHourlyAveragedData,
     getAnomalousSensorReadings,

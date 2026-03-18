@@ -246,27 +246,17 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
           </div>
         </div>
 
-        {/* Next Steps */}
+        {/* Pipeline Status */}
         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
           <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
             <div className="text-sm">
-              <span className="font-medium text-blue-900 dark:text-blue-100">Data Migration Completed</span>
+              <span className="font-medium text-blue-900 dark:text-blue-100">Live Data Pipeline Active</span>
               <p className="text-blue-700 dark:text-blue-300 mt-1">
-                ✅ Original sensor data restored to processed_sensor_readings<br/>
-                ✅ Mock dataset table created as mock_sensor_dataset<br/>
-                🎯 "Generate Full Mock Dataset" creates complete Sep 1-15 data with your specs
+                ✅ Sensor data flowing from AWS RDS via FDW<br/>
+                ✅ Automated aggregation (1min → hourly → daily → weekly → monthly)<br/>
+                ✅ Anomaly detection & alert monitoring enabled
               </p>
-              {populateResult && (
-                <div className="mt-2 text-xs">
-                  <Badge variant="default" className="mr-2">
-                    {populateResult.details?.total_records} mock records generated
-                  </Badge>
-                  <Badge variant="outline">
-                    Sep 1-15, 2025 (10s intervals)
-                  </Badge>
-                </div>
-              )}
             </div>
           </div>
         </div>
