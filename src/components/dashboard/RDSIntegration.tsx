@@ -45,69 +45,6 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
     }
   };
 
-
-  const handlePopulateMockData = async () => {
-    setIsPopulating(true);
-    setPopulateProgress({ current: 0, total: 15 });
-    
-    try {
-      let totalRecords = 0;
-      
-      // Generate data for Sep 1-15, 2025 (15 days)
-      const startDate = new Date('2025-09-01T00:00:00.000Z');
-      const totalDays = 15;
-      
-      for (let day = 0; day < totalDays; day++) {
-        const dayStart = new Date(startDate);
-        dayStart.setUTCDate(startDate.getUTCDate() + day);
-        
-        const dayEnd = new Date(dayStart);
-        dayEnd.setUTCHours(23, 59, 50, 0);
-        
-        setPopulateProgress({ current: day + 1, total: totalDays });
-        
-        // Call the edge function for this day
-        const { data, error } = await supabase.functions.invoke('populate-mock-data', {
-          body: {
-            startDate: dayStart.toISOString(),
-            endDate: dayEnd.toISOString(),
-            clearExisting: day === 0 // Only clear on first day
-          }
-        });
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (data?.details?.total_records) {
-          totalRecords += data.details.total_records;
-        }
-        
-        // Small delay between batches to prevent overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      setPopulateResult({
-        success: true,
-        details: { total_records: totalRecords }
-      });
-      
-      toast({
-        title: "Mock Data Populated Successfully",
-        description: `Generated ${totalRecords.toLocaleString()} sensor readings for Sep 1-15, 2025`,
-      });
-    } catch (error) {
-      toast({
-        title: "Population Failed", 
-        description: error instanceof Error ? error.message : "Failed to populate mock data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPopulating(false);
-      setPopulateProgress(null);
-    }
-  };
-
   const totalReadings = dashboardData.reduce((sum, location) => sum + location.total_readings, 0);
   const avgAnomalyScore = dashboardData.length > 0 
     ? dashboardData.reduce((sum, location) => sum + location.avg_anomaly_score, 0) / dashboardData.length 
