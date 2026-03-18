@@ -3,8 +3,12 @@ import { SEO } from "@/components/seo/SEO";
 import SettingsTab from "@/components/settings/SettingsTab";
 import DataRetentionMonitor from "@/components/settings/DataRetentionMonitor";
 import { RDSIntegration } from "@/components/dashboard/RDSIntegration";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function Settings() {
+  const { profile } = useUserProfile();
+  const isAdmin = profile?.role === 'admin';
+
   return (
     <>
       <SEO title="Hangar Guardian — Settings" description="Manage notification preferences and user roles." />
@@ -12,8 +16,8 @@ export default function Settings() {
         <Card className="p-0 border-0 shadow-none">
           <SettingsTab />
         </Card>
-        <DataRetentionMonitor />
-        <RDSIntegration />
+        {isAdmin && <DataRetentionMonitor />}
+        {isAdmin && <RDSIntegration />}
       </div>
     </>
   );
