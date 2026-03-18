@@ -13,15 +13,12 @@ interface RDSIntegrationProps {
 
 export function RDSIntegration({ className }: RDSIntegrationProps) {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isPopulating, setIsPopulating] = useState(false);
-  const [populateProgress, setPopulateProgress] = useState<{current: number, total: number} | null>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
-  const [populateResult, setPopulateResult] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(() => {
     const stored = localStorage.getItem('lastSyncTime');
     return stored ? new Date(stored) : null;
   });
-  const { dashboardData, syncRDSData, populateMockData } = useSensorData();
+  const { dashboardData, syncRDSData } = useSensorData();
   const { toast } = useToast();
 
   const handleSync = async () => {
