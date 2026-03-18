@@ -140,17 +140,6 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
   };
 
 
-  const populateMockData = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('populate-mock-data');
-      if (error) throw error;
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to populate mock data');
-      throw err;
-    }
-  };
-
   // Helper: map aggregated row to raw-like format for compatibility with existing chart formatting
   const mapAggregatedToRaw = (row: any) => ({
     recorded_at: row.time_bucket,
@@ -531,7 +520,6 @@ export function useSensorData({ autoSync = false }: UseSensorDataOptions = {}) {
     fetchSensorReadings,
     fetchDashboardData,
     syncRDSData,
-    populateMockData,
     getSensorReadingsByTimeRange,
     getHourlyAveragedData,
     getAnomalousSensorReadings,

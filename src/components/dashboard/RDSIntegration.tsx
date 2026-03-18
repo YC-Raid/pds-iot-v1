@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Database, RotateCw, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Database, RotateCw, CheckCircle, RefreshCw } from 'lucide-react';
 import { useSensorData } from '@/hooks/useSensorData';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface RDSIntegrationProps {
   className?: string;
@@ -13,15 +12,12 @@ interface RDSIntegrationProps {
 
 export function RDSIntegration({ className }: RDSIntegrationProps) {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isPopulating, setIsPopulating] = useState(false);
-  const [populateProgress, setPopulateProgress] = useState<{current: number, total: number} | null>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
-  const [populateResult, setPopulateResult] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(() => {
     const stored = localStorage.getItem('lastSyncTime');
     return stored ? new Date(stored) : null;
   });
-  const { dashboardData, syncRDSData, populateMockData } = useSensorData();
+  const { dashboardData, syncRDSData } = useSensorData();
   const { toast } = useToast();
 
   const handleSync = async () => {
@@ -48,69 +44,6 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
     }
   };
 
-
-  const handlePopulateMockData = async () => {
-    setIsPopulating(true);
-    setPopulateProgress({ current: 0, total: 15 });
-    
-    try {
-      let totalRecords = 0;
-      
-      // Generate data for Sep 1-15, 2025 (15 days)
-      const startDate = new Date('2025-09-01T00:00:00.000Z');
-      const totalDays = 15;
-      
-      for (let day = 0; day < totalDays; day++) {
-        const dayStart = new Date(startDate);
-        dayStart.setUTCDate(startDate.getUTCDate() + day);
-        
-        const dayEnd = new Date(dayStart);
-        dayEnd.setUTCHours(23, 59, 50, 0);
-        
-        setPopulateProgress({ current: day + 1, total: totalDays });
-        
-        // Call the edge function for this day
-        const { data, error } = await supabase.functions.invoke('populate-mock-data', {
-          body: {
-            startDate: dayStart.toISOString(),
-            endDate: dayEnd.toISOString(),
-            clearExisting: day === 0 // Only clear on first day
-          }
-        });
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (data?.details?.total_records) {
-          totalRecords += data.details.total_records;
-        }
-        
-        // Small delay between batches to prevent overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      setPopulateResult({
-        success: true,
-        details: { total_records: totalRecords }
-      });
-      
-      toast({
-        title: "Mock Data Populated Successfully",
-        description: `Generated ${totalRecords.toLocaleString()} sensor readings for Sep 1-15, 2025`,
-      });
-    } catch (error) {
-      toast({
-        title: "Population Failed", 
-        description: error instanceof Error ? error.message : "Failed to populate mock data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPopulating(false);
-      setPopulateProgress(null);
-    }
-  };
-
   const totalReadings = dashboardData.reduce((sum, location) => sum + location.total_readings, 0);
   const avgAnomalyScore = dashboardData.length > 0 
     ? dashboardData.reduce((sum, location) => sum + location.avg_anomaly_score, 0) / dashboardData.length 
@@ -132,7 +65,7 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
           <div className="flex gap-2">
             <Button 
               onClick={handleSync} 
-              disabled={isSyncing || isPopulating}
+              disabled={isSyncing}
               size="sm"
               variant="outline"
             >
@@ -142,24 +75,6 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
                 <RotateCw className="h-4 w-4 mr-2" />
               )}
               {isSyncing ? 'Syncing...' : 'Sync Now'}
-            </Button>
-            <Button 
-              onClick={handlePopulateMockData} 
-              disabled={isSyncing || isPopulating}
-              size="sm"
-              variant="default"
-            >
-              {isPopulating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  {populateProgress ? `Day ${populateProgress.current}/${populateProgress.total}` : 'Starting...'}
-                </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4 mr-2" />
-                  Generate Full Mock Dataset
-                </>
-              )}
             </Button>
           </div>
         </div>
@@ -267,27 +182,17 @@ export function RDSIntegration({ className }: RDSIntegrationProps) {
           </div>
         </div>
 
-        {/* Next Steps */}
+        {/* Pipeline Status */}
         <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
           <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
             <div className="text-sm">
-              <span className="font-medium text-blue-900 dark:text-blue-100">Data Migration Completed</span>
+              <span className="font-medium text-blue-900 dark:text-blue-100">Live Data Pipeline Active</span>
               <p className="text-blue-700 dark:text-blue-300 mt-1">
-                ✅ Original sensor data restored to processed_sensor_readings<br/>
-                ✅ Mock dataset table created as mock_sensor_dataset<br/>
-                🎯 "Generate Full Mock Dataset" creates complete Sep 1-15 data with your specs
+                ✅ Sensor data flowing from AWS RDS via FDW<br/>
+                ✅ Automated aggregation (1min → hourly → daily → weekly → monthly)<br/>
+                ✅ Anomaly detection & alert monitoring enabled
               </p>
-              {populateResult && (
-                <div className="mt-2 text-xs">
-                  <Badge variant="default" className="mr-2">
-                    {populateResult.details?.total_records} mock records generated
-                  </Badge>
-                  <Badge variant="outline">
-                    Sep 1-15, 2025 (10s intervals)
-                  </Badge>
-                </div>
-              )}
             </div>
           </div>
         </div>
